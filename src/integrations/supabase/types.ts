@@ -204,6 +204,203 @@ export type Database = {
         }
         Relationships: []
       }
+      conversations: {
+        Row: {
+          assigned_to: string | null
+          business_id: string
+          channel_id: string | null
+          channel_type: Database["public"]["Enums"]["channel_type"]
+          created_at: string
+          customer_id: string
+          id: string
+          last_message_at: string | null
+          last_message_preview: string | null
+          metadata: Json | null
+          priority: Database["public"]["Enums"]["priority_level"]
+          status: Database["public"]["Enums"]["conversation_status"]
+          subject: string | null
+          tags: string[] | null
+          unread_count: number | null
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          business_id: string
+          channel_id?: string | null
+          channel_type: Database["public"]["Enums"]["channel_type"]
+          created_at?: string
+          customer_id: string
+          id?: string
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          metadata?: Json | null
+          priority?: Database["public"]["Enums"]["priority_level"]
+          status?: Database["public"]["Enums"]["conversation_status"]
+          subject?: string | null
+          tags?: string[] | null
+          unread_count?: number | null
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          business_id?: string
+          channel_id?: string | null
+          channel_type?: Database["public"]["Enums"]["channel_type"]
+          created_at?: string
+          customer_id?: string
+          id?: string
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          metadata?: Json | null
+          priority?: Database["public"]["Enums"]["priority_level"]
+          status?: Database["public"]["Enums"]["conversation_status"]
+          subject?: string | null
+          tags?: string[] | null
+          unread_count?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "social_channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customers: {
+        Row: {
+          avatar_url: string | null
+          business_id: string
+          channel_type: Database["public"]["Enums"]["channel_type"]
+          created_at: string
+          email: string | null
+          external_id: string | null
+          first_contact_at: string | null
+          id: string
+          last_contact_at: string | null
+          metadata: Json | null
+          name: string | null
+          notes: string | null
+          phone: string | null
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          business_id: string
+          channel_type: Database["public"]["Enums"]["channel_type"]
+          created_at?: string
+          email?: string | null
+          external_id?: string | null
+          first_contact_at?: string | null
+          id?: string
+          last_contact_at?: string | null
+          metadata?: Json | null
+          name?: string | null
+          notes?: string | null
+          phone?: string | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          business_id?: string
+          channel_type?: Database["public"]["Enums"]["channel_type"]
+          created_at?: string
+          email?: string | null
+          external_id?: string | null
+          first_contact_at?: string | null
+          id?: string
+          last_contact_at?: string | null
+          metadata?: Json | null
+          name?: string | null
+          notes?: string | null
+          phone?: string | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          attachments: Json | null
+          content: string | null
+          content_type: Database["public"]["Enums"]["content_type"]
+          conversation_id: string
+          created_at: string
+          external_id: string | null
+          id: string
+          is_internal: boolean | null
+          metadata: Json | null
+          sender_id: string | null
+          sender_type: Database["public"]["Enums"]["sender_type"]
+          status: Database["public"]["Enums"]["message_status"]
+          updated_at: string
+        }
+        Insert: {
+          attachments?: Json | null
+          content?: string | null
+          content_type?: Database["public"]["Enums"]["content_type"]
+          conversation_id: string
+          created_at?: string
+          external_id?: string | null
+          id?: string
+          is_internal?: boolean | null
+          metadata?: Json | null
+          sender_id?: string | null
+          sender_type: Database["public"]["Enums"]["sender_type"]
+          status?: Database["public"]["Enums"]["message_status"]
+          updated_at?: string
+        }
+        Update: {
+          attachments?: Json | null
+          content?: string | null
+          content_type?: Database["public"]["Enums"]["content_type"]
+          conversation_id?: string
+          created_at?: string
+          external_id?: string | null
+          id?: string
+          is_internal?: boolean | null
+          metadata?: Json | null
+          sender_id?: string | null
+          sender_type?: Database["public"]["Enums"]["sender_type"]
+          status?: Database["public"]["Enums"]["message_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -260,6 +457,53 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      quick_replies: {
+        Row: {
+          business_id: string
+          category: string | null
+          content: string
+          created_at: string
+          id: string
+          is_active: boolean | null
+          shortcut: string | null
+          title: string
+          updated_at: string
+          usage_count: number | null
+        }
+        Insert: {
+          business_id: string
+          category?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          shortcut?: string | null
+          title: string
+          updated_at?: string
+          usage_count?: number | null
+        }
+        Update: {
+          business_id?: string
+          category?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          shortcut?: string | null
+          title?: string
+          updated_at?: string
+          usage_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quick_replies_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       social_channels: {
         Row: {
@@ -438,6 +682,18 @@ export type Database = {
         | "telegram"
         | "sms"
         | "email"
+      content_type:
+        | "text"
+        | "image"
+        | "audio"
+        | "video"
+        | "document"
+        | "location"
+        | "template"
+      conversation_status: "open" | "pending" | "resolved" | "archived"
+      message_status: "pending" | "sent" | "delivered" | "read" | "failed"
+      priority_level: "low" | "normal" | "high" | "urgent"
+      sender_type: "customer" | "agent" | "system" | "bot"
       verification_status: "pending" | "verified" | "rejected" | "expired"
     }
     CompositeTypes: {
@@ -594,6 +850,19 @@ export const Constants = {
         "sms",
         "email",
       ],
+      content_type: [
+        "text",
+        "image",
+        "audio",
+        "video",
+        "document",
+        "location",
+        "template",
+      ],
+      conversation_status: ["open", "pending", "resolved", "archived"],
+      message_status: ["pending", "sent", "delivered", "read", "failed"],
+      priority_level: ["low", "normal", "high", "urgent"],
+      sender_type: ["customer", "agent", "system", "bot"],
       verification_status: ["pending", "verified", "rejected", "expired"],
     },
   },
