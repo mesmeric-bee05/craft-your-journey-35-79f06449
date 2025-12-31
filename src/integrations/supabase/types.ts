@@ -14,6 +14,65 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_content: {
+        Row: {
+          business_id: string
+          content: string
+          content_type: Database["public"]["Enums"]["ai_content_type"]
+          created_at: string
+          id: string
+          is_used: boolean | null
+          language: string | null
+          metadata: Json | null
+          platform: string | null
+          prompt: string
+          rating: number | null
+          tokens_used: number | null
+          tone: string | null
+          user_id: string
+        }
+        Insert: {
+          business_id: string
+          content: string
+          content_type?: Database["public"]["Enums"]["ai_content_type"]
+          created_at?: string
+          id?: string
+          is_used?: boolean | null
+          language?: string | null
+          metadata?: Json | null
+          platform?: string | null
+          prompt: string
+          rating?: number | null
+          tokens_used?: number | null
+          tone?: string | null
+          user_id: string
+        }
+        Update: {
+          business_id?: string
+          content?: string
+          content_type?: Database["public"]["Enums"]["ai_content_type"]
+          created_at?: string
+          id?: string
+          is_used?: boolean | null
+          language?: string | null
+          metadata?: Json | null
+          platform?: string | null
+          prompt?: string
+          rating?: number | null
+          tokens_used?: number | null
+          tone?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_content_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: string
@@ -203,6 +262,141 @@ export type Database = {
           website?: string | null
         }
         Relationships: []
+      }
+      calendar_events: {
+        Row: {
+          all_day: boolean | null
+          business_id: string
+          color: string | null
+          created_at: string
+          description: string | null
+          end_date: string | null
+          event_type: Database["public"]["Enums"]["calendar_event_type"]
+          id: string
+          linked_campaign_id: string | null
+          linked_post_id: string | null
+          metadata: Json | null
+          start_date: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          all_day?: boolean | null
+          business_id: string
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          event_type?: Database["public"]["Enums"]["calendar_event_type"]
+          id?: string
+          linked_campaign_id?: string | null
+          linked_post_id?: string | null
+          metadata?: Json | null
+          start_date: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          all_day?: boolean | null
+          business_id?: string
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          event_type?: Database["public"]["Enums"]["calendar_event_type"]
+          id?: string
+          linked_campaign_id?: string | null
+          linked_post_id?: string | null
+          metadata?: Json | null
+          start_date?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_events_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_events_linked_campaign_id_fkey"
+            columns: ["linked_campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_events_linked_post_id_fkey"
+            columns: ["linked_post_id"]
+            isOneToOne: false
+            referencedRelation: "scheduled_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaigns: {
+        Row: {
+          budget: number | null
+          business_id: string
+          created_at: string
+          created_by: string
+          currency: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          metrics: Json | null
+          name: string
+          start_date: string | null
+          status: Database["public"]["Enums"]["campaign_status"]
+          target_channels: Database["public"]["Enums"]["channel_type"][] | null
+          type: Database["public"]["Enums"]["campaign_type"]
+          updated_at: string
+        }
+        Insert: {
+          budget?: number | null
+          business_id: string
+          created_at?: string
+          created_by: string
+          currency?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          metrics?: Json | null
+          name: string
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["campaign_status"]
+          target_channels?: Database["public"]["Enums"]["channel_type"][] | null
+          type?: Database["public"]["Enums"]["campaign_type"]
+          updated_at?: string
+        }
+        Update: {
+          budget?: number | null
+          business_id?: string
+          created_at?: string
+          created_by?: string
+          currency?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          metrics?: Json | null
+          name?: string
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["campaign_status"]
+          target_channels?: Database["public"]["Enums"]["channel_type"][] | null
+          type?: Database["public"]["Enums"]["campaign_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       conversations: {
         Row: {
@@ -505,6 +699,85 @@ export type Database = {
           },
         ]
       }
+      scheduled_posts: {
+        Row: {
+          business_id: string
+          campaign_id: string | null
+          channel_id: string | null
+          channel_type: Database["public"]["Enums"]["channel_type"]
+          content: string
+          created_at: string
+          created_by: string
+          error_message: string | null
+          external_post_id: string | null
+          id: string
+          media_urls: string[] | null
+          metrics: Json | null
+          published_at: string | null
+          scheduled_for: string
+          status: Database["public"]["Enums"]["post_status"]
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          campaign_id?: string | null
+          channel_id?: string | null
+          channel_type: Database["public"]["Enums"]["channel_type"]
+          content: string
+          created_at?: string
+          created_by: string
+          error_message?: string | null
+          external_post_id?: string | null
+          id?: string
+          media_urls?: string[] | null
+          metrics?: Json | null
+          published_at?: string | null
+          scheduled_for: string
+          status?: Database["public"]["Enums"]["post_status"]
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          campaign_id?: string | null
+          channel_id?: string | null
+          channel_type?: Database["public"]["Enums"]["channel_type"]
+          content?: string
+          created_at?: string
+          created_by?: string
+          error_message?: string | null
+          external_post_id?: string | null
+          id?: string
+          media_urls?: string[] | null
+          metrics?: Json | null
+          published_at?: string | null
+          scheduled_for?: string
+          status?: Database["public"]["Enums"]["post_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_posts_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_posts_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scheduled_posts_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "social_channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       social_channels: {
         Row: {
           access_token: string | null
@@ -657,6 +930,14 @@ export type Database = {
       }
     }
     Enums: {
+      ai_content_type:
+        | "caption"
+        | "description"
+        | "email"
+        | "sms"
+        | "blog"
+        | "ad_copy"
+        | "hashtags"
       app_role:
         | "admin"
         | "moderator"
@@ -673,6 +954,20 @@ export type Database = {
         | "healthcare"
         | "education"
         | "other"
+      calendar_event_type:
+        | "post"
+        | "campaign"
+        | "reminder"
+        | "holiday"
+        | "custom"
+      campaign_status:
+        | "draft"
+        | "scheduled"
+        | "active"
+        | "paused"
+        | "completed"
+        | "cancelled"
+      campaign_type: "social" | "email" | "sms" | "multi_channel"
       channel_type:
         | "whatsapp"
         | "instagram"
@@ -692,6 +987,7 @@ export type Database = {
         | "template"
       conversation_status: "open" | "pending" | "resolved" | "archived"
       message_status: "pending" | "sent" | "delivered" | "read" | "failed"
+      post_status: "draft" | "scheduled" | "publishing" | "published" | "failed"
       priority_level: "low" | "normal" | "high" | "urgent"
       sender_type: "customer" | "agent" | "system" | "bot"
       verification_status: "pending" | "verified" | "rejected" | "expired"
@@ -822,6 +1118,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      ai_content_type: [
+        "caption",
+        "description",
+        "email",
+        "sms",
+        "blog",
+        "ad_copy",
+        "hashtags",
+      ],
       app_role: [
         "admin",
         "moderator",
@@ -840,6 +1145,22 @@ export const Constants = {
         "education",
         "other",
       ],
+      calendar_event_type: [
+        "post",
+        "campaign",
+        "reminder",
+        "holiday",
+        "custom",
+      ],
+      campaign_status: [
+        "draft",
+        "scheduled",
+        "active",
+        "paused",
+        "completed",
+        "cancelled",
+      ],
+      campaign_type: ["social", "email", "sms", "multi_channel"],
       channel_type: [
         "whatsapp",
         "instagram",
@@ -861,6 +1182,7 @@ export const Constants = {
       ],
       conversation_status: ["open", "pending", "resolved", "archived"],
       message_status: ["pending", "sent", "delivered", "read", "failed"],
+      post_status: ["draft", "scheduled", "publishing", "published", "failed"],
       priority_level: ["low", "normal", "high", "urgent"],
       sender_type: ["customer", "agent", "system", "bot"],
       verification_status: ["pending", "verified", "rejected", "expired"],
