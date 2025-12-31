@@ -133,6 +133,8 @@ export type Database = {
           longitude: number | null
           metadata: Json | null
           name: string
+          onboarding_completed: boolean | null
+          onboarding_step: number | null
           owner_id: string
           phone: string | null
           registration_number: string | null
@@ -160,6 +162,8 @@ export type Database = {
           longitude?: number | null
           metadata?: Json | null
           name: string
+          onboarding_completed?: boolean | null
+          onboarding_step?: number | null
           owner_id: string
           phone?: string | null
           registration_number?: string | null
@@ -187,6 +191,8 @@ export type Database = {
           longitude?: number | null
           metadata?: Json | null
           name?: string
+          onboarding_completed?: boolean | null
+          onboarding_step?: number | null
           owner_id?: string
           phone?: string | null
           registration_number?: string | null
@@ -310,6 +316,56 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "social_channels_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_invitations: {
+        Row: {
+          accepted_at: string | null
+          business_id: string
+          created_at: string
+          email: string
+          expires_at: string | null
+          id: string
+          invited_by: string
+          role: string
+          status: string
+          token: string | null
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          business_id: string
+          created_at?: string
+          email: string
+          expires_at?: string | null
+          id?: string
+          invited_by: string
+          role?: string
+          status?: string
+          token?: string | null
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          business_id?: string
+          created_at?: string
+          email?: string
+          expires_at?: string | null
+          id?: string
+          invited_by?: string
+          role?: string
+          status?: string
+          token?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_invitations_business_id_fkey"
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
