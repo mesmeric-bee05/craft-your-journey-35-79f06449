@@ -1,0 +1,282 @@
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon } from 'lucide-react';
+import { useCalendarEvents, CalendarEvent } from '@/hooks/useCalendarEvents';
+import { 
+  format, 
+  startOfMonth, 
+  endOfMonth, 
+  eachDayOfInterval, 
+  isSameMonth, 
+  isSameDay, 
+  addMonths, 
+  subMonths,
+  startOfWeek,
+  endOfWeek
+} from 'date-fns';
+
+const eventColors: Record<string, string> = {
+  post: 'bg-blue-500',
+  campaign: 'bg-purple-500',
+  reminder: 'bg-yellow-500',
+  holiday: 'bg-red-500',
+  custom: 'bg-green-500',
+};
+
+export function ContentCalendar() {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+  
+  const { events, isLoading, createEvent, updateEvent, deleteEvent } = useCalendarEvents(currentDate);
+
+  const monthStart = startOfMonth(currentDate);
+  const monthEnd = endOfMonth(currentDate);
+  const calendarStart = startOfWeek(monthStart);
+  const calendarEnd = endOfWeek(monthEnd);
+  const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+
+  const getEventsForDay = (day: Date) => {
+    return events.filter(event => isSameDay(new Date(event.start_date), day));
+  };
+
+  const handleDayClick = (day: Date) => {
+    setSelectedDate(day);
+    setEditingEvent(null);
+    setShowEventModal(true);
+  };
+
+  const handleEventClick = (event: CalendarEvent, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingEvent(event);
+    setSelectedDate(new Date(event.start_date));
+    setShowEventModal(true);
+  };
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between pb-4">
+        <CardTitle className="flex items-center gap-2">
+          <CalendarIcon className="h-5 w-5" />
+          Content Calendar
+        </CardTitle>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={() => setCurrentDate(subMonths(currentDate, 1))}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="font-medium min-w-[140px] text-center">
+            {format(currentDate, 'MMMM yyyy')}
+          </span>
+          <Button variant="outline" size="icon" onClick={() => setCurrentDate(addMonths(currentDate, 1))}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button onClick={() => { setSelectedDate(new Date()); setEditingEvent(null); setShowEventModal(true); }}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Event
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {/* Calendar Grid */}
+        <div className="grid grid-cols-7 gap-1">
+          {/* Week day headers */}
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+            <div key={day} className="text-center text-sm font-medium text-muted-foreground py-2">
+              {day}
+            </div>
+          ))}
+          
+          {/* Calendar days */}
+          {days.map((day, idx) => {
+            const dayEvents = getEventsForDay(day);
+            const isToday = isSameDay(day, new Date());
+            const isCurrentMonth = isSameMonth(day, currentDate);
+            
+            return (
+              <div
+                key={idx}
+                onClick={() => handleDayClick(day)}
+                className={`
+                  min-h-[100px] border rounded-lg p-1 cursor-pointer transition-colors
+                  ${isCurrentMonth ? 'bg-background' : 'bg-muted/30'}
+                  ${isToday ? 'border-primary' : 'border-border'}
+                  hover:bg-accent/50
+                `}
+              >
+                <div className={`text-sm font-medium mb-1 ${isToday ? 'text-primary' : isCurrentMonth ? '' : 'text-muted-foreground'}`}>
+                  {format(day, 'd')}
+                </div>
+                <div className="space-y-1">
+                  {dayEvents.slice(0, 3).map(event => (
+                    <div
+                      key={event.id}
+                      onClick={(e) => handleEventClick(event, e)}
+                      className={`text-xs px-1.5 py-0.5 rounded truncate text-white ${eventColors[event.event_type]}`}
+                    >
+                      {event.title}
+                    </div>
+                  ))}
+                  {dayEvents.length > 3 && (
+                    <div className="text-xs text-muted-foreground">
+                      +{dayEvents.length - 3} more
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Legend */}
+        <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t">
+          {Object.entries(eventColors).map(([type, color]) => (
+            <div key={type} className="flex items-center gap-2">
+              <div className={`w-3 h-3 rounded ${color}`} />
+              <span className="text-sm capitalize">{type}</span>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+
+      {/* Event Modal */}
+      <EventModal
+        open={showEventModal}
+        onClose={() => { setShowEventModal(false); setEditingEvent(null); }}
+        selectedDate={selectedDate}
+        editingEvent={editingEvent}
+        onSave={async (data) => {
+          if (editingEvent) {
+            await updateEvent.mutateAsync({ id: editingEvent.id, ...data });
+          } else {
+            await createEvent.mutateAsync(data);
+          }
+          setShowEventModal(false);
+          setEditingEvent(null);
+        }}
+        onDelete={async () => {
+          if (editingEvent) {
+            await deleteEvent.mutateAsync(editingEvent.id);
+            setShowEventModal(false);
+            setEditingEvent(null);
+          }
+        }}
+      />
+    </Card>
+  );
+}
+
+interface EventModalProps {
+  open: boolean;
+  onClose: () => void;
+  selectedDate: Date | null;
+  editingEvent: CalendarEvent | null;
+  onSave: (data: Partial<CalendarEvent>) => Promise<void>;
+  onDelete: () => Promise<void>;
+}
+
+function EventModal({ open, onClose, selectedDate, editingEvent, onSave, onDelete }: EventModalProps) {
+  const [title, setTitle] = useState(editingEvent?.title || '');
+  const [description, setDescription] = useState(editingEvent?.description || '');
+  const [eventType, setEventType] = useState<CalendarEvent['event_type']>(editingEvent?.event_type || 'custom');
+  const [allDay, setAllDay] = useState(editingEvent?.all_day ?? true);
+  const [saving, setSaving] = useState(false);
+
+  // Reset form when modal opens with new data
+  useState(() => {
+    if (open) {
+      setTitle(editingEvent?.title || '');
+      setDescription(editingEvent?.description || '');
+      setEventType(editingEvent?.event_type || 'custom');
+      setAllDay(editingEvent?.all_day ?? true);
+    }
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await onSave({
+        title,
+        description: description || null,
+        event_type: eventType,
+        all_day: allDay,
+        start_date: selectedDate?.toISOString() || new Date().toISOString(),
+        color: eventColors[eventType]?.replace('bg-', '#').replace('-500', '') || '#3B82F6',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>
+            {editingEvent ? 'Edit Event' : 'New Event'}
+            {selectedDate && ` - ${format(selectedDate, 'MMM d, yyyy')}`}
+          </DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label>Title *</Label>
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Event title"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Description</Label>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Optional description"
+              rows={3}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Event Type</Label>
+            <Select value={eventType} onValueChange={(v) => setEventType(v as CalendarEvent['event_type'])}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="post">Post</SelectItem>
+                <SelectItem value="campaign">Campaign</SelectItem>
+                <SelectItem value="reminder">Reminder</SelectItem>
+                <SelectItem value="holiday">Holiday</SelectItem>
+                <SelectItem value="custom">Custom</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <DialogFooter className="gap-2">
+            {editingEvent && (
+              <Button type="button" variant="destructive" onClick={onDelete}>
+                Delete
+              </Button>
+            )}
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saving}>
+              {editingEvent ? 'Update' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}

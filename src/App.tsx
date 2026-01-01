@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import Onboarding from "./pages/Onboarding";
 import Inbox from "./pages/Inbox";
 import Marketing from "./pages/Marketing";
+import Talent from "./pages/Talent";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -59,6 +60,16 @@ const App = () => (
                 <RequireAuth>
                   <RequireOnboarding>
                     <Marketing />
+                  </RequireOnboarding>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/talent"
+              element={
+                <RequireAuth>
+                  <RequireOnboarding>
+                    <Talent />
                   </RequireOnboarding>
                 </RequireAuth>
               }
