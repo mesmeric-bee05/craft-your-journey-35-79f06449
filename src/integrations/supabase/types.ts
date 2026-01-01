@@ -398,6 +398,85 @@ export type Database = {
           },
         ]
       }
+      contracts: {
+        Row: {
+          business_id: string
+          created_at: string
+          currency: string | null
+          description: string | null
+          end_date: string | null
+          freelancer_id: string
+          id: string
+          job_id: string | null
+          metadata: Json | null
+          rate: number
+          rate_type: Database["public"]["Enums"]["budget_type"] | null
+          start_date: string | null
+          status: Database["public"]["Enums"]["contract_status"] | null
+          title: string
+          total_paid: number | null
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          currency?: string | null
+          description?: string | null
+          end_date?: string | null
+          freelancer_id: string
+          id?: string
+          job_id?: string | null
+          metadata?: Json | null
+          rate: number
+          rate_type?: Database["public"]["Enums"]["budget_type"] | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["contract_status"] | null
+          title: string
+          total_paid?: number | null
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          currency?: string | null
+          description?: string | null
+          end_date?: string | null
+          freelancer_id?: string
+          id?: string
+          job_id?: string | null
+          metadata?: Json | null
+          rate?: number
+          rate_type?: Database["public"]["Enums"]["budget_type"] | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["contract_status"] | null
+          title?: string
+          total_paid?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_freelancer_id_fkey"
+            columns: ["freelancer_id"]
+            isOneToOne: false
+            referencedRelation: "freelancer_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "job_postings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversations: {
         Row: {
           assigned_to: string | null
@@ -532,6 +611,211 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "customers_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      freelancer_profiles: {
+        Row: {
+          availability:
+            | Database["public"]["Enums"]["availability_status"]
+            | null
+          bio: string | null
+          business_id: string | null
+          created_at: string
+          currency: string | null
+          experience_years: number | null
+          headline: string | null
+          hourly_rate: number | null
+          id: string
+          is_verified: boolean | null
+          languages: string[] | null
+          location: string | null
+          metadata: Json | null
+          portfolio_urls: string[] | null
+          rating: number | null
+          skills: string[] | null
+          total_jobs: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          availability?:
+            | Database["public"]["Enums"]["availability_status"]
+            | null
+          bio?: string | null
+          business_id?: string | null
+          created_at?: string
+          currency?: string | null
+          experience_years?: number | null
+          headline?: string | null
+          hourly_rate?: number | null
+          id?: string
+          is_verified?: boolean | null
+          languages?: string[] | null
+          location?: string | null
+          metadata?: Json | null
+          portfolio_urls?: string[] | null
+          rating?: number | null
+          skills?: string[] | null
+          total_jobs?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          availability?:
+            | Database["public"]["Enums"]["availability_status"]
+            | null
+          bio?: string | null
+          business_id?: string | null
+          created_at?: string
+          currency?: string | null
+          experience_years?: number | null
+          headline?: string | null
+          hourly_rate?: number | null
+          id?: string
+          is_verified?: boolean | null
+          languages?: string[] | null
+          location?: string | null
+          metadata?: Json | null
+          portfolio_urls?: string[] | null
+          rating?: number | null
+          skills?: string[] | null
+          total_jobs?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "freelancer_profiles_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_applications: {
+        Row: {
+          attachments: Json | null
+          cover_letter: string | null
+          created_at: string
+          freelancer_id: string
+          id: string
+          job_id: string
+          proposed_duration: string | null
+          proposed_rate: number | null
+          status: Database["public"]["Enums"]["application_status"] | null
+          updated_at: string
+        }
+        Insert: {
+          attachments?: Json | null
+          cover_letter?: string | null
+          created_at?: string
+          freelancer_id: string
+          id?: string
+          job_id: string
+          proposed_duration?: string | null
+          proposed_rate?: number | null
+          status?: Database["public"]["Enums"]["application_status"] | null
+          updated_at?: string
+        }
+        Update: {
+          attachments?: Json | null
+          cover_letter?: string | null
+          created_at?: string
+          freelancer_id?: string
+          id?: string
+          job_id?: string
+          proposed_duration?: string | null
+          proposed_rate?: number | null
+          status?: Database["public"]["Enums"]["application_status"] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_applications_freelancer_id_fkey"
+            columns: ["freelancer_id"]
+            isOneToOne: false
+            referencedRelation: "freelancer_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_applications_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "job_postings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_postings: {
+        Row: {
+          applications_count: number | null
+          budget_max: number | null
+          budget_min: number | null
+          budget_type: Database["public"]["Enums"]["budget_type"] | null
+          business_id: string
+          created_at: string
+          created_by: string
+          currency: string | null
+          deadline: string | null
+          description: string | null
+          duration: string | null
+          id: string
+          job_type: Database["public"]["Enums"]["job_type"] | null
+          location_type: Database["public"]["Enums"]["location_type"] | null
+          skills_required: string[] | null
+          status: Database["public"]["Enums"]["job_status"] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          applications_count?: number | null
+          budget_max?: number | null
+          budget_min?: number | null
+          budget_type?: Database["public"]["Enums"]["budget_type"] | null
+          business_id: string
+          created_at?: string
+          created_by: string
+          currency?: string | null
+          deadline?: string | null
+          description?: string | null
+          duration?: string | null
+          id?: string
+          job_type?: Database["public"]["Enums"]["job_type"] | null
+          location_type?: Database["public"]["Enums"]["location_type"] | null
+          skills_required?: string[] | null
+          status?: Database["public"]["Enums"]["job_status"] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          applications_count?: number | null
+          budget_max?: number | null
+          budget_min?: number | null
+          budget_type?: Database["public"]["Enums"]["budget_type"] | null
+          business_id?: string
+          created_at?: string
+          created_by?: string
+          currency?: string | null
+          deadline?: string | null
+          description?: string | null
+          duration?: string | null
+          id?: string
+          job_type?: Database["public"]["Enums"]["job_type"] | null
+          location_type?: Database["public"]["Enums"]["location_type"] | null
+          skills_required?: string[] | null
+          status?: Database["public"]["Enums"]["job_status"] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_postings_business_id_fkey"
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
@@ -695,6 +979,47 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reviews: {
+        Row: {
+          comment: string | null
+          contract_id: string
+          created_at: string
+          id: string
+          rating: number
+          review_type: Database["public"]["Enums"]["review_type"]
+          reviewee_id: string
+          reviewer_id: string
+        }
+        Insert: {
+          comment?: string | null
+          contract_id: string
+          created_at?: string
+          id?: string
+          rating: number
+          review_type: Database["public"]["Enums"]["review_type"]
+          reviewee_id: string
+          reviewer_id: string
+        }
+        Update: {
+          comment?: string | null
+          contract_id?: string
+          created_at?: string
+          id?: string
+          rating?: number
+          review_type?: Database["public"]["Enums"]["review_type"]
+          reviewee_id?: string
+          reviewer_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
             referencedColumns: ["id"]
           },
         ]
@@ -944,6 +1269,14 @@ export type Database = {
         | "business_owner"
         | "team_member"
         | "freelancer"
+      application_status:
+        | "pending"
+        | "shortlisted"
+        | "accepted"
+        | "rejected"
+        | "withdrawn"
+      availability_status: "available" | "busy" | "unavailable"
+      budget_type: "fixed" | "hourly"
       business_type:
         | "retail"
         | "services"
@@ -985,10 +1318,20 @@ export type Database = {
         | "document"
         | "location"
         | "template"
+      contract_status:
+        | "pending"
+        | "active"
+        | "completed"
+        | "cancelled"
+        | "disputed"
       conversation_status: "open" | "pending" | "resolved" | "archived"
+      job_status: "draft" | "open" | "in_progress" | "completed" | "cancelled"
+      job_type: "one_time" | "ongoing" | "full_time" | "part_time"
+      location_type: "remote" | "onsite" | "hybrid"
       message_status: "pending" | "sent" | "delivered" | "read" | "failed"
       post_status: "draft" | "scheduled" | "publishing" | "published" | "failed"
       priority_level: "low" | "normal" | "high" | "urgent"
+      review_type: "client_to_freelancer" | "freelancer_to_client"
       sender_type: "customer" | "agent" | "system" | "bot"
       verification_status: "pending" | "verified" | "rejected" | "expired"
     }
@@ -1134,6 +1477,15 @@ export const Constants = {
         "team_member",
         "freelancer",
       ],
+      application_status: [
+        "pending",
+        "shortlisted",
+        "accepted",
+        "rejected",
+        "withdrawn",
+      ],
+      availability_status: ["available", "busy", "unavailable"],
+      budget_type: ["fixed", "hourly"],
       business_type: [
         "retail",
         "services",
@@ -1180,10 +1532,21 @@ export const Constants = {
         "location",
         "template",
       ],
+      contract_status: [
+        "pending",
+        "active",
+        "completed",
+        "cancelled",
+        "disputed",
+      ],
       conversation_status: ["open", "pending", "resolved", "archived"],
+      job_status: ["draft", "open", "in_progress", "completed", "cancelled"],
+      job_type: ["one_time", "ongoing", "full_time", "part_time"],
+      location_type: ["remote", "onsite", "hybrid"],
       message_status: ["pending", "sent", "delivered", "read", "failed"],
       post_status: ["draft", "scheduled", "publishing", "published", "failed"],
       priority_level: ["low", "normal", "high", "urgent"],
+      review_type: ["client_to_freelancer", "freelancer_to_client"],
       sender_type: ["customer", "agent", "system", "bot"],
       verification_status: ["pending", "verified", "rejected", "expired"],
     },
