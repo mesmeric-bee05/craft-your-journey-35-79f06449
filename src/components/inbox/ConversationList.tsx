@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Search, Filter, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -24,6 +23,9 @@ interface ConversationListProps {
   onFilterStatus: (status: Conversation['status'] | 'all') => void;
   onFilterChannel: (channel: string | 'all') => void;
   activeFilters: { status: string; channel: string };
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
+  searching?: boolean;
 }
 
 const statusOptions = [
@@ -52,20 +54,37 @@ export function ConversationList({
   onFilterStatus,
   onFilterChannel,
   activeFilters,
+  searchQuery,
+  onSearchChange,
+  searching,
 }: ConversationListProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const filteredConversations = conversations.filter((conv) => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      conv.customer?.name?.toLowerCase().includes(query) ||
-      conv.customer?.email?.toLowerCase().includes(query) ||
-      conv.last_message_preview?.toLowerCase().includes(query)
-    );
-  });
-
   return (
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="p-4 border-b border-border space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Inbox</h2>
+          <Button size="sm" className="gap-1">
+            <Plus className="w-4 h-4" />
+            New
+          </Button>
+        </div>
+
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search conversations..."
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="pl-9"
+          />
+          {searching && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+        </div>
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="p-4 border-b border-border space-y-3">

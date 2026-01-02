@@ -1,14 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon, GripVertical } from 'lucide-react';
 import { useCalendarEvents, CalendarEvent } from '@/hooks/useCalendarEvents';
+import { useToast } from '@/hooks/use-toast';
 import { 
   format, 
   startOfMonth, 
@@ -31,10 +31,13 @@ const eventColors: Record<string, string> = {
 };
 
 export function ContentCalendar() {
+  const { toast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showEventModal, setShowEventModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+  const [draggingEvent, setDraggingEvent] = useState<CalendarEvent | null>(null);
+  const [dragOverDate, setDragOverDate] = useState<Date | null>(null);
   
   const { events, isLoading, createEvent, updateEvent, deleteEvent } = useCalendarEvents(currentDate);
 
@@ -61,6 +64,78 @@ export function ContentCalendar() {
     setShowEventModal(true);
   };
 
+  // Drag and Drop handlers
+  const handleDragStart = (e: React.DragEvent, event: CalendarEvent) => {
+    e.stopPropagation();
+    setDraggingEvent(event);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', event.id);
+    // Add a custom drag image
+    const target = e.target as HTMLElement;
+    if (target) {
+      target.style.opacity = '0.5';
+    }
+  };
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    setDraggingEvent(null);
+    setDragOverDate(null);
+    const target = e.target as HTMLElement;
+    if (target) {
+      target.style.opacity = '1';
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent, day: Date) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (!dragOverDate || !isSameDay(dragOverDate, day)) {
+      setDragOverDate(day);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    const target = e.currentTarget as HTMLElement;
+    const relatedTarget = e.relatedTarget as HTMLElement;
+    if (!target.contains(relatedTarget)) {
+      setDragOverDate(null);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetDay: Date) => {
+    e.preventDefault();
+    setDragOverDate(null);
+
+    if (!draggingEvent) return;
+
+    const sourceDay = new Date(draggingEvent.start_date);
+    if (isSameDay(sourceDay, targetDay)) {
+      setDraggingEvent(null);
+      return;
+    }
+
+    try {
+      await updateEvent.mutateAsync({
+        id: draggingEvent.id,
+        start_date: targetDay.toISOString(),
+        end_date: draggingEvent.end_date 
+          ? new Date(new Date(draggingEvent.end_date).getTime() + (targetDay.getTime() - sourceDay.getTime())).toISOString()
+          : null,
+      });
+      toast({ 
+        title: 'Event rescheduled',
+        description: `"${draggingEvent.title}" moved to ${format(targetDay, 'MMM d, yyyy')}`,
+      });
+    } catch (error) {
+      toast({ 
+        title: 'Failed to reschedule event',
+        variant: 'destructive',
+      });
+    }
+
+    setDraggingEvent(null);
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-4">
@@ -85,6 +160,12 @@ export function ContentCalendar() {
         </div>
       </CardHeader>
       <CardContent>
+        {/* Drag hint */}
+        <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
+          <GripVertical className="h-4 w-4" />
+          <span>Drag events to reschedule them</span>
+        </div>
+
         {/* Calendar Grid */}
         <div className="grid grid-cols-7 gap-1">
           {/* Week day headers */}
@@ -99,15 +180,20 @@ export function ContentCalendar() {
             const dayEvents = getEventsForDay(day);
             const isToday = isSameDay(day, new Date());
             const isCurrentMonth = isSameMonth(day, currentDate);
+            const isDragOver = dragOverDate && isSameDay(day, dragOverDate);
             
             return (
               <div
                 key={idx}
                 onClick={() => handleDayClick(day)}
+                onDragOver={(e) => handleDragOver(e, day)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, day)}
                 className={`
-                  min-h-[100px] border rounded-lg p-1 cursor-pointer transition-colors
+                  min-h-[100px] border rounded-lg p-1 cursor-pointer transition-all
                   ${isCurrentMonth ? 'bg-background' : 'bg-muted/30'}
                   ${isToday ? 'border-primary' : 'border-border'}
+                  ${isDragOver ? 'bg-primary/10 border-primary border-dashed scale-[1.02]' : ''}
                   hover:bg-accent/50
                 `}
               >
@@ -118,8 +204,17 @@ export function ContentCalendar() {
                   {dayEvents.slice(0, 3).map(event => (
                     <div
                       key={event.id}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, event)}
+                      onDragEnd={handleDragEnd}
                       onClick={(e) => handleEventClick(event, e)}
-                      className={`text-xs px-1.5 py-0.5 rounded truncate text-white ${eventColors[event.event_type]}`}
+                      className={`
+                        text-xs px-1.5 py-0.5 rounded truncate text-white cursor-grab active:cursor-grabbing
+                        ${eventColors[event.event_type]}
+                        ${draggingEvent?.id === event.id ? 'opacity-50' : 'opacity-100'}
+                        hover:ring-2 hover:ring-offset-1 hover:ring-primary/50
+                        transition-all
+                      `}
                     >
                       {event.title}
                     </div>
@@ -183,21 +278,21 @@ interface EventModalProps {
 }
 
 function EventModal({ open, onClose, selectedDate, editingEvent, onSave, onDelete }: EventModalProps) {
-  const [title, setTitle] = useState(editingEvent?.title || '');
-  const [description, setDescription] = useState(editingEvent?.description || '');
-  const [eventType, setEventType] = useState<CalendarEvent['event_type']>(editingEvent?.event_type || 'custom');
-  const [allDay, setAllDay] = useState(editingEvent?.all_day ?? true);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [eventType, setEventType] = useState<CalendarEvent['event_type']>('custom');
+  const [allDay, setAllDay] = useState(true);
   const [saving, setSaving] = useState(false);
 
   // Reset form when modal opens with new data
-  useState(() => {
+  useEffect(() => {
     if (open) {
       setTitle(editingEvent?.title || '');
       setDescription(editingEvent?.description || '');
       setEventType(editingEvent?.event_type || 'custom');
       setAllDay(editingEvent?.all_day ?? true);
     }
-  });
+  }, [open, editingEvent]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
