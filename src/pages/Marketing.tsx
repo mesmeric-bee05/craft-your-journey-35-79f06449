@@ -9,11 +9,12 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Sparkles, Copy, Check, Star, Clock, Loader2 } from 'lucide-react';
+import { Sparkles, Copy, Check, Star, Clock, Loader2, Calendar } from 'lucide-react';
 import { useAIContent, AIContent } from '@/hooks/useAIContent';
 import { useCampaigns } from '@/hooks/useCampaigns';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { ContentCalendar } from '@/components/marketing/ContentCalendar';
 
 export default function Marketing() {
   const { contentHistory, generating, generateContent, rateContent, markAsUsed } = useAIContent();
@@ -66,6 +67,10 @@ export default function Marketing() {
             <TabsTrigger value="generate">AI Generator</TabsTrigger>
             <TabsTrigger value="history">Content History</TabsTrigger>
             <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
+            <TabsTrigger value="calendar" className="gap-2">
+              <Calendar className="w-4 h-4" />
+              Calendar
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="generate" className="space-y-6">
@@ -251,6 +256,10 @@ export default function Marketing() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="calendar">
+            <ContentCalendar />
           </TabsContent>
         </Tabs>
       </div>

@@ -18,6 +18,7 @@ export default function Inbox() {
     filterByStatus,
     filterByChannel,
     activeFilters,
+    refetch,
   } = useConversations();
 
   const [showCustomerDetails, setShowCustomerDetails] = useState(true);
@@ -61,7 +62,7 @@ export default function Inbox() {
               onStatusChange={updateConversationStatus}
             />
           ) : (
-            <InboxEmptyState />
+            <InboxEmptyState onDataSeeded={refetch} />
           )}
         </div>
 
