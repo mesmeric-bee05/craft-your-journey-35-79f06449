@@ -1,1 +1,10 @@
 project_id = "vgmbvbajgqzuhjgbrrld"
+
+[functions.generate-content]
+verify_jwt = false
+
+[functions.suggest-reply]
+verify_jwt = false
+
+[functions.seed-inbox-data]
+verify_jwt = false
