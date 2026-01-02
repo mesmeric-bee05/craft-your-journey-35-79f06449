@@ -1236,6 +1236,60 @@ export type Database = {
         }
         Relationships: []
       }
+      user_settings: {
+        Row: {
+          compact_mode: boolean | null
+          created_at: string | null
+          email_notifications: boolean | null
+          id: string
+          notification_sound: boolean | null
+          notify_campaign_updates: boolean | null
+          notify_new_message: boolean | null
+          notify_new_order: boolean | null
+          notify_team_activity: boolean | null
+          notify_weekly_digest: boolean | null
+          push_notifications: boolean | null
+          sms_notifications: boolean | null
+          theme: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          compact_mode?: boolean | null
+          created_at?: string | null
+          email_notifications?: boolean | null
+          id?: string
+          notification_sound?: boolean | null
+          notify_campaign_updates?: boolean | null
+          notify_new_message?: boolean | null
+          notify_new_order?: boolean | null
+          notify_team_activity?: boolean | null
+          notify_weekly_digest?: boolean | null
+          push_notifications?: boolean | null
+          sms_notifications?: boolean | null
+          theme?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          compact_mode?: boolean | null
+          created_at?: string | null
+          email_notifications?: boolean | null
+          id?: string
+          notification_sound?: boolean | null
+          notify_campaign_updates?: boolean | null
+          notify_new_message?: boolean | null
+          notify_new_order?: boolean | null
+          notify_team_activity?: boolean | null
+          notify_weekly_digest?: boolean | null
+          push_notifications?: boolean | null
+          sms_notifications?: boolean | null
+          theme?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

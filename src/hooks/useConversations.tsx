@@ -44,6 +44,9 @@ interface UseConversationsReturn {
   filterByStatus: (status: Conversation['status'] | 'all') => void;
   filterByChannel: (channel: string | 'all') => void;
   activeFilters: { status: string; channel: string };
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  searching: boolean;
 }
 
 export function useConversations(): UseConversationsReturn {
@@ -52,10 +55,25 @@ export function useConversations(): UseConversationsReturn {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [filteredConversations, setFilteredConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [activeFilters, setActiveFilters] = useState({ status: 'all', channel: 'all' });
+  const [searchQuery, setSearchQueryState] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
 
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const setSearchQuery = (query: string) => {
+    setSearchQueryState(query);
+    if (query) setSearching(true);
+  };
   const fetchConversations = useCallback(async () => {
     if (!business?.id) {
       setLoading(false);
@@ -190,5 +208,8 @@ export function useConversations(): UseConversationsReturn {
     filterByStatus,
     filterByChannel,
     activeFilters,
+    searchQuery,
+    setSearchQuery,
+    searching,
   };
 }

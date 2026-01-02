@@ -19,6 +19,9 @@ export default function Inbox() {
     filterByChannel,
     activeFilters,
     refetch,
+    searchQuery,
+    setSearchQuery,
+    searching,
   } = useConversations();
 
   const [showCustomerDetails, setShowCustomerDetails] = useState(true);
@@ -46,6 +49,9 @@ export default function Inbox() {
             onFilterStatus={filterByStatus}
             onFilterChannel={filterByChannel}
             activeFilters={activeFilters}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            searching={searching}
           />
         </div>
 

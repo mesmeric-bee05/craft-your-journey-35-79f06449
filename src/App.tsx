@@ -12,6 +12,7 @@ import Onboarding from "./pages/Onboarding";
 import Inbox from "./pages/Inbox";
 import Marketing from "./pages/Marketing";
 import Talent from "./pages/Talent";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -70,6 +71,16 @@ const App = () => (
                 <RequireAuth>
                   <RequireOnboarding>
                     <Talent />
+                  </RequireOnboarding>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <RequireAuth>
+                  <RequireOnboarding>
+                    <Settings />
                   </RequireOnboarding>
                 </RequireAuth>
               }
