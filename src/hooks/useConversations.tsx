@@ -64,6 +64,7 @@ export function useConversations(): UseConversationsReturn {
 
   // Debounce search query
   useEffect(() => {
+    setSearching(true);
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
     }, 300);
@@ -72,38 +73,60 @@ export function useConversations(): UseConversationsReturn {
 
   const setSearchQuery = (query: string) => {
     setSearchQueryState(query);
-    if (query) setSearching(true);
   };
+
   const fetchConversations = useCallback(async () => {
     if (!business?.id) {
       setLoading(false);
+      setSearching(false);
       return;
     }
 
     try {
-      setLoading(true);
+      if (!debouncedSearch) {
+        setLoading(true);
+      }
       setError(null);
 
-      const { data, error: fetchError } = await supabase
+      let query = supabase
         .from('conversations')
         .select(`
           *,
           customer:customers(*)
         `)
-        .eq('business_id', business.id)
-        .order('last_message_at', { ascending: false });
+        .eq('business_id', business.id);
+
+      // Apply server-side search filter
+      if (debouncedSearch) {
+        query = query.or(`last_message_preview.ilike.%${debouncedSearch}%,subject.ilike.%${debouncedSearch}%`);
+      }
+
+      const { data, error: fetchError } = await query.order('last_message_at', { ascending: false });
 
       if (fetchError) throw fetchError;
 
-      setConversations(data as unknown as Conversation[]);
-      setFilteredConversations(data as unknown as Conversation[]);
+      // Additional client-side filter for customer name/email if search is active
+      let results = data as unknown as Conversation[];
+      if (debouncedSearch) {
+        const searchLower = debouncedSearch.toLowerCase();
+        results = results.filter(c => 
+          c.last_message_preview?.toLowerCase().includes(searchLower) ||
+          c.subject?.toLowerCase().includes(searchLower) ||
+          c.customer?.name?.toLowerCase().includes(searchLower) ||
+          c.customer?.email?.toLowerCase().includes(searchLower)
+        );
+      }
+
+      setConversations(results);
+      setFilteredConversations(results);
     } catch (err: any) {
       setError(err.message);
       toast({ title: 'Error loading conversations', description: err.message, variant: 'destructive' });
     } finally {
       setLoading(false);
+      setSearching(false);
     }
-  }, [business?.id, toast]);
+  }, [business?.id, debouncedSearch, toast]);
 
   useEffect(() => {
     fetchConversations();
