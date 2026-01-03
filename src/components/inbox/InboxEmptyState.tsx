@@ -34,7 +34,7 @@ export function InboxEmptyState({ onDataSeeded }: InboxEmptyStateProps) {
 
       toast({ 
         title: 'Sample data loaded!', 
-        description: `Created ${data.customersCreated} customers and ${data.conversationsCreated} conversations.` 
+        description: `Created ${data.customersCreated} customers, ${data.conversationsCreated} conversations, and ${data.quickRepliesCreated || 0} quick replies.` 
       });
       
       onDataSeeded?.();

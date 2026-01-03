@@ -34,6 +34,7 @@ export interface Conversation {
 
 interface UseConversationsReturn {
   conversations: Conversation[];
+  filteredConversations: Conversation[];
   loading: boolean;
   error: string | null;
   selectedConversation: Conversation | null;
@@ -220,7 +221,8 @@ export function useConversations(): UseConversationsReturn {
   };
 
   return {
-    conversations: filteredConversations,
+    conversations,
+    filteredConversations,
     loading,
     error,
     selectedConversation,

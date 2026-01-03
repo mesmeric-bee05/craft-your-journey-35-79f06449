@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, RefObject } from 'react';
 import { ArrowLeft, MoreVertical, User, CheckCircle, Clock, Archive, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { MessageBubble } from './MessageBubble';
-import { MessageInput } from './MessageInput';
+import { MessageInput, MessageInputRef } from './MessageInput';
 import { AISuggestions } from './AISuggestions';
 import { Conversation } from '@/hooks/useConversations';
 import { useMessages } from '@/hooks/useMessages';
@@ -23,9 +23,10 @@ interface ChatViewProps {
   onBack: () => void;
   onToggleDetails: () => void;
   onStatusChange: (id: string, status: Conversation['status']) => void;
+  messageInputRef?: RefObject<MessageInputRef>;
 }
 
-export function ChatView({ conversation, onBack, onToggleDetails, onStatusChange }: ChatViewProps) {
+export function ChatView({ conversation, onBack, onToggleDetails, onStatusChange, messageInputRef }: ChatViewProps) {
   const { messages, loading, sendMessage } = useMessages(conversation.id);
   const [showSuggestions, setShowSuggestions] = useState(false);
   
@@ -151,7 +152,7 @@ export function ChatView({ conversation, onBack, onToggleDetails, onStatusChange
       </ScrollArea>
 
       {/* Message Input */}
-      <MessageInput onSend={handleSendMessage} conversationId={conversation.id} />
+      <MessageInput ref={messageInputRef} onSend={handleSendMessage} conversationId={conversation.id} />
     </div>
   );
 }

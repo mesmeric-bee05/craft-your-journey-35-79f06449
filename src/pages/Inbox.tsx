@@ -1,11 +1,16 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
+import { Keyboard } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { ConversationList } from '@/components/inbox/ConversationList';
 import { ChatView } from '@/components/inbox/ChatView';
 import { CustomerDetails } from '@/components/inbox/CustomerDetails';
 import { InboxEmptyState } from '@/components/inbox/InboxEmptyState';
+import { KeyboardShortcutsDialog } from '@/components/inbox/KeyboardShortcutsDialog';
 import { useConversations } from '@/hooks/useConversations';
+import { useInboxKeyboardShortcuts } from '@/hooks/useInboxKeyboardShortcuts';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function Inbox() {
   const {
@@ -22,27 +27,76 @@ export default function Inbox() {
     searchQuery,
     setSearchQuery,
     searching,
+    filteredConversations,
   } = useConversations();
 
   const [showCustomerDetails, setShowCustomerDetails] = useState(true);
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+  
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const messageInputRef = useRef<{ focus: () => void }>(null);
 
-  const handleSelectConversation = (conversation: typeof selectedConversation) => {
+  const handleSelectConversation = useCallback((conversation: typeof selectedConversation) => {
     selectConversation(conversation);
     if (conversation) {
       markAsRead(conversation.id);
     }
-  };
+  }, [selectConversation, markAsRead]);
+
+  const handleFocusSearch = useCallback(() => {
+    searchInputRef.current?.focus();
+  }, []);
+
+  const handleFocusMessageInput = useCallback(() => {
+    messageInputRef.current?.focus();
+  }, []);
+
+  const handleToggleDetails = useCallback(() => {
+    setShowCustomerDetails(prev => !prev);
+  }, []);
+
+  const handleShowHelp = useCallback(() => {
+    setShowShortcutsHelp(true);
+  }, []);
+
+  // Use keyboard shortcuts
+  useInboxKeyboardShortcuts({
+    conversations: filteredConversations,
+    selectedConversation,
+    onSelectConversation: handleSelectConversation,
+    onStatusChange: updateConversationStatus,
+    onToggleDetails: handleToggleDetails,
+    onFocusSearch: handleFocusSearch,
+    onFocusMessageInput: handleFocusMessageInput,
+    onShowHelp: handleShowHelp,
+  });
 
   return (
     <DashboardLayout>
-      <div className="h-[calc(100vh-8rem)] flex rounded-xl overflow-hidden border border-border bg-card">
+      <div className="h-[calc(100vh-8rem)] flex rounded-xl overflow-hidden border border-border bg-card relative">
+        {/* Keyboard shortcuts help button */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-2 right-2 z-10 h-8 w-8 opacity-60 hover:opacity-100"
+              onClick={() => setShowShortcutsHelp(true)}
+            >
+              <Keyboard className="w-4 h-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Keyboard shortcuts (?)</TooltipContent>
+        </Tooltip>
+
         {/* Conversation List */}
         <div className={cn(
           'w-80 border-r border-border flex-shrink-0',
           selectedConversation ? 'hidden md:block' : 'w-full md:w-80'
         )}>
           <ConversationList
-            conversations={conversations}
+            ref={searchInputRef}
+            conversations={filteredConversations}
             loading={loading}
             selectedId={selectedConversation?.id}
             onSelect={handleSelectConversation}
@@ -64,8 +118,9 @@ export default function Inbox() {
             <ChatView
               conversation={selectedConversation}
               onBack={() => selectConversation(null)}
-              onToggleDetails={() => setShowCustomerDetails(!showCustomerDetails)}
+              onToggleDetails={handleToggleDetails}
               onStatusChange={updateConversationStatus}
+              messageInputRef={messageInputRef}
             />
           ) : (
             <InboxEmptyState onDataSeeded={refetch} />
@@ -83,6 +138,12 @@ export default function Inbox() {
           </div>
         )}
       </div>
+
+      {/* Keyboard Shortcuts Dialog */}
+      <KeyboardShortcutsDialog
+        open={showShortcutsHelp}
+        onOpenChange={setShowShortcutsHelp}
+      />
     </DashboardLayout>
   );
 }
