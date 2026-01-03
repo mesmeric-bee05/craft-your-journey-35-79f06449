@@ -85,27 +85,6 @@ export function ConversationList({
             </div>
           )}
         </div>
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="p-4 border-b border-border space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Inbox</h2>
-          <Button size="sm" className="gap-1">
-            <Plus className="w-4 h-4" />
-            New
-          </Button>
-        </div>
-
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search conversations..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
-        </div>
 
         {/* Filters */}
         <div className="flex gap-2">
@@ -178,13 +157,13 @@ export function ConversationList({
               </div>
             ))}
           </div>
-        ) : filteredConversations.length === 0 ? (
+        ) : conversations.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground">
-            <p>No conversations found</p>
+            <p>{searchQuery ? 'No conversations found matching your search' : 'No conversations found'}</p>
           </div>
         ) : (
           <div className="p-2">
-            {filteredConversations.map((conversation) => (
+            {conversations.map((conversation) => (
               <ConversationItem
                 key={conversation.id}
                 conversation={conversation}
