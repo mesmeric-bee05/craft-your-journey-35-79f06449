@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Send, Paperclip, Smile, Lock, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,11 +11,22 @@ interface MessageInputProps {
   conversationId: string;
 }
 
-export function MessageInput({ onSend, conversationId }: MessageInputProps) {
+export interface MessageInputRef {
+  focus: () => void;
+}
+
+export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({ onSend, conversationId }, ref) => {
   const [message, setMessage] = useState('');
   const [isInternal, setIsInternal] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Expose focus method via ref
+  useImperativeHandle(ref, () => ({
+    focus: () => {
+      textareaRef.current?.focus();
+    }
+  }));
 
   // Auto-resize textarea
   useEffect(() => {
@@ -39,6 +50,13 @@ export function MessageInput({ onSend, conversationId }: MessageInputProps) {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Cmd/Ctrl + Enter to send
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      handleSend();
+      return;
+    }
+    // Regular Enter to send (Shift+Enter for newline)
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -66,7 +84,7 @@ export function MessageInput({ onSend, conversationId }: MessageInputProps) {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={isInternal ? 'Write an internal note...' : 'Type a message...'}
+            placeholder={isInternal ? 'Write an internal note...' : 'Type a message... (⌘+Enter to send)'}
             className="min-h-[44px] max-h-[150px] resize-none pr-24"
             rows={1}
           />
@@ -123,4 +141,6 @@ export function MessageInput({ onSend, conversationId }: MessageInputProps) {
       </div>
     </div>
   );
-}
+});
+
+MessageInput.displayName = 'MessageInput';

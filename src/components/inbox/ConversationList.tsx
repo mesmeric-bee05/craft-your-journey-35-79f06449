@@ -1,3 +1,4 @@
+import { forwardRef } from 'react';
 import { Search, Filter, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -46,7 +47,7 @@ const channelOptions = [
   { value: 'twitter', label: 'Twitter/X' },
 ];
 
-export function ConversationList({
+export const ConversationList = forwardRef<HTMLInputElement, ConversationListProps>(({
   conversations,
   loading,
   selectedId,
@@ -57,7 +58,7 @@ export function ConversationList({
   searchQuery,
   onSearchChange,
   searching,
-}: ConversationListProps) {
+}, ref) => {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -74,7 +75,8 @@ export function ConversationList({
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search conversations..."
+            ref={ref}
+            placeholder="Search conversations... (Press /)"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             className="pl-9"
@@ -176,4 +178,6 @@ export function ConversationList({
       </ScrollArea>
     </div>
   );
-}
+});
+
+ConversationList.displayName = 'ConversationList';

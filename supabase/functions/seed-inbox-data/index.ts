@@ -161,7 +161,9 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: `Created ${customers.length} customers, ${customers.length} conversations, and ${quickReplies.length} quick replies` 
+        customersCreated: customers.length,
+        conversationsCreated: customers.length,
+        quickRepliesCreated: quickReplies.length
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
