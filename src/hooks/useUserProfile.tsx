@@ -53,14 +53,22 @@ export function useUserProfile() {
     if (!user?.id) return;
 
     try {
-      const { error } = await supabase
+      // Use upsert to handle cases where profile might not exist
+      const { data, error } = await supabase
         .from('profiles')
-        .update({ ...updates, updated_at: new Date().toISOString() })
-        .eq('user_id', user.id);
+        .upsert({ 
+          user_id: user.id, 
+          ...updates, 
+          updated_at: new Date().toISOString() 
+        }, { 
+          onConflict: 'user_id' 
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
-      setProfile(prev => prev ? { ...prev, ...updates } : null);
+      setProfile(data as UserProfile);
       toast({ title: 'Profile updated successfully' });
     } catch (err: any) {
       toast({ title: 'Error updating profile', description: err.message, variant: 'destructive' });
