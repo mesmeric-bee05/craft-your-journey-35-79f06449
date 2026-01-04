@@ -1,33 +1,76 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+/**
+ * Suggest Reply Edge Function
+ * 
+ * Generates AI-powered reply suggestions for customer service agents
+ * 
+ * SECURITY:
+ * - JWT authentication required
+ * - Rate limited (30/min per IP, 100/min per user)
+ * - Input validation with Zod
+ * - Sanitized error responses
+ */
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { verifyAuth } from "../_shared/auth.ts";
+import { rateLimit, DEFAULT_LIMITS } from "../_shared/rate-limiter.ts";
+import { 
+  SuggestReplySchema, 
+  validateInput, 
+  parseJsonBody 
+} from "../_shared/validators.ts";
+import { logError, logSecurityEvent, internalError } from "../_shared/errors.ts";
+import { getCorsHeaders, secureResponse } from "../_shared/security-headers.ts";
 
 const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders('*', req.headers.get('Origin'));
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { messages, customerName, businessContext } = await req.json();
-
-    if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'Messages array is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // SECURITY: Verify JWT authentication
+    const auth = await verifyAuth(req, corsHeaders);
+    if (auth.error) {
+      logSecurityEvent('AUTH_FAILED', { endpoint: 'suggest-reply' });
+      return auth.error;
     }
 
-    console.log('Generating reply suggestions for conversation with:', customerName);
+    // SECURITY: Apply rate limiting
+    const rateLimitResult = rateLimit(
+      req,
+      auth.user!.id,
+      { 
+        ipLimit: { windowMs: 60000, maxRequests: 30 },
+        userLimit: { windowMs: 60000, maxRequests: 100 },
+        keyPrefix: 'suggest-reply' 
+      },
+      corsHeaders
+    );
+    
+    if (!rateLimitResult.allowed) {
+      logSecurityEvent('RATE_LIMITED', { 
+        endpoint: 'suggest-reply', 
+        userId: auth.user!.id 
+      });
+      return rateLimitResult.response!;
+    }
+
+    // SECURITY: Parse and validate input
+    const { data: body, error: parseError } = await parseJsonBody(req, corsHeaders);
+    if (parseError) return parseError;
+
+    const validation = validateInput(SuggestReplySchema, body, corsHeaders);
+    if (!validation.success) return validation.error!;
+
+    const { messages, customerName, businessContext } = validation.data!;
 
     const conversationHistory = messages
       .slice(-10) // Last 10 messages for context
-      .map((m: any) => `${m.sender_type === 'customer' ? customerName || 'Customer' : 'Agent'}: ${m.content}`)
+      .map((m) => `${m.sender_type === 'customer' ? customerName || 'Customer' : 'Agent'}: ${m.content || ''}`)
       .join('\n');
 
     const systemPrompt = `You are an AI assistant helping customer service agents respond to customers. 
@@ -60,7 +103,7 @@ Return the suggestions as a JSON array of strings, nothing else.`;
 
     if (!response.ok) {
       const errorData = await response.text();
-      console.error('AI Gateway error:', errorData);
+      logError('AI Gateway error', new Error(errorData), { status: response.status });
       throw new Error(`AI Gateway error: ${response.status}`);
     }
 
@@ -75,8 +118,7 @@ Return the suggestions as a JSON array of strings, nothing else.`;
       if (jsonMatch) {
         suggestions = JSON.parse(jsonMatch[0]);
       }
-    } catch (parseError) {
-      console.error('Error parsing suggestions:', parseError);
+    } catch {
       // Fallback: split by newlines if JSON parsing fails
       suggestions = content
         .split('\n')
@@ -84,19 +126,14 @@ Return the suggestions as a JSON array of strings, nothing else.`;
         .slice(0, 3);
     }
 
-    console.log('Generated suggestions:', suggestions.length);
-
-    return new Response(
+    return secureResponse(
       JSON.stringify({ suggestions }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      200,
+      { ...corsHeaders, ...rateLimitResult.headers }
     );
 
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Error in suggest-reply function:', error);
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    logError('suggest-reply function', error);
+    return internalError(corsHeaders);
   }
 });

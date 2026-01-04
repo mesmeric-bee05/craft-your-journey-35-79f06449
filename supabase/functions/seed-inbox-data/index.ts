@@ -1,9 +1,21 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+/**
+ * Seed Inbox Data Edge Function
+ * 
+ * Creates sample customers, conversations, and messages for testing
+ * 
+ * SECURITY:
+ * - JWT authentication required
+ * - Business membership verification
+ * - Rate limited (5/hour per IP, 3/hour per user)
+ * - Input validation with Zod
+ */
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { verifyAuth, verifyBusinessMembership } from "../_shared/auth.ts";
+import { rateLimit, DEFAULT_LIMITS } from "../_shared/rate-limiter.ts";
+import { SeedDataSchema, validateInput, parseJsonBody } from "../_shared/validators.ts";
+import { logError, logSecurityEvent, internalError, forbidden } from "../_shared/errors.ts";
+import { getCorsHeaders, secureResponse } from "../_shared/security-headers.ts";
 
 const channelTypes = ['whatsapp', 'instagram', 'facebook', 'tiktok', 'twitter', 'telegram'] as const;
 
@@ -37,21 +49,60 @@ const quickReplies = [
 ];
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders('*', req.headers.get('Origin'));
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // SECURITY: Verify JWT authentication
+    const auth = await verifyAuth(req, corsHeaders);
+    if (auth.error) {
+      logSecurityEvent('AUTH_FAILED', { endpoint: 'seed-inbox-data' });
+      return auth.error;
+    }
+
+    // SECURITY: Apply rate limiting (sensitive operation)
+    const rateLimitResult = rateLimit(
+      req,
+      auth.user!.id,
+      { ...DEFAULT_LIMITS.sensitive, keyPrefix: 'seed-inbox-data' },
+      corsHeaders
+    );
+    
+    if (!rateLimitResult.allowed) {
+      logSecurityEvent('RATE_LIMITED', { 
+        endpoint: 'seed-inbox-data', 
+        userId: auth.user!.id 
+      });
+      return rateLimitResult.response!;
+    }
+
+    // SECURITY: Parse and validate input
+    const { data: body, error: parseError } = await parseJsonBody(req, corsHeaders);
+    if (parseError) return parseError;
+
+    const validation = validateInput(SeedDataSchema, body, corsHeaders);
+    if (!validation.success) return validation.error!;
+
+    const { business_id } = validation.data!;
+
+    // SECURITY: Verify business membership
+    const isMember = await verifyBusinessMembership(auth.supabase!, auth.user!.id, business_id);
+    if (!isMember) {
+      logSecurityEvent('UNAUTHORIZED_ACCESS', { 
+        endpoint: 'seed-inbox-data',
+        userId: auth.user!.id,
+        businessId: business_id 
+      });
+      return forbidden(corsHeaders, 'You do not have access to this business');
+    }
+
+    // Use service role for inserting data
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    
     const supabase = createClient(supabaseUrl, serviceRoleKey);
-    
-    const { business_id } = await req.json();
-    
-    if (!business_id) {
-      throw new Error("business_id is required");
-    }
 
     // Create sample customers
     const customers = [];
@@ -158,20 +209,24 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(
+    logSecurityEvent('SEED_DATA_CREATED', { 
+      userId: auth.user!.id,
+      businessId: business_id,
+      customersCreated: customers.length
+    });
+
+    return secureResponse(
       JSON.stringify({ 
         success: true, 
         customersCreated: customers.length,
         conversationsCreated: customers.length,
         quickRepliesCreated: quickReplies.length
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      200,
+      corsHeaders
     );
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(
-      JSON.stringify({ success: false, error: errorMessage }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    logError('seed-inbox-data function', error);
+    return internalError(corsHeaders);
   }
 });

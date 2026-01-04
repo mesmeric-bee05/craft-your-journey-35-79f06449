@@ -1,29 +1,68 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+/**
+ * Generate Content Edge Function
+ * 
+ * Generates AI-powered marketing content for African SMEs
+ * 
+ * SECURITY:
+ * - JWT authentication required
+ * - Rate limited (20/min per IP, 50/min per user)
+ * - Input validation with Zod
+ * - Sanitized error responses
+ */
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { verifyAuth } from "../_shared/auth.ts";
+import { rateLimit, DEFAULT_LIMITS } from "../_shared/rate-limiter.ts";
+import { 
+  GenerateContentSchema, 
+  validateInput, 
+  parseJsonBody 
+} from "../_shared/validators.ts";
+import { logError, logSecurityEvent, internalError } from "../_shared/errors.ts";
+import { getCorsHeaders, secureResponse } from "../_shared/security-headers.ts";
 
 const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders('*', req.headers.get('Origin'));
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { prompt, contentType, language, tone, platform } = await req.json();
-
-    if (!prompt) {
-      return new Response(
-        JSON.stringify({ error: 'Prompt is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // SECURITY: Verify JWT authentication
+    const auth = await verifyAuth(req, corsHeaders);
+    if (auth.error) {
+      logSecurityEvent('AUTH_FAILED', { endpoint: 'generate-content' });
+      return auth.error;
     }
 
-    console.log('Generating content:', { contentType, language, tone, platform });
+    // SECURITY: Apply rate limiting
+    const rateLimitResult = rateLimit(
+      req,
+      auth.user!.id,
+      { ...DEFAULT_LIMITS.ai, keyPrefix: 'generate-content' },
+      corsHeaders
+    );
+    
+    if (!rateLimitResult.allowed) {
+      logSecurityEvent('RATE_LIMITED', { 
+        endpoint: 'generate-content', 
+        userId: auth.user!.id 
+      });
+      return rateLimitResult.response!;
+    }
+
+    // SECURITY: Parse and validate input
+    const { data: body, error: parseError } = await parseJsonBody(req, corsHeaders);
+    if (parseError) return parseError;
+
+    const validation = validateInput(GenerateContentSchema, body, corsHeaders);
+    if (!validation.success) return validation.error!;
+
+    const { prompt, contentType, language, tone, platform } = validation.data!;
 
     // Build the system prompt based on content type
     let systemPrompt = `You are a professional marketing content writer for African SMEs. `;
@@ -55,7 +94,7 @@ serve(async (req) => {
     }
 
     // Add tone instructions
-    systemPrompt += ` Tone: ${tone || 'professional'}.`;
+    systemPrompt += ` Tone: ${tone}.`;
 
     // Add language instructions
     if (language === 'sw') {
@@ -90,7 +129,7 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorData = await response.text();
-      console.error('AI Gateway error:', errorData);
+      logError('AI Gateway error', new Error(errorData), { status: response.status });
       throw new Error(`AI Gateway error: ${response.status}`);
     }
 
@@ -98,22 +137,17 @@ serve(async (req) => {
     const generatedContent = data.choices?.[0]?.message?.content;
     const tokensUsed = data.usage?.total_tokens || 0;
 
-    console.log('Content generated successfully, tokens used:', tokensUsed);
-
-    return new Response(
+    return secureResponse(
       JSON.stringify({ 
         content: generatedContent,
         tokensUsed,
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      200,
+      { ...corsHeaders, ...rateLimitResult.headers }
     );
 
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Error in generate-content function:', error);
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    logError('generate-content function', error);
+    return internalError(corsHeaders);
   }
 });
