@@ -20,6 +20,8 @@ import { Lock, Shield, Trash2, KeyRound } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { cn } from '@/lib/utils';
+import { PASSWORD_MIN_LENGTH, getPasswordStrength } from '@/lib/validation/password';
 
 export function SecuritySettings() {
   const { toast } = useToast();
@@ -30,6 +32,9 @@ export function SecuritySettings() {
   const [changingPassword, setChangingPassword] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // Password strength for new password
+  const passwordStrength = getPasswordStrength(newPassword);
+
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -38,8 +43,9 @@ export function SecuritySettings() {
       return;
     }
 
-    if (newPassword.length < 6) {
-      toast({ title: 'Password must be at least 6 characters', variant: 'destructive' });
+    // SECURITY: Standardized minimum password length
+    if (newPassword.length < PASSWORD_MIN_LENGTH) {
+      toast({ title: `Password must be at least ${PASSWORD_MIN_LENGTH} characters`, variant: 'destructive' });
       return;
     }
 
@@ -107,6 +113,38 @@ export function SecuritySettings() {
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="Enter new password"
               />
+              {/* Password strength indicator */}
+              {newPassword && (
+                <div className="space-y-1">
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4].map((level) => (
+                      <div
+                        key={level}
+                        className={cn(
+                          'h-1 flex-1 rounded',
+                          level <= passwordStrength.score
+                            ? passwordStrength.score <= 1
+                              ? 'bg-destructive'
+                              : passwordStrength.score <= 2
+                              ? 'bg-yellow-500'
+                              : passwordStrength.score <= 3
+                              ? 'bg-blue-500'
+                              : 'bg-green-500'
+                            : 'bg-muted'
+                        )}
+                      />
+                    ))}
+                  </div>
+                  <p className={cn(
+                    'text-xs',
+                    passwordStrength.score <= 1 ? 'text-destructive' :
+                    passwordStrength.score <= 2 ? 'text-yellow-600' :
+                    passwordStrength.score <= 3 ? 'text-blue-600' : 'text-green-600'
+                  )}>
+                    Strength: {passwordStrength.label}
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">

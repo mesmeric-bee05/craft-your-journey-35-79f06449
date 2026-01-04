@@ -9,16 +9,25 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
+import { passwordSchema, getPasswordStrength, PASSWORD_MIN_LENGTH } from '@/lib/validation/password';
 
+// SECURITY: Standardized password requirements across the app
 const signInSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: z.string().min(1, 'Password is required'),
 });
 
+// SECURITY: Stronger validation for signup
 const signUpSchema = z.object({
-  fullName: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  fullName: z.string()
+    .min(2, 'Name must be at least 2 characters')
+    .max(100, 'Name must be under 100 characters')
+    .transform(val => val.trim()),
+  email: z.string()
+    .email('Please enter a valid email address')
+    .max(255, 'Email must be under 255 characters')
+    .transform(val => val.toLowerCase().trim()),
+  password: passwordSchema,
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
@@ -36,8 +45,12 @@ interface AuthFormProps {
 export function AuthForm({ mode, onModeChange }: AuthFormProps) {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [passwordValue, setPasswordValue] = useState('');
   const { signIn, signUp, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
+  
+  // Password strength indicator for signup
+  const passwordStrength = mode === 'signup' ? getPasswordStrength(passwordValue) : null;
 
   const signInForm = useForm<SignInFormData>({
     resolver: zodResolver(signInSchema),
@@ -225,7 +238,9 @@ export function AuthForm({ mode, onModeChange }: AuthFormProps) {
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  {...signUpForm.register('password')}
+                  {...signUpForm.register('password', {
+                    onChange: (e) => setPasswordValue(e.target.value)
+                  })}
                   id="signup-password"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
@@ -241,6 +256,38 @@ export function AuthForm({ mode, onModeChange }: AuthFormProps) {
               </div>
               {signUpForm.formState.errors.password && (
                 <p className="text-sm text-destructive">{signUpForm.formState.errors.password.message}</p>
+              )}
+              {/* Password strength indicator */}
+              {passwordValue && passwordStrength && (
+                <div className="space-y-1">
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4].map((level) => (
+                      <div
+                        key={level}
+                        className={cn(
+                          'h-1 flex-1 rounded',
+                          level <= passwordStrength.score
+                            ? passwordStrength.score <= 1
+                              ? 'bg-destructive'
+                              : passwordStrength.score <= 2
+                              ? 'bg-yellow-500'
+                              : passwordStrength.score <= 3
+                              ? 'bg-blue-500'
+                              : 'bg-green-500'
+                            : 'bg-muted'
+                        )}
+                      />
+                    ))}
+                  </div>
+                  <p className={cn(
+                    'text-xs',
+                    passwordStrength.score <= 1 ? 'text-destructive' :
+                    passwordStrength.score <= 2 ? 'text-yellow-600' :
+                    passwordStrength.score <= 3 ? 'text-blue-600' : 'text-green-600'
+                  )}>
+                    Password strength: {passwordStrength.label}
+                  </p>
+                </div>
               )}
             </div>
 
