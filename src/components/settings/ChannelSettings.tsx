@@ -14,8 +14,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { MessageCircle, Instagram, Facebook, Twitter, Send, Music2, Plus, Unplug } from 'lucide-react';
+import { MessageCircle, Instagram, Facebook, Twitter, Send, Music2, Plus, Unplug, Mail, Phone, Settings } from 'lucide-react';
 import { useConnectedChannels, ConnectedChannel } from '@/hooks/useConnectedChannels';
+import { EmailChannelDialog } from './EmailChannelDialog';
+import { SMSChannelDialog } from './SMSChannelDialog';
 import { format } from 'date-fns';
 
 const channelConfig: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
@@ -25,24 +27,76 @@ const channelConfig: Record<string, { icon: React.ReactNode; label: string; colo
   twitter: { icon: <Twitter className="h-5 w-5" />, label: 'Twitter/X', color: 'bg-sky-500' },
   telegram: { icon: <Send className="h-5 w-5" />, label: 'Telegram', color: 'bg-blue-400' },
   tiktok: { icon: <Music2 className="h-5 w-5" />, label: 'TikTok', color: 'bg-black' },
+  email: { icon: <Mail className="h-5 w-5" />, label: 'Email', color: 'bg-orange-500' },
+  sms: { icon: <Phone className="h-5 w-5" />, label: 'SMS', color: 'bg-purple-500' },
 };
 
-const availableChannels = ['whatsapp', 'instagram', 'facebook', 'twitter', 'telegram', 'tiktok'];
+const availableChannels = ['whatsapp', 'instagram', 'facebook', 'twitter', 'telegram', 'tiktok', 'email', 'sms'];
 
 export function ChannelSettings() {
-  const { channels, loading, connectChannel, disconnectChannel, toggleChannelActive } = useConnectedChannels();
+  const { channels, loading, connectChannel, disconnectChannel, toggleChannelActive, updateChannelSettings } = useConnectedChannels();
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
   const [connecting, setConnecting] = useState<string | null>(null);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [smsDialogOpen, setSmsDialogOpen] = useState(false);
+  const [editingChannel, setEditingChannel] = useState<ConnectedChannel | null>(null);
 
   const connectedTypes = channels.filter(c => c.is_connected).map(c => c.channel_type);
   const unconnectedChannels = availableChannels.filter(type => !connectedTypes.includes(type));
 
   const handleConnect = async (channelType: string) => {
+    // For email and SMS, open configuration dialog first
+    if (channelType === 'email') {
+      setEditingChannel(null);
+      setEmailDialogOpen(true);
+      return;
+    }
+    if (channelType === 'sms') {
+      setEditingChannel(null);
+      setSmsDialogOpen(true);
+      return;
+    }
+
     setConnecting(channelType);
     try {
       await connectChannel(channelType);
     } finally {
       setConnecting(null);
+    }
+  };
+
+  const handleEditChannel = (channel: ConnectedChannel) => {
+    setEditingChannel(channel);
+    if (channel.channel_type === 'email') {
+      setEmailDialogOpen(true);
+    } else if (channel.channel_type === 'sms') {
+      setSmsDialogOpen(true);
+    }
+  };
+
+  const handleSaveEmailSettings = async (settings: Record<string, any>) => {
+    if (editingChannel) {
+      await updateChannelSettings(editingChannel.id, settings);
+    } else {
+      await connectChannel('email', 'Email');
+      // Find the newly created channel and update its settings
+      const newChannel = channels.find(c => c.channel_type === 'email' && c.is_connected);
+      if (newChannel) {
+        await updateChannelSettings(newChannel.id, settings);
+      }
+    }
+  };
+
+  const handleSaveSmsSettings = async (settings: Record<string, any>) => {
+    if (editingChannel) {
+      await updateChannelSettings(editingChannel.id, settings);
+    } else {
+      await connectChannel('sms', 'SMS');
+      // Find the newly created channel and update its settings
+      const newChannel = channels.find(c => c.channel_type === 'sms' && c.is_connected);
+      if (newChannel) {
+        await updateChannelSettings(newChannel.id, settings);
+      }
     }
   };
 
@@ -119,6 +173,15 @@ export function ChannelSettings() {
                         checked={channel.is_active}
                         onCheckedChange={(v) => toggleChannelActive(channel.id, v)}
                       />
+                      {(channel.channel_type === 'email' || channel.channel_type === 'sms') && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditChannel(channel)}
+                        >
+                          <Settings className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="sm"
@@ -192,6 +255,32 @@ export function ChannelSettings() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Email Configuration Dialog */}
+      <EmailChannelDialog
+        open={emailDialogOpen}
+        onOpenChange={setEmailDialogOpen}
+        existingSettings={editingChannel?.channel_type === 'email' ? {
+          fromEmail: editingChannel.metadata?.from_email,
+          fromName: editingChannel.metadata?.from_name,
+          smtpHost: editingChannel.metadata?.smtp_host,
+          smtpPort: editingChannel.metadata?.smtp_port,
+          smtpUsername: editingChannel.metadata?.smtp_username,
+          encryption: editingChannel.metadata?.smtp_encryption,
+        } : undefined}
+        onSave={handleSaveEmailSettings}
+      />
+
+      {/* SMS Configuration Dialog */}
+      <SMSChannelDialog
+        open={smsDialogOpen}
+        onOpenChange={setSmsDialogOpen}
+        existingSettings={editingChannel?.channel_type === 'sms' ? {
+          accountSid: editingChannel.metadata?.twilio_account_sid,
+          phoneNumber: editingChannel.metadata?.twilio_phone_number,
+        } : undefined}
+        onSave={handleSaveSmsSettings}
+      />
     </div>
   );
 }

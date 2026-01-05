@@ -23,7 +23,8 @@ interface ConversationListProps {
   onSelect: (conversation: Conversation) => void;
   onFilterStatus: (status: Conversation['status'] | 'all') => void;
   onFilterChannel: (channel: string | 'all') => void;
-  activeFilters: { status: string; channel: string };
+  onFilterAssignee?: (assignee: 'all' | 'mine' | string) => void;
+  activeFilters: { status: string; channel: string; assignee?: string };
   searchQuery: string;
   onSearchChange: (query: string) => void;
   searching?: boolean;
@@ -45,6 +46,8 @@ const channelOptions = [
   { value: 'tiktok', label: 'TikTok' },
   { value: 'telegram', label: 'Telegram' },
   { value: 'twitter', label: 'Twitter/X' },
+  { value: 'email', label: 'Email' },
+  { value: 'sms', label: 'SMS' },
 ];
 
 export const ConversationList = forwardRef<HTMLInputElement, ConversationListProps>(({
@@ -54,6 +57,7 @@ export const ConversationList = forwardRef<HTMLInputElement, ConversationListPro
   onSelect,
   onFilterStatus,
   onFilterChannel,
+  onFilterAssignee,
   activeFilters,
   searchQuery,
   onSearchChange,
@@ -89,7 +93,17 @@ export const ConversationList = forwardRef<HTMLInputElement, ConversationListPro
         </div>
 
         {/* Filters */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          {onFilterAssignee && (
+            <Button
+              variant={activeFilters.assignee === 'mine' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => onFilterAssignee(activeFilters.assignee === 'mine' ? 'all' : 'mine')}
+            >
+              My Conversations
+            </Button>
+          )}
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="gap-1">

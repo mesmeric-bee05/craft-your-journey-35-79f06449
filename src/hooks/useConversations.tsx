@@ -41,10 +41,12 @@ interface UseConversationsReturn {
   selectConversation: (conversation: Conversation | null) => void;
   refetch: () => Promise<void>;
   updateConversationStatus: (id: string, status: Conversation['status']) => Promise<void>;
+  assignConversation: (id: string, userId: string | null) => Promise<void>;
   markAsRead: (id: string) => Promise<void>;
   filterByStatus: (status: Conversation['status'] | 'all') => void;
   filterByChannel: (channel: string | 'all') => void;
-  activeFilters: { status: string; channel: string };
+  filterByAssignee: (assignee: 'all' | 'mine' | string) => void;
+  activeFilters: { status: string; channel: string; assignee: string };
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   searching: boolean;
@@ -59,9 +61,17 @@ export function useConversations(): UseConversationsReturn {
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
-  const [activeFilters, setActiveFilters] = useState({ status: 'all', channel: 'all' });
+  const [activeFilters, setActiveFilters] = useState({ status: 'all', channel: 'all', assignee: 'all' });
   const [searchQuery, setSearchQueryState] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  // Get current user ID for "mine" filter
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setCurrentUserId(data.user?.id || null);
+    });
+  }, []);
 
   // Debounce search query
   useEffect(() => {
@@ -169,8 +179,16 @@ export function useConversations(): UseConversationsReturn {
       filtered = filtered.filter((c) => c.channel_type === activeFilters.channel);
     }
 
+    if (activeFilters.assignee !== 'all') {
+      if (activeFilters.assignee === 'mine') {
+        filtered = filtered.filter((c) => c.assigned_to === currentUserId);
+      } else {
+        filtered = filtered.filter((c) => c.assigned_to === activeFilters.assignee);
+      }
+    }
+
     setFilteredConversations(filtered);
-  }, [conversations, activeFilters]);
+  }, [conversations, activeFilters, currentUserId]);
 
   useEffect(() => {
     applyFilters();
@@ -182,6 +200,10 @@ export function useConversations(): UseConversationsReturn {
 
   const filterByChannel = (channel: string | 'all') => {
     setActiveFilters((prev) => ({ ...prev, channel }));
+  };
+
+  const filterByAssignee = (assignee: 'all' | 'mine' | string) => {
+    setActiveFilters((prev) => ({ ...prev, assignee }));
   };
 
   const updateConversationStatus = async (id: string, status: Conversation['status']) => {
@@ -200,6 +222,30 @@ export function useConversations(): UseConversationsReturn {
       toast({ title: `Conversation marked as ${status}` });
     } catch (err: any) {
       toast({ title: 'Error updating conversation', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  const assignConversation = async (id: string, userId: string | null) => {
+    try {
+      const { error } = await supabase
+        .from('conversations')
+        .update({ assigned_to: userId })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setConversations((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, assigned_to: userId } : c))
+      );
+
+      // Update selected conversation if it's the one being assigned
+      setSelectedConversation((prev) =>
+        prev?.id === id ? { ...prev, assigned_to: userId } : prev
+      );
+
+      toast({ title: userId ? 'Conversation assigned' : 'Conversation unassigned' });
+    } catch (err: any) {
+      toast({ title: 'Error assigning conversation', description: err.message, variant: 'destructive' });
     }
   };
 
@@ -229,9 +275,11 @@ export function useConversations(): UseConversationsReturn {
     selectConversation: setSelectedConversation,
     refetch: fetchConversations,
     updateConversationStatus,
+    assignConversation,
     markAsRead,
     filterByStatus,
     filterByChannel,
+    filterByAssignee,
     activeFilters,
     searchQuery,
     setSearchQuery,
