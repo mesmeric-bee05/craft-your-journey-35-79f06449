@@ -19,9 +19,11 @@ export default function Inbox() {
     selectedConversation,
     selectConversation,
     updateConversationStatus,
+    assignConversation,
     markAsRead,
     filterByStatus,
     filterByChannel,
+    filterByAssignee,
     activeFilters,
     refetch,
     searchQuery,
@@ -102,6 +104,7 @@ export default function Inbox() {
             onSelect={handleSelectConversation}
             onFilterStatus={filterByStatus}
             onFilterChannel={filterByChannel}
+            onFilterAssignee={filterByAssignee}
             activeFilters={activeFilters}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
@@ -120,6 +123,7 @@ export default function Inbox() {
               onBack={() => selectConversation(null)}
               onToggleDetails={handleToggleDetails}
               onStatusChange={updateConversationStatus}
+              onAssign={assignConversation}
               messageInputRef={messageInputRef}
             />
           ) : (

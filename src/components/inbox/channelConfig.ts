@@ -5,6 +5,7 @@ import {
   Video,
   Instagram,
   Facebook,
+  Mail,
 } from 'lucide-react';
 
 // Channel icons and colors
@@ -43,6 +44,11 @@ export const channelConfig: Record<string, { icon: React.ComponentType<any>; col
     icon: Phone, 
     color: 'text-purple-600', 
     bgColor: 'bg-purple-100 dark:bg-purple-900/30' 
+  },
+  email: { 
+    icon: Mail, 
+    color: 'text-orange-600', 
+    bgColor: 'bg-orange-100 dark:bg-orange-900/30' 
   },
 };
 

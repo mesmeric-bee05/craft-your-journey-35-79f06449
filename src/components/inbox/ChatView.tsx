@@ -13,6 +13,7 @@ import {
 import { MessageBubble } from './MessageBubble';
 import { MessageInput, MessageInputRef } from './MessageInput';
 import { AISuggestions } from './AISuggestions';
+import { AssignmentDropdown } from './AssignmentDropdown';
 import { Conversation } from '@/hooks/useConversations';
 import { useMessages } from '@/hooks/useMessages';
 import { getChannelConfig } from './channelConfig';
@@ -23,10 +24,11 @@ interface ChatViewProps {
   onBack: () => void;
   onToggleDetails: () => void;
   onStatusChange: (id: string, status: Conversation['status']) => void;
+  onAssign: (id: string, userId: string | null) => void;
   messageInputRef?: RefObject<MessageInputRef>;
 }
 
-export function ChatView({ conversation, onBack, onToggleDetails, onStatusChange, messageInputRef }: ChatViewProps) {
+export function ChatView({ conversation, onBack, onToggleDetails, onStatusChange, onAssign, messageInputRef }: ChatViewProps) {
   const { messages, loading, sendMessage } = useMessages(conversation.id);
   const [showSuggestions, setShowSuggestions] = useState(false);
   
@@ -80,6 +82,11 @@ export function ChatView({ conversation, onBack, onToggleDetails, onStatusChange
         </div>
 
         <div className="flex items-center gap-2">
+          <AssignmentDropdown
+            currentAssignee={conversation.assigned_to}
+            onAssign={(userId) => onAssign(conversation.id, userId)}
+          />
+
           <Button
             variant="outline"
             size="sm"

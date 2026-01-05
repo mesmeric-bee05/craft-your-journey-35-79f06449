@@ -112,12 +112,35 @@ export function useConnectedChannels() {
     }
   };
 
+  const updateChannelSettings = async (channelId: string, settings: Record<string, any>) => {
+    try {
+      const { error } = await supabase
+        .from('social_channels')
+        .update({ 
+          settings,
+          metadata: settings, // Store in metadata for easy access
+        })
+        .eq('id', channelId);
+
+      if (error) throw error;
+
+      setChannels(prev =>
+        prev.map(c => c.id === channelId ? { ...c, metadata: { ...c.metadata, ...settings } } : c)
+      );
+      toast({ title: 'Channel settings updated' });
+    } catch (err: any) {
+      toast({ title: 'Error updating settings', description: err.message, variant: 'destructive' });
+      throw err;
+    }
+  };
+
   return {
     channels,
     loading,
     connectChannel,
     disconnectChannel,
     toggleChannelActive,
+    updateChannelSettings,
     refetch: fetchChannels,
   };
 }
