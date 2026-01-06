@@ -12,7 +12,6 @@ import {
   LogOut,
   Menu,
   X,
-  Bell,
   Search,
   ChevronDown,
   Zap,
@@ -30,6 +29,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
+import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 
 interface NavItem {
   label: string;
@@ -188,10 +188,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           {/* Right side */}
           <div className="flex items-center gap-3">
             {/* Notifications */}
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-accent rounded-full" />
-            </Button>
+            <NotificationCenter />
 
             {/* User Menu */}
             <DropdownMenu>
