@@ -879,6 +879,53 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          body: string | null
+          business_id: string
+          clicked_at: string | null
+          created_at: string
+          data: Json | null
+          id: string
+          read_at: string | null
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          business_id: string
+          clicked_at?: string | null
+          created_at?: string
+          data?: Json | null
+          id?: string
+          read_at?: string | null
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          business_id?: string
+          clicked_at?: string | null
+          created_at?: string
+          data?: Json | null
+          id?: string
+          read_at?: string | null
+          title?: string
+          type?: Database["public"]["Enums"]["notification_type"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -1397,6 +1444,11 @@ export type Database = {
       job_type: "one_time" | "ongoing" | "full_time" | "part_time"
       location_type: "remote" | "onsite" | "hybrid"
       message_status: "pending" | "sent" | "delivered" | "read" | "failed"
+      notification_type:
+        | "new_message"
+        | "assignment"
+        | "mention"
+        | "status_change"
       post_status: "draft" | "scheduled" | "publishing" | "published" | "failed"
       priority_level: "low" | "normal" | "high" | "urgent"
       review_type: "client_to_freelancer" | "freelancer_to_client"
@@ -1612,6 +1664,12 @@ export const Constants = {
       job_type: ["one_time", "ongoing", "full_time", "part_time"],
       location_type: ["remote", "onsite", "hybrid"],
       message_status: ["pending", "sent", "delivered", "read", "failed"],
+      notification_type: [
+        "new_message",
+        "assignment",
+        "mention",
+        "status_change",
+      ],
       post_status: ["draft", "scheduled", "publishing", "published", "failed"],
       priority_level: ["low", "normal", "high", "urgent"],
       review_type: ["client_to_freelancer", "freelancer_to_client"],
