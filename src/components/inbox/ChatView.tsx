@@ -14,11 +14,11 @@ import { MessageBubble } from './MessageBubble';
 import { MessageInput, MessageInputRef } from './MessageInput';
 import { AISuggestions } from './AISuggestions';
 import { AssignmentDropdown } from './AssignmentDropdown';
+import { SLABadge } from './SLABadge';
 import { Conversation } from '@/hooks/useConversations';
 import { useMessages } from '@/hooks/useMessages';
 import { getChannelConfig } from './channelConfig';
 import { cn } from '@/lib/utils';
-
 interface ChatViewProps {
   conversation: Conversation;
   onBack: () => void;
@@ -77,7 +77,12 @@ export function ChatView({ conversation, onBack, onToggleDetails, onStatusChange
         </div>
 
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold truncate">{customerName}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold truncate">{customerName}</h3>
+            {conversation.status !== 'archived' && (
+              <SLABadge conversationId={conversation.id} />
+            )}
+          </div>
           <p className="text-sm text-muted-foreground capitalize">via {channel_type}</p>
         </div>
 

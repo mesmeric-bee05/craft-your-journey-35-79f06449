@@ -4,7 +4,8 @@ import { ProfileSettings } from '@/components/settings/ProfileSettings';
 import { NotificationSettings } from '@/components/settings/NotificationSettings';
 import { ChannelSettings } from '@/components/settings/ChannelSettings';
 import { SecuritySettings } from '@/components/settings/SecuritySettings';
-import { User, Bell, Link2, Shield } from 'lucide-react';
+import { SLASettings } from '@/components/settings/SLASettings';
+import { User, Bell, Link2, Shield, Clock } from 'lucide-react';
 
 export default function Settings() {
   return (
@@ -18,7 +19,7 @@ export default function Settings() {
         </div>
 
         <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-[600px]">
+          <TabsList className="grid w-full grid-cols-5 lg:w-[750px]">
             <TabsTrigger value="profile" className="gap-2">
               <User className="h-4 w-4" />
               <span className="hidden sm:inline">Profile</span>
@@ -30,6 +31,10 @@ export default function Settings() {
             <TabsTrigger value="channels" className="gap-2">
               <Link2 className="h-4 w-4" />
               <span className="hidden sm:inline">Channels</span>
+            </TabsTrigger>
+            <TabsTrigger value="sla" className="gap-2">
+              <Clock className="h-4 w-4" />
+              <span className="hidden sm:inline">SLA</span>
             </TabsTrigger>
             <TabsTrigger value="security" className="gap-2">
               <Shield className="h-4 w-4" />
@@ -47,6 +52,10 @@ export default function Settings() {
 
           <TabsContent value="channels">
             <ChannelSettings />
+          </TabsContent>
+
+          <TabsContent value="sla">
+            <SLASettings />
           </TabsContent>
 
           <TabsContent value="security">
