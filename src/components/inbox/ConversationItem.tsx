@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Conversation } from '@/hooks/useConversations';
 import { getChannelConfig } from './channelConfig';
+import { SLABadge } from './SLABadge';
 
 interface ConversationItemProps {
   conversation: Conversation;
@@ -100,6 +101,11 @@ export function ConversationItem({ conversation, isSelected, onClick }: Conversa
               <div className={cn('w-1.5 h-1.5 rounded-full mr-1', priorityColors[priority])} />
               {priority}
             </Badge>
+          )}
+
+          {/* SLA Badge */}
+          {status !== 'archived' && (
+            <SLABadge conversationId={conversation.id} compact />
           )}
 
           {unread_count > 0 && (

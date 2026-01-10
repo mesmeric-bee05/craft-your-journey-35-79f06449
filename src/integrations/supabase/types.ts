@@ -1150,6 +1150,191 @@ export type Database = {
           },
         ]
       }
+      sla_breach_logs: {
+        Row: {
+          actual_minutes: number
+          assigned_to: string | null
+          breach_type: string
+          business_id: string
+          channel_type: Database["public"]["Enums"]["channel_type"]
+          conversation_id: string
+          created_at: string
+          id: string
+          priority: Database["public"]["Enums"]["priority_level"]
+          target_minutes: number
+        }
+        Insert: {
+          actual_minutes: number
+          assigned_to?: string | null
+          breach_type: string
+          business_id: string
+          channel_type: Database["public"]["Enums"]["channel_type"]
+          conversation_id: string
+          created_at?: string
+          id?: string
+          priority: Database["public"]["Enums"]["priority_level"]
+          target_minutes: number
+        }
+        Update: {
+          actual_minutes?: number
+          assigned_to?: string | null
+          breach_type?: string
+          business_id?: string
+          channel_type?: Database["public"]["Enums"]["channel_type"]
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          priority?: Database["public"]["Enums"]["priority_level"]
+          target_minutes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sla_breach_logs_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sla_breach_logs_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sla_policies: {
+        Row: {
+          business_hours: Json | null
+          business_id: string
+          channel_overrides: Json | null
+          created_at: string
+          description: string | null
+          first_response_target: number
+          id: string
+          is_active: boolean | null
+          is_default: boolean | null
+          name: string
+          priority_overrides: Json | null
+          resolution_target: number
+          updated_at: string
+          warning_threshold: number
+        }
+        Insert: {
+          business_hours?: Json | null
+          business_id: string
+          channel_overrides?: Json | null
+          created_at?: string
+          description?: string | null
+          first_response_target?: number
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          name: string
+          priority_overrides?: Json | null
+          resolution_target?: number
+          updated_at?: string
+          warning_threshold?: number
+        }
+        Update: {
+          business_hours?: Json | null
+          business_id?: string
+          channel_overrides?: Json | null
+          created_at?: string
+          description?: string | null
+          first_response_target?: number
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          name?: string
+          priority_overrides?: Json | null
+          resolution_target?: number
+          updated_at?: string
+          warning_threshold?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sla_policies_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sla_tracking: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          first_customer_message_at: string | null
+          first_response_at: string | null
+          first_response_breached: boolean | null
+          first_response_time: number | null
+          first_response_warning_sent: boolean | null
+          id: string
+          paused_at: string | null
+          resolution_breached: boolean | null
+          resolution_time: number | null
+          resolution_warning_sent: boolean | null
+          resolved_at: string | null
+          sla_policy_id: string | null
+          total_paused_minutes: number | null
+          updated_at: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          first_customer_message_at?: string | null
+          first_response_at?: string | null
+          first_response_breached?: boolean | null
+          first_response_time?: number | null
+          first_response_warning_sent?: boolean | null
+          id?: string
+          paused_at?: string | null
+          resolution_breached?: boolean | null
+          resolution_time?: number | null
+          resolution_warning_sent?: boolean | null
+          resolved_at?: string | null
+          sla_policy_id?: string | null
+          total_paused_minutes?: number | null
+          updated_at?: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          first_customer_message_at?: string | null
+          first_response_at?: string | null
+          first_response_breached?: boolean | null
+          first_response_time?: number | null
+          first_response_warning_sent?: boolean | null
+          id?: string
+          paused_at?: string | null
+          resolution_breached?: boolean | null
+          resolution_time?: number | null
+          resolution_warning_sent?: boolean | null
+          resolved_at?: string | null
+          sla_policy_id?: string | null
+          total_paused_minutes?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sla_tracking_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: true
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sla_tracking_sla_policy_id_fkey"
+            columns: ["sla_policy_id"]
+            isOneToOne: false
+            referencedRelation: "sla_policies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       social_channels: {
         Row: {
           access_token: string | null
@@ -1342,7 +1527,37 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_sla_breaches: { Args: never; Returns: number }
       get_channel_tokens: { Args: { p_channel_id: string }; Returns: Json }
+      get_effective_sla_targets: {
+        Args: {
+          p_business_id: string
+          p_channel_type: Database["public"]["Enums"]["channel_type"]
+          p_priority: Database["public"]["Enums"]["priority_level"]
+        }
+        Returns: {
+          first_response_target: number
+          policy_id: string
+          resolution_target: number
+          warning_threshold: number
+        }[]
+      }
+      get_sla_metrics: {
+        Args: {
+          p_business_id: string
+          p_end_date?: string
+          p_start_date?: string
+        }
+        Returns: {
+          avg_first_response_minutes: number
+          avg_resolution_minutes: number
+          first_response_breach_count: number
+          first_response_compliance_rate: number
+          resolution_breach_count: number
+          resolution_compliance_rate: number
+          total_conversations: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
