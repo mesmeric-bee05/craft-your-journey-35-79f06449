@@ -556,6 +556,136 @@ export type Database = {
           },
         ]
       }
+      csat_responses: {
+        Row: {
+          assigned_agent_id: string | null
+          business_id: string
+          channel_type: Database["public"]["Enums"]["channel_type"]
+          comment: string | null
+          conversation_id: string
+          created_at: string
+          customer_id: string
+          id: string
+          rating: number
+          responded_at: string
+          survey_id: string
+        }
+        Insert: {
+          assigned_agent_id?: string | null
+          business_id: string
+          channel_type: Database["public"]["Enums"]["channel_type"]
+          comment?: string | null
+          conversation_id: string
+          created_at?: string
+          customer_id: string
+          id?: string
+          rating: number
+          responded_at?: string
+          survey_id: string
+        }
+        Update: {
+          assigned_agent_id?: string | null
+          business_id?: string
+          channel_type?: Database["public"]["Enums"]["channel_type"]
+          comment?: string | null
+          conversation_id?: string
+          created_at?: string
+          customer_id?: string
+          id?: string
+          rating?: number
+          responded_at?: string
+          survey_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "csat_responses_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "csat_responses_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "csat_responses_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "csat_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "csat_surveys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      csat_surveys: {
+        Row: {
+          business_id: string
+          comment_prompt: string | null
+          created_at: string
+          delay_minutes: number | null
+          id: string
+          include_comment: boolean | null
+          is_active: boolean | null
+          is_default: boolean | null
+          name: string
+          question: string
+          scale_type: string
+          thank_you_message: string | null
+          trigger_on_resolution: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          comment_prompt?: string | null
+          created_at?: string
+          delay_minutes?: number | null
+          id?: string
+          include_comment?: boolean | null
+          is_active?: boolean | null
+          is_default?: boolean | null
+          name: string
+          question?: string
+          scale_type?: string
+          thank_you_message?: string | null
+          trigger_on_resolution?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          comment_prompt?: string | null
+          created_at?: string
+          delay_minutes?: number | null
+          id?: string
+          include_comment?: boolean | null
+          is_active?: boolean | null
+          is_default?: boolean | null
+          name?: string
+          question?: string
+          scale_type?: string
+          thank_you_message?: string | null
+          trigger_on_resolution?: boolean | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "csat_surveys_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           avatar_url: string | null
@@ -1529,6 +1659,49 @@ export type Database = {
     Functions: {
       check_sla_breaches: { Args: never; Returns: number }
       get_channel_tokens: { Args: { p_channel_id: string }; Returns: Json }
+      get_csat_by_agent: {
+        Args: {
+          p_business_id: string
+          p_end_date?: string
+          p_start_date?: string
+        }
+        Returns: {
+          agent_id: string
+          agent_name: string
+          avg_rating: number
+          total_responses: number
+        }[]
+      }
+      get_csat_by_channel: {
+        Args: {
+          p_business_id: string
+          p_end_date?: string
+          p_start_date?: string
+        }
+        Returns: {
+          avg_rating: number
+          channel_type: Database["public"]["Enums"]["channel_type"]
+          total_responses: number
+        }[]
+      }
+      get_csat_metrics: {
+        Args: {
+          p_business_id: string
+          p_end_date?: string
+          p_start_date?: string
+        }
+        Returns: {
+          avg_rating: number
+          nps_score: number
+          rating_1_count: number
+          rating_2_count: number
+          rating_3_count: number
+          rating_4_count: number
+          rating_5_count: number
+          response_rate: number
+          total_responses: number
+        }[]
+      }
       get_effective_sla_targets: {
         Args: {
           p_business_id: string
