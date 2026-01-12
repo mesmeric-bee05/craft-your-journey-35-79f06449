@@ -15,6 +15,7 @@ import { MessageInput, MessageInputRef } from './MessageInput';
 import { AISuggestions } from './AISuggestions';
 import { AssignmentDropdown } from './AssignmentDropdown';
 import { SLABadge } from './SLABadge';
+import { CSATSurveyWidget } from './CSATSurveyWidget';
 import { Conversation } from '@/hooks/useConversations';
 import { useMessages } from '@/hooks/useMessages';
 import { getChannelConfig } from './channelConfig';
@@ -31,7 +32,7 @@ interface ChatViewProps {
 export function ChatView({ conversation, onBack, onToggleDetails, onStatusChange, onAssign, messageInputRef }: ChatViewProps) {
   const { messages, loading, sendMessage } = useMessages(conversation.id);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  
+  const [showCSATSurvey, setShowCSATSurvey] = useState(conversation.status === 'resolved');
   const { customer, channel_type } = conversation;
   const channelConfig = getChannelConfig(channel_type);
   const ChannelIcon = channelConfig.icon;
@@ -162,6 +163,18 @@ export function ChatView({ conversation, onBack, onToggleDetails, onStatusChange
           )}
         </div>
       </ScrollArea>
+
+      {/* CSAT Survey Widget - Shows when conversation is resolved */}
+      {showCSATSurvey && conversation.status === 'resolved' && (
+        <CSATSurveyWidget
+          conversationId={conversation.id}
+          customerId={conversation.customer_id}
+          channelType={conversation.channel_type}
+          assignedAgentId={conversation.assigned_to}
+          onClose={() => setShowCSATSurvey(false)}
+          onSubmit={() => setShowCSATSurvey(false)}
+        />
+      )}
 
       {/* Message Input */}
       <MessageInput ref={messageInputRef} onSend={handleSendMessage} conversationId={conversation.id} />
