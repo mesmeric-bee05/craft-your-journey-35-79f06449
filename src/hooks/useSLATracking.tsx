@@ -68,11 +68,25 @@ interface UseSLATrackingReturn {
   getSLAMetrics: (startDate?: Date, endDate?: Date) => Promise<SLAMetrics | null>;
   trackingRecords: Map<string, SLATrackingRecord>;
   subscribeToTracking: (conversationId: string) => () => void;
+  // State-based properties for Analytics page
+  metrics: SLAMetrics | null;
+  breachLogs: SLABreachLog[];
+  isLoading: boolean;
+  fetchMetrics: (startDate?: Date, endDate?: Date) => Promise<void>;
+  fetchBreachLogs: (filters?: { 
+    startDate?: Date; 
+    endDate?: Date; 
+    breachType?: 'first_response' | 'resolution';
+    limit?: number;
+  }) => Promise<void>;
 }
 
 export function useSLATracking(): UseSLATrackingReturn {
   const { business } = useBusiness();
   const [trackingRecords, setTrackingRecords] = useState<Map<string, SLATrackingRecord>>(new Map());
+  const [metrics, setMetrics] = useState<SLAMetrics | null>(null);
+  const [breachLogs, setBreachLogs] = useState<SLABreachLog[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const getSLATracking = useCallback(async (conversationId: string): Promise<SLATrackingRecord | null> => {
     try {
@@ -297,6 +311,32 @@ export function useSLATracking(): UseSLATrackingReturn {
     };
   }, [getSLATracking]);
 
+  // State-based fetch functions for Analytics page
+  const fetchMetrics = useCallback(async (startDate?: Date, endDate?: Date) => {
+    setIsLoading(true);
+    try {
+      const result = await getSLAMetrics(startDate, endDate);
+      setMetrics(result);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [getSLAMetrics]);
+
+  const fetchBreachLogs = useCallback(async (filters?: {
+    startDate?: Date;
+    endDate?: Date;
+    breachType?: 'first_response' | 'resolution';
+    limit?: number;
+  }) => {
+    setIsLoading(true);
+    try {
+      const result = await getBreachLogs(filters);
+      setBreachLogs(result);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [getBreachLogs]);
+
   return {
     getSLAStatus,
     getSLATracking,
@@ -304,5 +344,11 @@ export function useSLATracking(): UseSLATrackingReturn {
     getSLAMetrics,
     trackingRecords,
     subscribeToTracking,
+    // State-based properties
+    metrics,
+    breachLogs,
+    isLoading,
+    fetchMetrics,
+    fetchBreachLogs,
   };
 }
