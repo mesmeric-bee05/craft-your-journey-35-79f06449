@@ -5,7 +5,9 @@ import { NotificationSettings } from '@/components/settings/NotificationSettings
 import { ChannelSettings } from '@/components/settings/ChannelSettings';
 import { SecuritySettings } from '@/components/settings/SecuritySettings';
 import { SLASettings } from '@/components/settings/SLASettings';
-import { User, Bell, Link2, Shield, Clock } from 'lucide-react';
+import { CSATSettings } from '@/components/settings/CSATSettings';
+import { CannedResponsesSettings } from '@/components/settings/CannedResponsesSettings';
+import { User, Bell, Link2, Shield, Clock, Star, MessageSquare } from 'lucide-react';
 
 export default function Settings() {
   return (
@@ -19,7 +21,7 @@ export default function Settings() {
         </div>
 
         <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 lg:w-[750px]">
+          <TabsList className="grid w-full grid-cols-7 lg:w-[900px]">
             <TabsTrigger value="profile" className="gap-2">
               <User className="h-4 w-4" />
               <span className="hidden sm:inline">Profile</span>
@@ -35,6 +37,14 @@ export default function Settings() {
             <TabsTrigger value="sla" className="gap-2">
               <Clock className="h-4 w-4" />
               <span className="hidden sm:inline">SLA</span>
+            </TabsTrigger>
+            <TabsTrigger value="csat" className="gap-2">
+              <Star className="h-4 w-4" />
+              <span className="hidden sm:inline">CSAT</span>
+            </TabsTrigger>
+            <TabsTrigger value="canned" className="gap-2">
+              <MessageSquare className="h-4 w-4" />
+              <span className="hidden sm:inline">Canned</span>
             </TabsTrigger>
             <TabsTrigger value="security" className="gap-2">
               <Shield className="h-4 w-4" />
@@ -56,6 +66,14 @@ export default function Settings() {
 
           <TabsContent value="sla">
             <SLASettings />
+          </TabsContent>
+
+          <TabsContent value="csat">
+            <CSATSettings />
+          </TabsContent>
+
+          <TabsContent value="canned">
+            <CannedResponsesSettings />
           </TabsContent>
 
           <TabsContent value="security">
