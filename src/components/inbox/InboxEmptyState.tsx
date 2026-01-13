@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useBusiness } from '@/hooks/useBusiness';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from '@/lib/logger';
 
 interface InboxEmptyStateProps {
   onDataSeeded?: () => void;
@@ -39,7 +40,7 @@ export function InboxEmptyState({ onDataSeeded }: InboxEmptyStateProps) {
       
       onDataSeeded?.();
     } catch (err: any) {
-      console.error('Error seeding data:', err);
+      logger.error('Error seeding data', err, { component: 'InboxEmptyState' });
       toast({ 
         title: 'Failed to load sample data', 
         description: err.message, 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useBusiness } from '@/hooks/useBusiness';
+import { logger } from '@/lib/logger';
 
 export interface SLATrackingRecord {
   id: string;
@@ -103,7 +104,7 @@ export function useSLATracking(): UseSLATrackingReturn {
 
       return data as SLATrackingRecord;
     } catch (err) {
-      console.error('Error fetching SLA tracking:', err);
+      logger.error('Error fetching SLA tracking', err, { hook: 'useSLATracking', conversationId });
       return null;
     }
   }, []);
@@ -243,7 +244,7 @@ export function useSLATracking(): UseSLATrackingReturn {
 
       return (data || []) as SLABreachLog[];
     } catch (err) {
-      console.error('Error fetching breach logs:', err);
+      logger.error('Error fetching SLA breach logs', err, { hook: 'useSLATracking' });
       return [];
     }
   }, [business?.id]);
@@ -268,7 +269,7 @@ export function useSLATracking(): UseSLATrackingReturn {
       }
       return null;
     } catch (err) {
-      console.error('Error fetching SLA metrics:', err);
+      logger.error('Error fetching SLA metrics', err, { hook: 'useSLATracking' });
       return null;
     }
   }, [business?.id]);

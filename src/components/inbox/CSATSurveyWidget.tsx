@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useBusiness } from '@/hooks/useBusiness';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { logger } from '@/lib/logger';
 
 interface CSATSurveyWidgetProps {
   conversationId: string;
@@ -93,7 +94,7 @@ export function CSATSurveyWidget({
           }
         }
       } catch (err) {
-        console.error('Error fetching CSAT survey:', err);
+        logger.error('Error fetching CSAT survey', err, { component: 'CSATSurveyWidget', conversationId });
       } finally {
         setLoading(false);
       }

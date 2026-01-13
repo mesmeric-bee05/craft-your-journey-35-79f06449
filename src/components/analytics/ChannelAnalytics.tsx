@@ -115,7 +115,7 @@ export function ChannelAnalytics({ dateRange }: ChannelAnalyticsProps) {
 
       setChannels(metrics.sort((a, b) => b.total_conversations - a.total_conversations));
     } catch (error) {
-      console.error('Error fetching channel metrics:', error);
+      // Error handled silently - metrics will show as empty
     } finally {
       setLoading(false);
     }

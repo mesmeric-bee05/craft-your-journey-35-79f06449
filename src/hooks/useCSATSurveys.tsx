@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useBusiness } from '@/hooks/useBusiness';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from '@/lib/logger';
 
 export interface CSATSurvey {
   id: string;
@@ -130,7 +131,7 @@ export function useCSATSurveys(): UseCSATSurveysReturn {
         setMetrics(data[0] as CSATMetrics);
       }
     } catch (err: any) {
-      console.error('Error fetching CSAT metrics:', err);
+      logger.error('Error fetching CSAT metrics', err, { hook: 'useCSATSurveys' });
     }
   }, [business?.id]);
 
@@ -147,7 +148,7 @@ export function useCSATSurveys(): UseCSATSurveysReturn {
       if (fetchError) throw fetchError;
       setByAgent(data as CSATByAgent[]);
     } catch (err: any) {
-      console.error('Error fetching CSAT by agent:', err);
+      logger.error('Error fetching CSAT by agent', err, { hook: 'useCSATSurveys' });
     }
   }, [business?.id]);
 
@@ -164,7 +165,7 @@ export function useCSATSurveys(): UseCSATSurveysReturn {
       if (fetchError) throw fetchError;
       setByChannel(data as CSATByChannel[]);
     } catch (err: any) {
-      console.error('Error fetching CSAT by channel:', err);
+      logger.error('Error fetching CSAT by channel', err, { hook: 'useCSATSurveys' });
     }
   }, [business?.id]);
 
@@ -182,7 +183,7 @@ export function useCSATSurveys(): UseCSATSurveysReturn {
       if (fetchError) throw fetchError;
       setResponses(data as unknown as CSATResponse[]);
     } catch (err: any) {
-      console.error('Error fetching CSAT responses:', err);
+      logger.error('Error fetching CSAT responses', err, { hook: 'useCSATSurveys' });
     }
   }, [business?.id]);
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from '@/lib/logger';
 
 export interface UserProfile {
   id: string;
@@ -39,7 +40,7 @@ export function useUserProfile() {
       if (error && error.code !== 'PGRST116') throw error;
       setProfile(data as UserProfile);
     } catch (err: any) {
-      console.error('Error fetching profile:', err);
+      logger.error('Error fetching user profile', err, { hook: 'useUserProfile' });
     } finally {
       setLoading(false);
     }
