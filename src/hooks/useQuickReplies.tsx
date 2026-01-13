@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useBusiness } from '@/hooks/useBusiness';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from '@/lib/logger';
 
 export interface QuickReply {
   id: string;
@@ -110,7 +111,7 @@ export function useQuickReplies(): UseQuickRepliesReturn {
         .update({ usage_count: reply.usage_count + 1 })
         .eq('id', id);
     } catch (err) {
-      console.error('Error incrementing usage:', err);
+      logger.error('Error incrementing quick reply usage', err, { hook: 'useQuickReplies', replyId: id });
     }
   };
 

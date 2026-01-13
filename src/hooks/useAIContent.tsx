@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useBusiness } from '@/hooks/useBusiness';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from '@/lib/logger';
 
 export interface AIContent {
   id: string;
@@ -164,7 +165,7 @@ export function useAIContent(): UseAIContentReturn {
         prev.map((c) => (c.id === id ? { ...c, is_used: true } : c))
       );
     } catch (err: any) {
-      console.error('Error marking as used:', err);
+      logger.error('Error marking content as used', err, { hook: 'useAIContent', contentId: id });
     }
   };
 

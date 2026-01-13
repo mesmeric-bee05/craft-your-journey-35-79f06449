@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from '@/lib/logger';
 
 export interface UserSettings {
   id: string;
@@ -69,7 +70,7 @@ export function useUserSettings() {
         setSettings(data as unknown as UserSettings);
       }
     } catch (err: any) {
-      console.error('Error fetching settings:', err);
+      logger.error('Error fetching user settings', err, { hook: 'useUserSettings' });
     } finally {
       setLoading(false);
     }

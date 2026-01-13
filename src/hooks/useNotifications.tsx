@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useBusiness } from '@/hooks/useBusiness';
 import { useUserSettings } from '@/hooks/useUserSettings';
 import { toast } from 'sonner';
+import { logger } from '@/lib/logger';
 
 export type NotificationType = 'new_message' | 'assignment' | 'mention' | 'status_change';
 
@@ -60,7 +61,7 @@ export function useNotifications() {
         return false;
       }
     } catch (error) {
-      console.error('Error requesting notification permission:', error);
+      logger.error('Error requesting notification permission', error, { hook: 'useNotifications' });
       return false;
     }
   }, []);
@@ -97,7 +98,7 @@ export function useNotifications() {
 
         playNotificationSound();
       } catch (error) {
-        console.error('Error showing browser notification:', error);
+        logger.error('Error showing browser notification', error, { hook: 'useNotifications' });
       }
     }
   }, [permission, settings?.push_notifications, playNotificationSound]);

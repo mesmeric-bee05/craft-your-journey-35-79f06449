@@ -162,8 +162,8 @@ export default function Talent() {
                   <FreelancerCard
                     key={freelancer.id}
                     freelancer={freelancer}
-                    onViewProfile={(f) => console.log('View profile:', f)}
-                    onHire={(f) => console.log('Hire:', f)}
+                    onViewProfile={() => {}}
+                    onHire={() => {}}
                   />
                 ))}
               </div>
@@ -196,8 +196,8 @@ export default function Talent() {
                   <JobPostingCard
                     key={job.id}
                     job={job}
-                    onViewDetails={(j) => console.log('View:', j)}
-                    onApply={(j) => console.log('Apply:', j)}
+                    onViewDetails={() => {}}
+                    onApply={() => {}}
                   />
                 ))}
               </div>
@@ -224,7 +224,7 @@ export default function Talent() {
                     key={job.id}
                     job={job}
                     isOwner
-                    onViewDetails={(j) => console.log('View:', j)}
+                    onViewDetails={() => {}}
                     onEdit={(j) => { setEditingJob(j); setShowJobForm(true); }}
                   />
                 ))}
@@ -258,7 +258,7 @@ export default function Talent() {
                   <ContractCard
                     key={contract.id}
                     contract={contract}
-                    onViewDetails={(c) => console.log('View:', c)}
+                    onViewDetails={() => {}}
                     onUpdateStatus={(c, status) => updateContract.mutate({ id: c.id, status })}
                   />
                 ))}

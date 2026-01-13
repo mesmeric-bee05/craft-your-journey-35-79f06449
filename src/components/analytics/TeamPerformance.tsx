@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { useBusiness } from '@/hooks/useBusiness';
+import { logger } from '@/lib/logger';
 
 interface TeamPerformanceProps {
   dateRange: number;
@@ -100,7 +101,7 @@ export function TeamPerformance({ dateRange }: TeamPerformanceProps) {
       const metrics = await Promise.all(metricsPromises);
       setAgents(metrics.sort((a, b) => b.total_conversations - a.total_conversations));
     } catch (error) {
-      console.error('Error fetching team metrics:', error);
+      logger.error('Error fetching team metrics', error, { component: 'TeamPerformance' });
     } finally {
       setLoading(false);
     }

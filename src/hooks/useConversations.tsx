@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useBusiness } from '@/hooks/useBusiness';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from '@/lib/logger';
 
 export interface Customer {
   id: string;
@@ -262,7 +263,7 @@ export function useConversations(): UseConversationsReturn {
         prev.map((c) => (c.id === id ? { ...c, unread_count: 0 } : c))
       );
     } catch (err: any) {
-      console.error('Error marking as read:', err);
+      logger.error('Error marking conversation as read', err, { hook: 'useConversations', conversationId: id });
     }
   };
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useBusiness } from '@/hooks/useBusiness';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from '@/lib/logger';
 
 export interface ConnectedChannel {
   id: string;
@@ -37,7 +38,7 @@ export function useConnectedChannels() {
       if (error) throw error;
       setChannels(data as ConnectedChannel[]);
     } catch (err: any) {
-      console.error('Error fetching channels:', err);
+      logger.error('Error fetching channels', err, { hook: 'useConnectedChannels' });
     } finally {
       setLoading(false);
     }

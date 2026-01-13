@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useBusiness } from '@/hooks/useBusiness';
 import { toast } from 'sonner';
+import { logger } from '@/lib/logger';
 
 export interface SLAPolicy {
   id: string;
@@ -71,7 +72,7 @@ export function useSLAPolicies(): UseSLAPoliciesReturn {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to fetch SLA policies';
       setError(message);
-      console.error('Error fetching SLA policies:', err);
+      logger.error('Error fetching SLA policies', err, { hook: 'useSLAPolicies' });
     } finally {
       setLoading(false);
     }
@@ -106,7 +107,7 @@ export function useSLAPolicies(): UseSLAPoliciesReturn {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create SLA policy';
       toast.error(message);
-      console.error('Error creating SLA policy:', err);
+      logger.error('Error creating SLA policy', err, { hook: 'useSLAPolicies' });
       return null;
     }
   };
@@ -126,7 +127,7 @@ export function useSLAPolicies(): UseSLAPoliciesReturn {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update SLA policy';
       toast.error(message);
-      console.error('Error updating SLA policy:', err);
+      logger.error('Error updating SLA policy', err, { hook: 'useSLAPolicies', policyId: id });
       return false;
     }
   };
@@ -146,7 +147,7 @@ export function useSLAPolicies(): UseSLAPoliciesReturn {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to delete SLA policy';
       toast.error(message);
-      console.error('Error deleting SLA policy:', err);
+      logger.error('Error deleting SLA policy', err, { hook: 'useSLAPolicies', policyId: id });
       return false;
     }
   };
@@ -182,7 +183,7 @@ export function useSLAPolicies(): UseSLAPoliciesReturn {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to set default policy';
       toast.error(message);
-      console.error('Error setting default policy:', err);
+      logger.error('Error setting default SLA policy', err, { hook: 'useSLAPolicies', policyId: id });
       return false;
     }
   };
