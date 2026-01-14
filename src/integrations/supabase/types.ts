@@ -548,6 +548,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "conversations_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "social_channels_safe"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "conversations_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
@@ -1278,6 +1285,13 @@ export type Database = {
             referencedRelation: "social_channels"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "scheduled_posts_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "social_channels_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       sla_breach_logs: {
@@ -1654,7 +1668,53 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      social_channels_safe: {
+        Row: {
+          business_id: string | null
+          channel_name: string | null
+          channel_type: Database["public"]["Enums"]["channel_type"] | null
+          connected_at: string | null
+          created_at: string | null
+          id: string | null
+          is_active: boolean | null
+          is_connected: boolean | null
+          metadata: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          business_id?: string | null
+          channel_name?: string | null
+          channel_type?: Database["public"]["Enums"]["channel_type"] | null
+          connected_at?: string | null
+          created_at?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          is_connected?: boolean | null
+          metadata?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          business_id?: string | null
+          channel_name?: string | null
+          channel_type?: Database["public"]["Enums"]["channel_type"] | null
+          connected_at?: string | null
+          created_at?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          is_connected?: boolean | null
+          metadata?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_channels_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       check_sla_breaches: { Args: never; Returns: number }
