@@ -233,37 +233,45 @@ export function useOnboarding() {
   }, []);
 
   const uploadAsset = useCallback(async (file: File, type: 'logo' | 'cover') => {
-    if (!user) return null;
+    if (!user || !state.businessId) return null;
 
     setLoading(true);
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}/${type}-${Date.now()}.${fileExt}`;
+      // Use business ID as folder path to comply with RLS policy
+      const fileName = `${state.businessId}/${type}-${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from('business-assets')
-        .upload(fileName, file);
+        .upload(fileName, file, { upsert: true });
 
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
+      // Create a long-lived signed URL (1 year) since bucket is now private
+      const { data: signedData, error: signedError } = await supabase.storage
         .from('business-assets')
-        .getPublicUrl(fileName);
+        .createSignedUrl(fileName, 60 * 60 * 24 * 365); // 1 year expiry
 
-      if (type === 'logo') {
-        updateBrandingDetails({ logoUrl: publicUrl });
-      } else {
-        updateBrandingDetails({ coverImageUrl: publicUrl });
+      if (signedError || !signedData?.signedUrl) {
+        throw new Error('Failed to generate signed URL');
       }
 
-      return publicUrl;
+      const assetUrl = signedData.signedUrl;
+
+      if (type === 'logo') {
+        updateBrandingDetails({ logoUrl: assetUrl });
+      } else {
+        updateBrandingDetails({ coverImageUrl: assetUrl });
+      }
+
+      return assetUrl;
     } catch (error: any) {
       toast({ title: 'Upload failed', description: error.message, variant: 'destructive' });
       return null;
     } finally {
       setLoading(false);
     }
-  }, [user, setLoading, toast, updateBrandingDetails]);
+  }, [user, state.businessId, setLoading, toast, updateBrandingDetails]);
 
   return {
     ...state,
