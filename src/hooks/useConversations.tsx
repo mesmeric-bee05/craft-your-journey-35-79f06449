@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useBusiness } from '@/hooks/useBusiness';
 import { useToast } from '@/hooks/use-toast';
 import { logger } from '@/lib/logger';
+import { sanitizeSearchInput } from '@/lib/sanitize';
 
 export interface Customer {
   id: string;
@@ -108,9 +109,10 @@ export function useConversations(): UseConversationsReturn {
         `)
         .eq('business_id', business.id);
 
-      // Apply server-side search filter
+      // Apply server-side search filter with sanitized input to prevent SQL injection
       if (debouncedSearch) {
-        query = query.or(`last_message_preview.ilike.%${debouncedSearch}%,subject.ilike.%${debouncedSearch}%`);
+        const sanitizedSearch = sanitizeSearchInput(debouncedSearch);
+        query = query.or(`last_message_preview.ilike.%${sanitizedSearch}%,subject.ilike.%${sanitizedSearch}%`);
       }
 
       const { data, error: fetchError } = await query.order('last_message_at', { ascending: false });
