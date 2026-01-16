@@ -960,6 +960,112 @@ export type Database = {
           },
         ]
       }
+      live_stream_destinations: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          id: string
+          platform: string
+          rtmp_url: string
+          status: string | null
+          stream_id: string
+          stream_key: string
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          platform: string
+          rtmp_url: string
+          status?: string | null
+          stream_id: string
+          stream_key: string
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          platform?: string
+          rtmp_url?: string
+          status?: string | null
+          stream_id?: string
+          stream_key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_stream_destinations_stream_id_fkey"
+            columns: ["stream_id"]
+            isOneToOne: false
+            referencedRelation: "live_streams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      live_streams: {
+        Row: {
+          business_id: string | null
+          created_at: string | null
+          description: string | null
+          ended_at: string | null
+          id: string
+          metadata: Json | null
+          peak_viewers: number | null
+          platforms: Json | null
+          rtmp_url: string | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["live_stream_status"] | null
+          stream_key: string | null
+          title: string
+          updated_at: string | null
+          user_id: string
+          viewer_count: number | null
+        }
+        Insert: {
+          business_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          ended_at?: string | null
+          id?: string
+          metadata?: Json | null
+          peak_viewers?: number | null
+          platforms?: Json | null
+          rtmp_url?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["live_stream_status"] | null
+          stream_key?: string | null
+          title: string
+          updated_at?: string | null
+          user_id: string
+          viewer_count?: number | null
+        }
+        Update: {
+          business_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          ended_at?: string | null
+          id?: string
+          metadata?: Json | null
+          peak_viewers?: number | null
+          platforms?: Json | null
+          rtmp_url?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["live_stream_status"] | null
+          stream_key?: string | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+          viewer_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_streams_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           attachments: Json | null
@@ -1591,6 +1697,36 @@ export type Database = {
           },
         ]
       }
+      user_mfa_settings: {
+        Row: {
+          backup_codes_hash: string[] | null
+          created_at: string | null
+          id: string
+          is_mfa_enabled: boolean | null
+          last_verified_at: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          backup_codes_hash?: string[] | null
+          created_at?: string | null
+          id?: string
+          is_mfa_enabled?: boolean | null
+          last_verified_at?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          backup_codes_hash?: string[] | null
+          created_at?: string | null
+          id?: string
+          is_mfa_enabled?: boolean | null
+          last_verified_at?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1890,6 +2026,7 @@ export type Database = {
       conversation_status: "open" | "pending" | "resolved" | "archived"
       job_status: "draft" | "open" | "in_progress" | "completed" | "cancelled"
       job_type: "one_time" | "ongoing" | "full_time" | "part_time"
+      live_stream_status: "preparing" | "live" | "ended" | "failed"
       location_type: "remote" | "onsite" | "hybrid"
       message_status: "pending" | "sent" | "delivered" | "read" | "failed"
       notification_type:
@@ -2110,6 +2247,7 @@ export const Constants = {
       conversation_status: ["open", "pending", "resolved", "archived"],
       job_status: ["draft", "open", "in_progress", "completed", "cancelled"],
       job_type: ["one_time", "ongoing", "full_time", "part_time"],
+      live_stream_status: ["preparing", "live", "ended", "failed"],
       location_type: ["remote", "onsite", "hybrid"],
       message_status: ["pending", "sent", "delivered", "read", "failed"],
       notification_type: [

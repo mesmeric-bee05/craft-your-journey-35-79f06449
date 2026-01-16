@@ -3,7 +3,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import {
   AlertDialog,
@@ -16,12 +15,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Lock, Shield, Trash2, KeyRound } from 'lucide-react';
+import { Lock, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { PASSWORD_MIN_LENGTH, getPasswordStrength } from '@/lib/validation/password';
+import { TwoFactorSetup } from './TwoFactorSetup';
 
 export function SecuritySettings() {
   const { toast } = useToast();
@@ -166,34 +166,7 @@ export function SecuritySettings() {
       </Card>
 
       {/* Two-Factor Authentication */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5" />
-            Two-Factor Authentication
-          </CardTitle>
-          <CardDescription>
-            Add an extra layer of security to your account
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <KeyRound className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <Label>Enable 2FA</Label>
-                <p className="text-sm text-muted-foreground">
-                  Use an authenticator app to generate codes
-                </p>
-              </div>
-            </div>
-            <Switch disabled />
-          </div>
-          <p className="text-sm text-muted-foreground mt-4">
-            Two-factor authentication is coming soon.
-          </p>
-        </CardContent>
-      </Card>
+      <TwoFactorSetup />
 
       {/* Danger Zone */}
       <Card className="border-destructive/50">
