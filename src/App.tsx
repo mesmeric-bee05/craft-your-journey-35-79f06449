@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { RequireAuth } from "@/components/auth/RequireAuth";
 import { RequireOnboarding } from "@/components/auth/RequireOnboarding";
+import { MFAChallenge } from "@/components/auth/MFAChallenge";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Onboarding from "./pages/Onboarding";
@@ -13,6 +14,7 @@ import Inbox from "./pages/Inbox";
 import Marketing from "./pages/Marketing";
 import Talent from "./pages/Talent";
 import Settings from "./pages/Settings";
+import LiveStudio from "./pages/LiveStudio";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +29,14 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/auth" element={<Auth />} />
+            <Route
+              path="/mfa-challenge"
+              element={
+                <RequireAuth>
+                  <MFAChallenge />
+                </RequireAuth>
+              }
+            />
             <Route
               path="/onboarding"
               element={
@@ -81,6 +91,16 @@ const App = () => (
                 <RequireAuth>
                   <RequireOnboarding>
                     <Settings />
+                  </RequireOnboarding>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/live"
+              element={
+                <RequireAuth>
+                  <RequireOnboarding>
+                    <LiveStudio />
                   </RequireOnboarding>
                 </RequireAuth>
               }
