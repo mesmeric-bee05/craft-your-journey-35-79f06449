@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,16 +10,19 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Sparkles, Copy, Check, Star, Clock, Loader2, Calendar } from 'lucide-react';
+import { Sparkles, Copy, Check, Star, Clock, Loader2, Calendar, Video, Radio, ExternalLink, Users } from 'lucide-react';
 import { useAIContent, AIContent } from '@/hooks/useAIContent';
 import { useCampaigns } from '@/hooks/useCampaigns';
+import { useLiveStream } from '@/hooks/useLiveStream';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+import { format, formatDistanceStrict } from 'date-fns';
 import { ContentCalendar } from '@/components/marketing/ContentCalendar';
 
 export default function Marketing() {
+  const navigate = useNavigate();
   const { contentHistory, generating, generateContent, rateContent, markAsUsed } = useAIContent();
   const { campaigns } = useCampaigns();
+  const { streams, isStreaming, stream } = useLiveStream();
   const { toast } = useToast();
   
   const [prompt, setPrompt] = useState('');
@@ -28,6 +32,8 @@ export default function Marketing() {
   const [platform, setPlatform] = useState('');
   const [generatedContent, setGeneratedContent] = useState('');
   const [copied, setCopied] = useState(false);
+
+  const recentStreams = streams.filter(s => s.status === 'ended').slice(0, 3);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
@@ -70,6 +76,10 @@ export default function Marketing() {
             <TabsTrigger value="calendar" className="gap-2">
               <Calendar className="w-4 h-4" />
               Calendar
+            </TabsTrigger>
+            <TabsTrigger value="live" className="gap-2">
+              <Video className="w-4 h-4" />
+              Go Live
             </TabsTrigger>
           </TabsList>
 
@@ -260,6 +270,143 @@ export default function Marketing() {
 
           <TabsContent value="calendar">
             <ContentCalendar />
+          </TabsContent>
+
+          <TabsContent value="live" className="space-y-6">
+            <div className="grid lg:grid-cols-2 gap-6">
+              {/* Live Status Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Video className="w-5 h-5 text-primary" />
+                    Live Streaming
+                  </CardTitle>
+                  <CardDescription>
+                    Stream to multiple platforms simultaneously
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {isStreaming && stream ? (
+                    <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20">
+                      <div className="flex items-center gap-3 mb-3">
+                        <Badge variant="destructive" className="animate-pulse">
+                          <Radio className="w-3 h-3 mr-1" />
+                          LIVE NOW
+                        </Badge>
+                        <span className="text-sm font-medium">{stream.title}</span>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Users className="w-4 h-4" />
+                          {stream.viewer_count || 0} viewers
+                        </span>
+                      </div>
+                      <Button 
+                        className="w-full mt-4" 
+                        onClick={() => navigate('/live')}
+                      >
+                        <ExternalLink className="w-4 h-4 mr-2" />
+                        Open Live Studio
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Video className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                      <p className="text-muted-foreground mb-4">
+                        No active stream. Start a new broadcast.
+                      </p>
+                      <Button onClick={() => navigate('/live')}>
+                        <Video className="w-4 h-4 mr-2" />
+                        Open Live Studio
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Recent Streams */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Recent Streams</CardTitle>
+                  <CardDescription>Your past broadcasts</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {recentStreams.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <p>No past streams yet</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {recentStreams.map((pastStream) => (
+                        <div
+                          key={pastStream.id}
+                          className="p-3 rounded-lg border border-border"
+                        >
+                          <h4 className="font-medium text-sm truncate">
+                            {pastStream.title}
+                          </h4>
+                          <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Users className="w-3 h-3" />
+                              {pastStream.peak_viewers || 0} peak viewers
+                            </span>
+                            {pastStream.ended_at && pastStream.started_at && (
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {formatDistanceStrict(
+                                  new Date(pastStream.ended_at),
+                                  new Date(pastStream.started_at)
+                                )}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Stream Features */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Streaming Features</CardTitle>
+                <CardDescription>What you can do with Live Studio</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="p-4 rounded-lg bg-muted/50">
+                    <Video className="w-8 h-8 text-primary mb-2" />
+                    <h4 className="font-medium">Multi-Platform</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Stream to Facebook, YouTube, TikTok and more
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-muted/50">
+                    <Radio className="w-8 h-8 text-primary mb-2" />
+                    <h4 className="font-medium">Real-time Chat</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Engage with your audience live
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-muted/50">
+                    <Users className="w-8 h-8 text-primary mb-2" />
+                    <h4 className="font-medium">Viewer Analytics</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Track viewer count and engagement
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-lg bg-muted/50">
+                    <Sparkles className="w-8 h-8 text-primary mb-2" />
+                    <h4 className="font-medium">Screen Sharing</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Share your screen for presentations
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

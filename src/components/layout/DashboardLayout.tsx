@@ -15,6 +15,7 @@ import {
   Search,
   ChevronDown,
   Zap,
+  Video,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,6 +43,7 @@ const mainNavItems: NavItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
   { label: 'Social Inbox', icon: MessageSquare, href: '/inbox', badge: 12 },
   { label: 'AI Marketing', icon: Sparkles, href: '/marketing' },
+  { label: 'Live Studio', icon: Video, href: '/live' },
   { label: 'Talent Hub', icon: Users, href: '/talent' },
   { label: 'Payments', icon: Wallet, href: '/payments' },
   { label: 'Analytics', icon: BarChart3, href: '/analytics' },

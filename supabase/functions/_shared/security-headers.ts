@@ -5,15 +5,45 @@
  */
 
 /**
+ * Content Security Policy directives for Edge Function responses
+ * Provides XSS protection and controls resource loading
+ */
+export const cspDirectives: Record<string, string> = {
+  "default-src": "'self'",
+  "script-src": "'self' 'unsafe-inline' 'unsafe-eval'",
+  "style-src": "'self' 'unsafe-inline'",
+  "img-src": "'self' data: https: blob:",
+  "font-src": "'self' data:",
+  "connect-src": "'self' https://*.supabase.co wss://*.supabase.co https://ai.gateway.lovable.dev",
+  "frame-ancestors": "'none'",
+  "form-action": "'self'",
+  "base-uri": "'self'",
+  "object-src": "'none'",
+  "upgrade-insecure-requests": "",
+};
+
+/**
+ * Generate CSP header string from directives
+ */
+export function getCSPHeader(): string {
+  return Object.entries(cspDirectives)
+    .map(([key, value]) => (value ? `${key} ${value}` : key))
+    .join('; ');
+}
+
+/**
  * Standard security headers for API responses
+ * Includes Content Security Policy for comprehensive protection
  */
 export const securityHeaders = {
+  'Content-Security-Policy': getCSPHeader(),
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
   'X-XSS-Protection': '1; mode=block',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   'Cache-Control': 'no-store, no-cache, must-revalidate',
   'Pragma': 'no-cache',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
 };
 
 /**
