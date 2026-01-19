@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -18,7 +18,6 @@ import {
   Video,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -29,8 +28,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserProfile } from '@/hooks/useUserProfile';
 import { cn } from '@/lib/utils';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
+import { GlobalSearchDialog } from '@/components/search/GlobalSearchDialog';
 
 interface NavItem {
   label: string;
@@ -60,16 +61,30 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { profile } = useUserProfile();
+
+  // Keyboard shortcut for search (Cmd+K or Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleSignOut = async () => {
     await signOut();
     navigate('/auth');
   };
 
-  const userInitials = user?.user_metadata?.full_name
+  const userInitials = (profile?.full_name || user?.user_metadata?.full_name)
     ?.split(' ')
     .map((n: string) => n[0])
     .join('')
@@ -176,16 +191,23 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
 
-          {/* Search */}
+          {/* Search Button */}
           <div className="hidden md:flex flex-1 max-w-md ml-4 lg:ml-0">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search anything..."
-                className="pl-10 bg-muted/50 border-0 focus-visible:ring-1"
-              />
-            </div>
+            <Button
+              variant="outline"
+              className="w-full justify-start text-muted-foreground bg-muted/50 border-0 hover:bg-muted"
+              onClick={() => setSearchOpen(true)}
+            >
+              <Search className="mr-2 h-4 w-4" />
+              <span>Search anything...</span>
+              <kbd className="ml-auto pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-background px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+                <span className="text-xs">⌘</span>K
+              </kbd>
+            </Button>
           </div>
+
+          {/* Global Search Dialog */}
+          <GlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
 
           {/* Right side */}
           <div className="flex items-center gap-3">
@@ -197,13 +219,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center gap-2 px-2">
                   <Avatar className="w-8 h-8">
-                    <AvatarImage src={user?.user_metadata?.avatar_url} />
+                    <AvatarImage src={profile?.avatar_url || user?.user_metadata?.avatar_url} />
                     <AvatarFallback className="bg-primary text-primary-foreground text-sm">
                       {userInitials}
                     </AvatarFallback>
                   </Avatar>
                   <span className="hidden md:block text-sm font-medium">
-                    {user?.user_metadata?.full_name || user?.email?.split('@')[0]}
+                    {profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0]}
                   </span>
                   <ChevronDown className="w-4 h-4 text-muted-foreground" />
                 </Button>
