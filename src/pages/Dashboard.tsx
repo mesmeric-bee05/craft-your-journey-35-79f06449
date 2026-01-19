@@ -6,19 +6,23 @@ import { QuickActions } from '@/components/dashboard/QuickActions';
 import { RecentActivity } from '@/components/dashboard/RecentActivity';
 import { ChannelStatus } from '@/components/dashboard/ChannelStatus';
 import { useAuth } from '@/hooks/useAuth';
-import { MessageSquare, Users, Wallet, TrendingUp, Zap } from 'lucide-react';
+import { useDashboardStats } from '@/hooks/useDashboardStats';
+import { MessageSquare, Users, Wallet, TrendingUp, Zap, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Dashboard() {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { stats, loading: statsLoading, refetch } = useDashboardStats();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!authLoading && !user) {
       navigate('/auth');
     }
-  }, [user, loading, navigate]);
+  }, [user, authLoading, navigate]);
 
-  if (loading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-pulse-glow">
@@ -32,53 +36,124 @@ export default function Dashboard() {
 
   const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 'there';
 
+  const formatNumber = (num: number) => {
+    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+    return num.toLocaleString();
+  };
+
+  const formatCurrency = (num: number) => {
+    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+    if (num >= 1000) return `${(num / 1000).toFixed(0)}K`;
+    return num.toLocaleString();
+  };
+
+  const formatChange = (change: number, suffix = '') => {
+    const sign = change >= 0 ? '+' : '';
+    return `${sign}${change.toFixed(1)}%${suffix}`;
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-8 animate-fade-in">
         {/* Welcome Header */}
-        <div>
-          <h1 className="text-3xl font-display font-bold text-foreground">
-            Welcome back, {firstName}! 👋
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Here's what's happening with your business today.
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-display font-bold text-foreground">
+              Welcome back, {firstName}! 👋
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Here's what's happening with your business today.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={statsLoading}
+            className="gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${statsLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            title="Total Messages"
-            value="1,284"
-            change="+12.5% from last week"
-            changeType="positive"
-            icon={MessageSquare}
-            iconColor="text-blue-500"
-          />
-          <StatCard
-            title="Active Customers"
-            value="432"
-            change="+8.2% from last week"
-            changeType="positive"
-            icon={Users}
-            iconColor="text-purple-500"
-          />
-          <StatCard
-            title="Revenue (KES)"
-            value="254,500"
-            change="+23.1% from last week"
-            changeType="positive"
-            icon={Wallet}
-            iconColor="text-green-500"
-          />
-          <StatCard
-            title="Engagement Rate"
-            value="4.8%"
-            change="-0.3% from last week"
-            changeType="negative"
-            icon={TrendingUp}
-            iconColor="text-orange-500"
-          />
+          {statsLoading ? (
+            <>
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="p-6 rounded-xl border bg-card">
+                  <Skeleton className="h-4 w-24 mb-2" />
+                  <Skeleton className="h-8 w-16 mb-2" />
+                  <Skeleton className="h-3 w-32" />
+                </div>
+              ))}
+            </>
+          ) : (
+            <>
+              <StatCard
+                title="Total Messages"
+                value={formatNumber(stats.totalMessages)}
+                change={`${formatChange(stats.messagesChange)} from last week`}
+                changeType={stats.messagesChange >= 0 ? 'positive' : 'negative'}
+                icon={MessageSquare}
+                iconColor="text-blue-500"
+              />
+              <StatCard
+                title="Active Customers"
+                value={formatNumber(stats.activeCustomers)}
+                change={`${formatChange(stats.customersChange)} from last week`}
+                changeType={stats.customersChange >= 0 ? 'positive' : 'negative'}
+                icon={Users}
+                iconColor="text-purple-500"
+              />
+              <StatCard
+                title="Revenue (KES)"
+                value={formatCurrency(stats.totalRevenue)}
+                change={`${formatChange(stats.revenueChange)} from last week`}
+                changeType={stats.revenueChange >= 0 ? 'positive' : 'negative'}
+                icon={Wallet}
+                iconColor="text-green-500"
+              />
+              <StatCard
+                title="Engagement Rate"
+                value={`${stats.engagementRate}%`}
+                change={`${formatChange(stats.engagementChange)} from last week`}
+                changeType={stats.engagementChange >= 0 ? 'positive' : 'negative'}
+                icon={TrendingUp}
+                iconColor="text-orange-500"
+              />
+            </>
+          )}
+        </div>
+
+        {/* Secondary Stats Row */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="p-4 rounded-lg border bg-card/50">
+            <p className="text-sm text-muted-foreground">Open Conversations</p>
+            <p className="text-2xl font-bold text-foreground">
+              {statsLoading ? <Skeleton className="h-8 w-12" /> : stats.openConversations}
+            </p>
+          </div>
+          <div className="p-4 rounded-lg border bg-card/50">
+            <p className="text-sm text-muted-foreground">Resolved Today</p>
+            <p className="text-2xl font-bold text-foreground">
+              {statsLoading ? <Skeleton className="h-8 w-12" /> : stats.resolvedToday}
+            </p>
+          </div>
+          <div className="p-4 rounded-lg border bg-card/50">
+            <p className="text-sm text-muted-foreground">Avg Response Time</p>
+            <p className="text-2xl font-bold text-foreground">
+              {statsLoading ? <Skeleton className="h-8 w-12" /> : `${Math.round(stats.avgResponseTime)}m`}
+            </p>
+          </div>
+          <div className="p-4 rounded-lg border bg-card/50">
+            <p className="text-sm text-muted-foreground">CSAT Score</p>
+            <p className="text-2xl font-bold text-foreground">
+              {statsLoading ? <Skeleton className="h-8 w-12" /> : stats.csatScore > 0 ? `${stats.csatScore.toFixed(1)}/5` : 'N/A'}
+            </p>
+          </div>
         </div>
 
         {/* Main Content Grid */}
