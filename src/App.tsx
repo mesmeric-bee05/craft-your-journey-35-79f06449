@@ -15,6 +15,9 @@ import Marketing from "./pages/Marketing";
 import Talent from "./pages/Talent";
 import Settings from "./pages/Settings";
 import LiveStudio from "./pages/LiveStudio";
+import Analytics from "./pages/Analytics";
+import Payments from "./pages/Payments";
+import HelpCenter from "./pages/HelpCenter";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -101,6 +104,36 @@ const App = () => (
                 <RequireAuth>
                   <RequireOnboarding>
                     <LiveStudio />
+                  </RequireOnboarding>
+              </RequireAuth>
+              }
+            />
+            <Route
+              path="/analytics"
+              element={
+                <RequireAuth>
+                  <RequireOnboarding>
+                    <Analytics />
+                  </RequireOnboarding>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/payments"
+              element={
+                <RequireAuth>
+                  <RequireOnboarding>
+                    <Payments />
+                  </RequireOnboarding>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/help"
+              element={
+                <RequireAuth>
+                  <RequireOnboarding>
+                    <HelpCenter />
                   </RequireOnboarding>
                 </RequireAuth>
               }
