@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { User, Mail, Phone, MapPin, Globe, Clock } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Globe, Clock, Upload, Trash2, Loader2 } from 'lucide-react';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { useAuth } from '@/hooks/useAuth';
+import { useAvatarUpload } from '@/hooks/useAvatarUpload';
 
 const timezones = [
   { value: 'Africa/Nairobi', label: 'East Africa Time (EAT)' },
@@ -30,6 +31,8 @@ const languages = [
 export function ProfileSettings() {
   const { user } = useAuth();
   const { profile, loading, updateProfile } = useUserProfile();
+  const { uploading, uploadAvatar, deleteAvatar } = useAvatarUpload();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     full_name: '',
@@ -38,6 +41,7 @@ export function ProfileSettings() {
     location: '',
     language: 'en',
     timezone: 'Africa/Nairobi',
+    avatar_url: '',
   });
 
   useEffect(() => {
@@ -49,6 +53,7 @@ export function ProfileSettings() {
         location: profile.location || '',
         language: profile.language || 'en',
         timezone: profile.timezone || 'Africa/Nairobi',
+        avatar_url: profile.avatar_url || '',
       });
     }
   }, [profile]);
@@ -60,6 +65,34 @@ export function ProfileSettings() {
       await updateProfile(formData);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const url = await uploadAvatar(file);
+    if (url) {
+      // Delete old avatar if exists
+      if (formData.avatar_url) {
+        await deleteAvatar(formData.avatar_url);
+      }
+      setFormData(prev => ({ ...prev, avatar_url: url }));
+      await updateProfile({ avatar_url: url });
+    }
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    if (formData.avatar_url) {
+      await deleteAvatar(formData.avatar_url);
+      setFormData(prev => ({ ...prev, avatar_url: '' }));
+      await updateProfile({ avatar_url: null });
     }
   };
 
@@ -98,17 +131,50 @@ export function ProfileSettings() {
           {/* Avatar */}
           <div className="flex items-center gap-4">
             <Avatar className="h-20 w-20">
-              <AvatarImage src={profile?.avatar_url || undefined} />
+              <AvatarImage src={formData.avatar_url || undefined} />
               <AvatarFallback className="text-lg">
                 {formData.full_name?.charAt(0) || user?.email?.charAt(0)?.toUpperCase() || 'U'}
               </AvatarFallback>
             </Avatar>
-            <div>
-              <Button type="button" variant="outline" size="sm">
-                Change Avatar
-              </Button>
-              <p className="text-xs text-muted-foreground mt-1">
-                JPG, PNG or GIF. Max 2MB.
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  onChange={handleAvatarChange}
+                  className="hidden"
+                  id="avatar-upload"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                >
+                  {uploading ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4 mr-2" />
+                  )}
+                  {uploading ? 'Uploading...' : 'Change Avatar'}
+                </Button>
+                {formData.avatar_url && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRemoveAvatar}
+                    disabled={uploading}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                JPG, PNG, GIF or WebP. Max 2MB.
               </p>
             </div>
           </div>
