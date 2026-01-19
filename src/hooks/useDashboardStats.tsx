@@ -161,8 +161,8 @@ export function useDashboardStats(): UseDashboardStatsReturn {
         ) || 1;
       const revenueChange = ((currentRevenue - previousRevenue) / previousRevenue) * 100;
 
-      const slaData = slaMetricsResult.data?.[0] || {};
-      const csatData = csatResult.data?.[0] || {};
+      const slaData = (slaMetricsResult.data?.[0] || {}) as { avg_first_response_minutes?: number };
+      const csatData = (csatResult.data?.[0] || {}) as { avg_rating?: number };
 
       // Calculate engagement rate (messages responded / total messages)
       const engagementRate = currentMessages > 0 

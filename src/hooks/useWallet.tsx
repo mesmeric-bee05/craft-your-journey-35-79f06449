@@ -41,7 +41,7 @@ export function useWallet(): UseWalletReturn {
       setLoading(true);
       setError(null);
 
-      const { data, error: fetchError } = await supabase
+      const { data, error: fetchError } = await (supabase as any)
         .from('wallets')
         .select('*')
         .eq('business_id', business.id)
@@ -70,7 +70,7 @@ export function useWallet(): UseWalletReturn {
     if (!business?.id || !user?.id) return null;
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('wallets')
         .insert({
           business_id: business.id,
@@ -85,7 +85,7 @@ export function useWallet(): UseWalletReturn {
       return data as Wallet;
     } catch (err: any) {
       // Wallet might already exist, try fetching again
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from('wallets')
         .select('*')
         .eq('business_id', business.id)
