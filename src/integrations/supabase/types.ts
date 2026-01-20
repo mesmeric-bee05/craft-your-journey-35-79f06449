@@ -755,6 +755,56 @@ export type Database = {
           },
         ]
       }
+      faqs: {
+        Row: {
+          answer: string
+          business_id: string | null
+          category: string | null
+          created_at: string | null
+          helpful_count: number | null
+          id: string
+          is_published: boolean | null
+          order_index: number | null
+          question: string
+          updated_at: string | null
+          view_count: number | null
+        }
+        Insert: {
+          answer: string
+          business_id?: string | null
+          category?: string | null
+          created_at?: string | null
+          helpful_count?: number | null
+          id?: string
+          is_published?: boolean | null
+          order_index?: number | null
+          question: string
+          updated_at?: string | null
+          view_count?: number | null
+        }
+        Update: {
+          answer?: string
+          business_id?: string | null
+          category?: string | null
+          created_at?: string | null
+          helpful_count?: number | null
+          id?: string
+          is_published?: boolean | null
+          order_index?: number | null
+          question?: string
+          updated_at?: string | null
+          view_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "faqs_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       freelancer_profiles: {
         Row: {
           availability:
@@ -956,6 +1006,47 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      live_chat_messages: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_deleted: boolean | null
+          is_pinned: boolean | null
+          message: string
+          stream_id: string
+          user_id: string | null
+          user_name: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          is_pinned?: boolean | null
+          message: string
+          stream_id: string
+          user_id?: string | null
+          user_name: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          is_pinned?: boolean | null
+          message?: string
+          stream_id?: string
+          user_id?: string | null
+          user_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_chat_messages_stream_id_fkey"
+            columns: ["stream_id"]
+            isOneToOne: false
+            referencedRelation: "live_streams"
             referencedColumns: ["id"]
           },
         ]
@@ -1169,6 +1260,56 @@ export type Database = {
           },
         ]
       }
+      post_templates: {
+        Row: {
+          business_id: string
+          category: string | null
+          content: string
+          created_at: string | null
+          hashtags: string[] | null
+          id: string
+          media_urls: string[] | null
+          name: string
+          platforms: Database["public"]["Enums"]["channel_type"][] | null
+          updated_at: string | null
+          usage_count: number | null
+        }
+        Insert: {
+          business_id: string
+          category?: string | null
+          content: string
+          created_at?: string | null
+          hashtags?: string[] | null
+          id?: string
+          media_urls?: string[] | null
+          name: string
+          platforms?: Database["public"]["Enums"]["channel_type"][] | null
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Update: {
+          business_id?: string
+          category?: string | null
+          content?: string
+          created_at?: string | null
+          hashtags?: string[] | null
+          id?: string
+          media_urls?: string[] | null
+          name?: string
+          platforms?: Database["public"]["Enums"]["channel_type"][] | null
+          updated_at?: string | null
+          usage_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_templates_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -1325,9 +1466,13 @@ export type Database = {
           created_by: string
           error_message: string | null
           external_post_id: string | null
+          hashtags: string[] | null
           id: string
+          link_preview: Json | null
           media_urls: string[] | null
+          mentions: string[] | null
           metrics: Json | null
+          platform_settings: Json | null
           published_at: string | null
           scheduled_for: string
           status: Database["public"]["Enums"]["post_status"]
@@ -1343,9 +1488,13 @@ export type Database = {
           created_by: string
           error_message?: string | null
           external_post_id?: string | null
+          hashtags?: string[] | null
           id?: string
+          link_preview?: Json | null
           media_urls?: string[] | null
+          mentions?: string[] | null
           metrics?: Json | null
+          platform_settings?: Json | null
           published_at?: string | null
           scheduled_for: string
           status?: Database["public"]["Enums"]["post_status"]
@@ -1361,9 +1510,13 @@ export type Database = {
           created_by?: string
           error_message?: string | null
           external_post_id?: string | null
+          hashtags?: string[] | null
           id?: string
+          link_preview?: Json | null
           media_urls?: string[] | null
+          mentions?: string[] | null
           metrics?: Json | null
+          platform_settings?: Json | null
           published_at?: string | null
           scheduled_for?: string
           status?: Database["public"]["Enums"]["post_status"]
@@ -1647,6 +1800,159 @@ export type Database = {
           },
         ]
       }
+      stream_overlays: {
+        Row: {
+          content: Json
+          created_at: string | null
+          id: string
+          is_visible: boolean | null
+          name: string
+          position: Json | null
+          size: Json | null
+          stream_id: string | null
+          type: string
+          updated_at: string | null
+          user_id: string
+          z_index: number | null
+        }
+        Insert: {
+          content?: Json
+          created_at?: string | null
+          id?: string
+          is_visible?: boolean | null
+          name: string
+          position?: Json | null
+          size?: Json | null
+          stream_id?: string | null
+          type?: string
+          updated_at?: string | null
+          user_id: string
+          z_index?: number | null
+        }
+        Update: {
+          content?: Json
+          created_at?: string | null
+          id?: string
+          is_visible?: boolean | null
+          name?: string
+          position?: Json | null
+          size?: Json | null
+          stream_id?: string | null
+          type?: string
+          updated_at?: string | null
+          user_id?: string
+          z_index?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stream_overlays_stream_id_fkey"
+            columns: ["stream_id"]
+            isOneToOne: false
+            referencedRelation: "live_streams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stream_polls: {
+        Row: {
+          created_at: string | null
+          ends_at: string | null
+          id: string
+          is_active: boolean | null
+          options: Json
+          question: string
+          stream_id: string
+          votes: Json | null
+        }
+        Insert: {
+          created_at?: string | null
+          ends_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          options?: Json
+          question: string
+          stream_id: string
+          votes?: Json | null
+        }
+        Update: {
+          created_at?: string | null
+          ends_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          options?: Json
+          question?: string
+          stream_id?: string
+          votes?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stream_polls_stream_id_fkey"
+            columns: ["stream_id"]
+            isOneToOne: false
+            referencedRelation: "live_streams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_tickets: {
+        Row: {
+          assigned_to: string | null
+          attachments: Json | null
+          business_id: string
+          category: Database["public"]["Enums"]["ticket_category"] | null
+          created_at: string | null
+          description: string
+          id: string
+          metadata: Json | null
+          priority: Database["public"]["Enums"]["ticket_priority"] | null
+          resolved_at: string | null
+          status: Database["public"]["Enums"]["ticket_status"] | null
+          subject: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          attachments?: Json | null
+          business_id: string
+          category?: Database["public"]["Enums"]["ticket_category"] | null
+          created_at?: string | null
+          description: string
+          id?: string
+          metadata?: Json | null
+          priority?: Database["public"]["Enums"]["ticket_priority"] | null
+          resolved_at?: string | null
+          status?: Database["public"]["Enums"]["ticket_status"] | null
+          subject: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          assigned_to?: string | null
+          attachments?: Json | null
+          business_id?: string
+          category?: Database["public"]["Enums"]["ticket_category"] | null
+          created_at?: string | null
+          description?: string
+          id?: string
+          metadata?: Json | null
+          priority?: Database["public"]["Enums"]["ticket_priority"] | null
+          resolved_at?: string | null
+          status?: Database["public"]["Enums"]["ticket_status"] | null
+          subject?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_invitations: {
         Row: {
           accepted_at: string | null
@@ -1693,6 +1999,116 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transactions: {
+        Row: {
+          amount: number
+          business_id: string
+          completed_at: string | null
+          created_at: string | null
+          currency: string | null
+          description: string | null
+          external_reference: string | null
+          id: string
+          metadata: Json | null
+          payment_method: string | null
+          recipient_email: string | null
+          recipient_phone: string | null
+          reference: string | null
+          status: Database["public"]["Enums"]["transaction_status"] | null
+          type: Database["public"]["Enums"]["transaction_type"]
+          updated_at: string | null
+          user_id: string | null
+          wallet_id: string | null
+        }
+        Insert: {
+          amount: number
+          business_id: string
+          completed_at?: string | null
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          external_reference?: string | null
+          id?: string
+          metadata?: Json | null
+          payment_method?: string | null
+          recipient_email?: string | null
+          recipient_phone?: string | null
+          reference?: string | null
+          status?: Database["public"]["Enums"]["transaction_status"] | null
+          type: Database["public"]["Enums"]["transaction_type"]
+          updated_at?: string | null
+          user_id?: string | null
+          wallet_id?: string | null
+        }
+        Update: {
+          amount?: number
+          business_id?: string
+          completed_at?: string | null
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          external_reference?: string | null
+          id?: string
+          metadata?: Json | null
+          payment_method?: string | null
+          recipient_email?: string | null
+          recipient_phone?: string | null
+          reference?: string | null
+          status?: Database["public"]["Enums"]["transaction_status"] | null
+          type?: Database["public"]["Enums"]["transaction_type"]
+          updated_at?: string | null
+          user_id?: string | null
+          wallet_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      typing_indicators: {
+        Row: {
+          conversation_id: string
+          id: string
+          is_typing: boolean | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          id?: string
+          is_typing?: boolean | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          id?: string
+          is_typing?: boolean | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "typing_indicators_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
             referencedColumns: ["id"]
           },
         ]
@@ -1801,6 +2217,47 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      wallets: {
+        Row: {
+          balance: number | null
+          business_id: string
+          created_at: string | null
+          currency: string | null
+          id: string
+          is_active: boolean | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          balance?: number | null
+          business_id: string
+          created_at?: string | null
+          currency?: string | null
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          balance?: number | null
+          business_id?: string
+          created_at?: string | null
+          currency?: string | null
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallets_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -2038,6 +2495,31 @@ export type Database = {
       priority_level: "low" | "normal" | "high" | "urgent"
       review_type: "client_to_freelancer" | "freelancer_to_client"
       sender_type: "customer" | "agent" | "system" | "bot"
+      ticket_category:
+        | "technical"
+        | "billing"
+        | "feature_request"
+        | "bug_report"
+        | "general"
+      ticket_priority: "low" | "normal" | "high" | "urgent"
+      ticket_status:
+        | "open"
+        | "in_progress"
+        | "waiting_response"
+        | "resolved"
+        | "closed"
+      transaction_status:
+        | "pending"
+        | "processing"
+        | "completed"
+        | "failed"
+        | "cancelled"
+      transaction_type:
+        | "deposit"
+        | "withdrawal"
+        | "payment"
+        | "refund"
+        | "transfer"
       verification_status: "pending" | "verified" | "rejected" | "expired"
     }
     CompositeTypes: {
@@ -2260,6 +2742,35 @@ export const Constants = {
       priority_level: ["low", "normal", "high", "urgent"],
       review_type: ["client_to_freelancer", "freelancer_to_client"],
       sender_type: ["customer", "agent", "system", "bot"],
+      ticket_category: [
+        "technical",
+        "billing",
+        "feature_request",
+        "bug_report",
+        "general",
+      ],
+      ticket_priority: ["low", "normal", "high", "urgent"],
+      ticket_status: [
+        "open",
+        "in_progress",
+        "waiting_response",
+        "resolved",
+        "closed",
+      ],
+      transaction_status: [
+        "pending",
+        "processing",
+        "completed",
+        "failed",
+        "cancelled",
+      ],
+      transaction_type: [
+        "deposit",
+        "withdrawal",
+        "payment",
+        "refund",
+        "transfer",
+      ],
       verification_status: ["pending", "verified", "rejected", "expired"],
     },
   },
