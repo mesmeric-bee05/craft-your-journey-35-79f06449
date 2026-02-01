@@ -16,8 +16,10 @@ import { AISuggestions } from './AISuggestions';
 import { AssignmentDropdown } from './AssignmentDropdown';
 import { SLABadge } from './SLABadge';
 import { CSATSurveyWidget } from './CSATSurveyWidget';
+import { TypingIndicator } from './TypingIndicator';
 import { Conversation } from '@/hooks/useConversations';
 import { useMessages } from '@/hooks/useMessages';
+import { useTypingIndicators } from '@/hooks/useTypingIndicators';
 import { getChannelConfig } from './channelConfig';
 import { cn } from '@/lib/utils';
 interface ChatViewProps {
@@ -31,6 +33,7 @@ interface ChatViewProps {
 
 export function ChatView({ conversation, onBack, onToggleDetails, onStatusChange, onAssign, messageInputRef }: ChatViewProps) {
   const { messages, loading, sendMessage } = useMessages(conversation.id);
+  const { typingUsers, setTyping, clearTyping } = useTypingIndicators({ conversationId: conversation.id });
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showCSATSurvey, setShowCSATSurvey] = useState(conversation.status === 'resolved');
   const { customer, channel_type } = conversation;
@@ -46,8 +49,13 @@ export function ChatView({ conversation, onBack, onToggleDetails, onStatusChange
     .slice(0, 2);
 
   const handleSendMessage = async (content: string, isInternal: boolean) => {
+    clearTyping();
     await sendMessage(content, isInternal);
     setShowSuggestions(false);
+  };
+
+  const handleTyping = () => {
+    setTyping(true);
   };
 
   const handleUseSuggestion = (suggestion: string) => {
@@ -162,6 +170,11 @@ export function ChatView({ conversation, onBack, onToggleDetails, onStatusChange
             ))
           )}
         </div>
+        
+        {/* Typing Indicator */}
+        {typingUsers.length > 0 && (
+          <TypingIndicator typingUsers={typingUsers} />
+        )}
       </ScrollArea>
 
       {/* CSAT Survey Widget - Shows when conversation is resolved */}
@@ -177,7 +190,12 @@ export function ChatView({ conversation, onBack, onToggleDetails, onStatusChange
       )}
 
       {/* Message Input */}
-      <MessageInput ref={messageInputRef} onSend={handleSendMessage} conversationId={conversation.id} />
+      <MessageInput 
+        ref={messageInputRef} 
+        onSend={handleSendMessage} 
+        conversationId={conversation.id}
+        onTyping={handleTyping}
+      />
     </div>
   );
 }
