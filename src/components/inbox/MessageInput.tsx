@@ -11,13 +11,14 @@ import { cn } from '@/lib/utils';
 interface MessageInputProps {
   onSend: (content: string, isInternal: boolean) => Promise<void>;
   conversationId: string;
+  onTyping?: () => void;
 }
 
 export interface MessageInputRef {
   focus: () => void;
 }
 
-export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({ onSend, conversationId }, ref) => {
+export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({ onSend, conversationId, onTyping }, ref) => {
   const [message, setMessage] = useState('');
   const [isInternal, setIsInternal] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -191,7 +192,10 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({ on
           <Textarea
             ref={textareaRef}
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={(e) => {
+              setMessage(e.target.value);
+              onTyping?.();
+            }}
             onKeyDown={handleKeyDown}
             placeholder={isInternal ? 'Write an internal note...' : 'Type a message or /shortcut... (⌘+Enter to send)'}
             className="min-h-[44px] max-h-[150px] resize-none pr-24"

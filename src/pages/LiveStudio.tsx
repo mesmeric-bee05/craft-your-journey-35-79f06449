@@ -13,20 +13,25 @@ import {
   Radio, 
   Users, 
   Clock, 
-  Settings, 
   MessageSquare,
-  MonitorUp,
   Loader2,
   History,
   Eye,
   Play,
-  Square,
+  BarChart3,
+  Layers,
+  Shield,
 } from 'lucide-react';
 import { LiveStreamPreview } from '@/components/live/LiveStreamPreview';
 import { StreamControls } from '@/components/live/StreamControls';
 import { PlatformConnector } from '@/components/live/PlatformConnector';
 import { LiveChat } from '@/components/live/LiveChat';
+import { StreamSettingsDialog } from '@/components/live/StreamSettingsDialog';
+import { StreamPolls } from '@/components/live/StreamPolls';
+import { StreamOverlays } from '@/components/live/StreamOverlays';
+import { ChatModerator } from '@/components/live/ChatModerator';
 import { useLiveStream } from '@/hooks/useLiveStream';
+import { useLiveChatMessages } from '@/hooks/useLiveChatMessages';
 import { format, formatDistanceStrict } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
@@ -46,10 +51,16 @@ export default function LiveStudio() {
     getScreenShare,
   } = useLiveStream();
 
+  const {
+    messages: chatMessages,
+    deleteMessage,
+  } = useLiveChatMessages({ streamId: stream?.id || null, isStreaming });
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [streamDuration, setStreamDuration] = useState(0);
+  const [activeTab, setActiveTab] = useState('chat');
   const durationInterval = useRef<NodeJS.Timeout | null>(null);
 
   // Duration timer
@@ -161,22 +172,25 @@ export default function LiveStudio() {
               Stream to multiple platforms simultaneously
             </p>
           </div>
-          {isStreaming && (
-            <div className="flex items-center gap-4">
-              <Badge variant="destructive" className="animate-pulse flex items-center gap-2">
-                <Radio className="w-3 h-3" />
-                LIVE
-              </Badge>
-              <div className="flex items-center gap-2 text-sm">
-                <Clock className="w-4 h-4 text-muted-foreground" />
-                <span className="font-mono">{formatDuration(streamDuration)}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <Users className="w-4 h-4 text-muted-foreground" />
-                <span>{stream?.viewer_count || 0} viewers</span>
-              </div>
-            </div>
-          )}
+          <div className="flex items-center gap-4">
+            {stream && <StreamSettingsDialog stream={stream} />}
+            {isStreaming && (
+              <>
+                <Badge variant="destructive" className="animate-pulse flex items-center gap-2">
+                  <Radio className="w-3 h-3" />
+                  LIVE
+                </Badge>
+                <div className="flex items-center gap-2 text-sm">
+                  <Clock className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-mono">{formatDuration(streamDuration)}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <Users className="w-4 h-4 text-muted-foreground" />
+                  <span>{stream?.viewer_count || 0} viewers</span>
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Error Display */}
@@ -295,89 +309,97 @@ export default function LiveStudio() {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            <Tabs defaultValue="chat" className="w-full">
-              <TabsList className="w-full">
-                <TabsTrigger value="chat" className="flex-1">
-                  <MessageSquare className="w-4 h-4 mr-2" />
-                  Chat
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="w-full grid grid-cols-4">
+                <TabsTrigger value="chat" className="text-xs">
+                  <MessageSquare className="w-4 h-4" />
                 </TabsTrigger>
-                <TabsTrigger value="history" className="flex-1">
-                  <History className="w-4 h-4 mr-2" />
-                  History
+                <TabsTrigger value="polls" className="text-xs">
+                  <BarChart3 className="w-4 h-4" />
+                </TabsTrigger>
+                <TabsTrigger value="overlays" className="text-xs">
+                  <Layers className="w-4 h-4" />
+                </TabsTrigger>
+                <TabsTrigger value="moderation" className="text-xs">
+                  <Shield className="w-4 h-4" />
                 </TabsTrigger>
               </TabsList>
 
               <TabsContent value="chat" className="mt-4">
-                <LiveChat streamId={stream?.id} isStreaming={isStreaming} />
+                <LiveChat streamId={stream?.id} isStreaming={isStreaming} isOwner={true} />
               </TabsContent>
 
-              <TabsContent value="history" className="mt-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Past Streams</CardTitle>
-                    <CardDescription>Your recent broadcasts</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ScrollArea className="h-[400px]">
-                      {pastStreams.length === 0 ? (
-                        <div className="text-center py-8 text-muted-foreground">
-                          <Video className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                          <p>No past streams yet</p>
-                          <p className="text-sm">Your completed streams will appear here</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {pastStreams.map((pastStream) => (
-                            <div
-                              key={pastStream.id}
-                              className="p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors"
-                            >
-                              <h4 className="font-medium text-sm truncate">
-                                {pastStream.title}
-                              </h4>
-                              <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                                <span className="flex items-center gap-1">
-                                  <Eye className="w-3 h-3" />
-                                  {pastStream.peak_viewers || 0} peak
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <Clock className="w-3 h-3" />
-                                  {pastStream.ended_at && pastStream.started_at && (
-                                    formatDistanceStrict(
-                                      new Date(pastStream.ended_at),
-                                      new Date(pastStream.started_at)
-                                    )
-                                  )}
-                                </span>
-                              </div>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {pastStream.ended_at && format(new Date(pastStream.ended_at), 'MMM d, yyyy')}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </ScrollArea>
-                  </CardContent>
-                </Card>
+              <TabsContent value="polls" className="mt-4">
+                <StreamPolls streamId={stream?.id || null} isStreaming={isStreaming} isOwner={true} />
+              </TabsContent>
+
+              <TabsContent value="overlays" className="mt-4">
+                <StreamOverlays streamId={stream?.id || null} />
+              </TabsContent>
+
+              <TabsContent value="moderation" className="mt-4">
+                <ChatModerator
+                  streamId={stream?.id || null}
+                  messages={chatMessages}
+                  onDeleteMessage={deleteMessage}
+                />
               </TabsContent>
             </Tabs>
 
-            {/* Quick Tips */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Settings className="w-4 h-4" />
-                  Quick Tips
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground space-y-2">
-                <p>• Connect multiple platforms before going live</p>
-                <p>• Test your camera and mic before streaming</p>
-                <p>• Use screen share for presentations</p>
-                <p>• Engage with chat during your stream</p>
-              </CardContent>
-            </Card>
+            {/* Past Streams - Only show when no active stream */}
+            {!stream && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <History className="w-4 h-4" />
+                    Past Streams
+                  </CardTitle>
+                  <CardDescription>Your recent broadcasts</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-[300px]">
+                    {pastStreams.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Video className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                        <p>No past streams yet</p>
+                        <p className="text-sm">Your completed streams will appear here</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {pastStreams.map((pastStream) => (
+                          <div
+                            key={pastStream.id}
+                            className="p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors"
+                          >
+                            <h4 className="font-medium text-sm truncate">
+                              {pastStream.title}
+                            </h4>
+                            <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Eye className="w-3 h-3" />
+                                {pastStream.peak_viewers || 0} peak
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {pastStream.ended_at && pastStream.started_at && (
+                                  formatDistanceStrict(
+                                    new Date(pastStream.ended_at),
+                                    new Date(pastStream.started_at)
+                                  )
+                                )}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {pastStream.ended_at && format(new Date(pastStream.ended_at), 'MMM d, yyyy')}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>
