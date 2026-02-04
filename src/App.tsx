@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import Onboarding from "./pages/Onboarding";
 import Inbox from "./pages/Inbox";
 import Marketing from "./pages/Marketing";
+import Social from "./pages/Social";
 import Talent from "./pages/Talent";
 import Settings from "./pages/Settings";
 import LiveStudio from "./pages/LiveStudio";
@@ -74,6 +75,16 @@ const App = () => (
                 <RequireAuth>
                   <RequireOnboarding>
                     <Marketing />
+                  </RequireOnboarding>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/social"
+              element={
+                <RequireAuth>
+                  <RequireOnboarding>
+                    <Social />
                   </RequireOnboarding>
                 </RequireAuth>
               }

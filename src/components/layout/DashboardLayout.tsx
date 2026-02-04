@@ -16,6 +16,7 @@ import {
   ChevronDown,
   Zap,
   Video,
+  Share2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -43,6 +44,7 @@ interface NavItem {
 const mainNavItems: NavItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
   { label: 'Social Inbox', icon: MessageSquare, href: '/inbox', badge: 12 },
+  { label: 'Social Manager', icon: Share2, href: '/social' },
   { label: 'AI Marketing', icon: Sparkles, href: '/marketing' },
   { label: 'Live Studio', icon: Video, href: '/live' },
   { label: 'Talent Hub', icon: Users, href: '/talent' },
