@@ -1049,6 +1049,13 @@ export type Database = {
             referencedRelation: "live_streams"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "live_chat_messages_stream_id_fkey"
+            columns: ["stream_id"]
+            isOneToOne: false
+            referencedRelation: "live_streams_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       live_stream_destinations: {
@@ -1088,6 +1095,13 @@ export type Database = {
             columns: ["stream_id"]
             isOneToOne: false
             referencedRelation: "live_streams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_stream_destinations_stream_id_fkey"
+            columns: ["stream_id"]
+            isOneToOne: false
+            referencedRelation: "live_streams_safe"
             referencedColumns: ["id"]
           },
         ]
@@ -1851,6 +1865,13 @@ export type Database = {
             referencedRelation: "live_streams"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "stream_overlays_stream_id_fkey"
+            columns: ["stream_id"]
+            isOneToOne: false
+            referencedRelation: "live_streams_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       stream_polls: {
@@ -1890,6 +1911,13 @@ export type Database = {
             columns: ["stream_id"]
             isOneToOne: false
             referencedRelation: "live_streams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stream_polls_stream_id_fkey"
+            columns: ["stream_id"]
+            isOneToOne: false
+            referencedRelation: "live_streams_safe"
             referencedColumns: ["id"]
           },
         ]
@@ -2261,6 +2289,65 @@ export type Database = {
       }
     }
     Views: {
+      live_streams_safe: {
+        Row: {
+          business_id: string | null
+          created_at: string | null
+          description: string | null
+          ended_at: string | null
+          id: string | null
+          metadata: Json | null
+          peak_viewers: number | null
+          platforms: Json | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["live_stream_status"] | null
+          title: string | null
+          updated_at: string | null
+          user_id: string | null
+          viewer_count: number | null
+        }
+        Insert: {
+          business_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          ended_at?: string | null
+          id?: string | null
+          metadata?: Json | null
+          peak_viewers?: number | null
+          platforms?: Json | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["live_stream_status"] | null
+          title?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          viewer_count?: number | null
+        }
+        Update: {
+          business_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          ended_at?: string | null
+          id?: string | null
+          metadata?: Json | null
+          peak_viewers?: number | null
+          platforms?: Json | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["live_stream_status"] | null
+          title?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          viewer_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_streams_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       social_channels_safe: {
         Row: {
           business_id: string | null
@@ -2304,6 +2391,81 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transactions_safe: {
+        Row: {
+          amount: number | null
+          business_id: string | null
+          completed_at: string | null
+          created_at: string | null
+          currency: string | null
+          description: string | null
+          external_reference: string | null
+          id: string | null
+          payment_method: string | null
+          recipient_email: string | null
+          recipient_phone: string | null
+          reference: string | null
+          status: Database["public"]["Enums"]["transaction_status"] | null
+          type: Database["public"]["Enums"]["transaction_type"] | null
+          updated_at: string | null
+          user_id: string | null
+          wallet_id: string | null
+        }
+        Insert: {
+          amount?: number | null
+          business_id?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          external_reference?: never
+          id?: string | null
+          payment_method?: never
+          recipient_email?: never
+          recipient_phone?: never
+          reference?: string | null
+          status?: Database["public"]["Enums"]["transaction_status"] | null
+          type?: Database["public"]["Enums"]["transaction_type"] | null
+          updated_at?: string | null
+          user_id?: string | null
+          wallet_id?: string | null
+        }
+        Update: {
+          amount?: number | null
+          business_id?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          external_reference?: never
+          id?: string | null
+          payment_method?: never
+          recipient_email?: never
+          recipient_phone?: never
+          reference?: string | null
+          status?: Database["public"]["Enums"]["transaction_status"] | null
+          type?: Database["public"]["Enums"]["transaction_type"] | null
+          updated_at?: string | null
+          user_id?: string | null
+          wallet_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
             referencedColumns: ["id"]
           },
         ]
@@ -2355,6 +2517,7 @@ export type Database = {
           total_responses: number
         }[]
       }
+      get_customer_masked: { Args: { p_customer_id: string }; Returns: Json }
       get_effective_sla_targets: {
         Args: {
           p_business_id: string
@@ -2384,6 +2547,7 @@ export type Database = {
           total_conversations: number
         }[]
       }
+      get_stream_credentials: { Args: { p_stream_id: string }; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
