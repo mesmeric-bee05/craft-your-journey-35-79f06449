@@ -561,6 +561,13 @@ export type Database = {
             referencedRelation: "customers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "conversations_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       csat_responses: {
@@ -623,6 +630,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "csat_responses_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers_safe"
             referencedColumns: ["id"]
           },
           {
@@ -2289,6 +2303,68 @@ export type Database = {
       }
     }
     Views: {
+      customers_safe: {
+        Row: {
+          avatar_url: string | null
+          business_id: string | null
+          channel_type: Database["public"]["Enums"]["channel_type"] | null
+          created_at: string | null
+          email: string | null
+          external_id: string | null
+          first_contact_at: string | null
+          id: string | null
+          last_contact_at: string | null
+          metadata: Json | null
+          name: string | null
+          notes: string | null
+          phone: string | null
+          tags: string[] | null
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          business_id?: string | null
+          channel_type?: Database["public"]["Enums"]["channel_type"] | null
+          created_at?: string | null
+          email?: never
+          external_id?: string | null
+          first_contact_at?: string | null
+          id?: string | null
+          last_contact_at?: string | null
+          metadata?: Json | null
+          name?: string | null
+          notes?: never
+          phone?: never
+          tags?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          business_id?: string | null
+          channel_type?: Database["public"]["Enums"]["channel_type"] | null
+          created_at?: string | null
+          email?: never
+          external_id?: string | null
+          first_contact_at?: string | null
+          id?: string | null
+          last_contact_at?: string | null
+          metadata?: Json | null
+          name?: string | null
+          notes?: never
+          phone?: never
+          tags?: string[] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       live_streams_safe: {
         Row: {
           business_id: string | null
@@ -2347,6 +2423,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      profiles_safe: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string | null
+          email: string | null
+          full_name: string | null
+          id: string | null
+          is_active: boolean | null
+          kyc_document_url: string | null
+          kyc_status: Database["public"]["Enums"]["verification_status"] | null
+          language: string | null
+          last_login_at: string | null
+          location: string | null
+          phone: string | null
+          timezone: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string | null
+          email?: never
+          full_name?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          kyc_document_url?: never
+          kyc_status?: Database["public"]["Enums"]["verification_status"] | null
+          language?: string | null
+          last_login_at?: string | null
+          location?: string | null
+          phone?: never
+          timezone?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string | null
+          email?: never
+          full_name?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          kyc_document_url?: never
+          kyc_status?: Database["public"]["Enums"]["verification_status"] | null
+          language?: string | null
+          last_login_at?: string | null
+          location?: string | null
+          phone?: never
+          timezone?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
       }
       social_channels_safe: {
         Row: {
