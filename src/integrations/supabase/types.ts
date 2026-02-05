@@ -2555,9 +2555,9 @@ export type Database = {
           created_at?: string | null
           currency?: string | null
           description?: string | null
-          external_reference?: never
+          external_reference?: string | null
           id?: string | null
-          payment_method?: never
+          payment_method?: string | null
           recipient_email?: never
           recipient_phone?: never
           reference?: string | null
@@ -2574,9 +2574,9 @@ export type Database = {
           created_at?: string | null
           currency?: string | null
           description?: string | null
-          external_reference?: never
+          external_reference?: string | null
           id?: string | null
-          payment_method?: never
+          payment_method?: string | null
           recipient_email?: never
           recipient_phone?: never
           reference?: string | null
