@@ -37,9 +37,13 @@ const industries = [
 
 const businessTypes = [
   { value: 'retail', label: 'Retail Store' },
-  { value: 'restaurant', label: 'Restaurant/Cafe' },
-  { value: 'service', label: 'Service Provider' },
-  { value: 'ecommerce', label: 'E-commerce' },
+  { value: 'hospitality', label: 'Restaurant/Cafe' },
+  { value: 'services', label: 'Service Provider' },
+  { value: 'technology', label: 'Technology/E-commerce' },
+  { value: 'healthcare', label: 'Healthcare' },
+  { value: 'education', label: 'Education' },
+  { value: 'manufacturing', label: 'Manufacturing' },
+  { value: 'agriculture', label: 'Agriculture' },
   { value: 'other', label: 'Other' },
 ];
 
