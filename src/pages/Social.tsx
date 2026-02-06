@@ -6,6 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Send,
   Calendar,
   FileText,
@@ -14,25 +20,88 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
+  MoreVertical,
+  Edit,
+  Trash2,
+  Copy,
+  Sparkles,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { UnifiedComposer } from '@/components/social/UnifiedComposer';
 import { PlatformPreviews } from '@/components/social/PlatformPreviews';
 import { ContentCalendar } from '@/components/marketing/ContentCalendar';
+import { SocialAnalyticsDashboard } from '@/components/social/SocialAnalyticsDashboard';
+import { PostTemplateDialog } from '@/components/social/PostTemplateDialog';
 import { useScheduledPosts } from '@/hooks/useScheduledPosts';
-import { usePostTemplates } from '@/hooks/usePostTemplates';
+import { usePostTemplates, type CreateTemplateData, type UpdateTemplateData } from '@/hooks/usePostTemplates';
 import { PLATFORM_CONFIGS } from '@/components/social/platformConfig';
 import { cn } from '@/lib/utils';
+import type { Database } from '@/integrations/supabase/types';
+
+type PostTemplate = Database['public']['Tables']['post_templates']['Row'];
+type ChannelType = Database['public']['Enums']['channel_type'];
 
 export default function Social() {
   const [composerContent, setComposerContent] = useState('');
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['instagram']);
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<PostTemplate | null>(null);
+  
   const { posts, loading: postsLoading } = useScheduledPosts();
-  const { templates, loading: templatesLoading } = usePostTemplates();
+  const { 
+    templates, 
+    loading: templatesLoading, 
+    createTemplate, 
+    updateTemplate, 
+    deleteTemplate,
+    duplicateTemplate,
+    refetch: refetchTemplates 
+  } = usePostTemplates();
 
   const scheduledPosts = posts.filter((p) => p.status === 'scheduled');
   const publishedPosts = posts.filter((p) => p.status === 'published');
   const failedPosts = posts.filter((p) => p.status === 'failed');
+
+  const handleSaveTemplate = async (data: {
+    name: string;
+    content: string;
+    category?: string;
+    platforms?: ChannelType[];
+    hashtags?: string[];
+  }) => {
+    if (editingTemplate) {
+      const success = await updateTemplate(editingTemplate.id, data as UpdateTemplateData);
+      if (success) {
+        await refetchTemplates();
+        setEditingTemplate(null);
+      }
+      return success;
+    } else {
+      const result = await createTemplate(data as CreateTemplateData);
+      if (result) {
+        await refetchTemplates();
+      }
+      return !!result;
+    }
+  };
+
+  const handleEditTemplate = (template: PostTemplate) => {
+    setEditingTemplate(template);
+    setTemplateDialogOpen(true);
+  };
+
+  const handleDeleteTemplate = async (id: string) => {
+    await deleteTemplate(id);
+  };
+
+  const handleDuplicateTemplate = async (id: string) => {
+    await duplicateTemplate(id);
+  };
+
+  const handleCreateNew = () => {
+    setEditingTemplate(null);
+    setTemplateDialogOpen(true);
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -203,7 +272,7 @@ export default function Social() {
                       Save and reuse your best performing content
                     </CardDescription>
                   </div>
-                  <Button>
+                  <Button onClick={handleCreateNew}>
                     <FileText className="w-4 h-4 mr-2" />
                     Create Template
                   </Button>
@@ -219,19 +288,53 @@ export default function Social() {
                     <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
                     <p>No templates yet</p>
                     <p className="text-sm">Create templates to speed up your content creation</p>
+                    <Button className="mt-4" onClick={handleCreateNew}>
+                      <Sparkles className="w-4 h-4 mr-2" />
+                      Create Your First Template
+                    </Button>
                   </div>
                 ) : (
                   <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {templates.map((template) => (
-                      <Card key={template.id} className="cursor-pointer hover:border-primary/50 transition-colors">
+                      <Card key={template.id} className="group hover:border-primary/50 transition-colors">
                         <CardContent className="p-4">
                           <div className="flex items-center justify-between mb-2">
                             <h4 className="font-medium text-sm">{template.name}</h4>
-                            {template.category && (
-                              <Badge variant="secondary" className="text-xs">
-                                {template.category}
-                              </Badge>
-                            )}
+                            <div className="flex items-center gap-1">
+                              {template.category && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {template.category}
+                                </Badge>
+                              )}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  >
+                                    <MoreVertical className="w-4 h-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => handleEditTemplate(template)}>
+                                    <Edit className="w-4 h-4 mr-2" />
+                                    Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleDuplicateTemplate(template.id)}>
+                                    <Copy className="w-4 h-4 mr-2" />
+                                    Duplicate
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem 
+                                    onClick={() => handleDeleteTemplate(template.id)}
+                                    className="text-destructive"
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
                           </div>
                           <p className="text-sm text-muted-foreground line-clamp-3">
                             {template.content}
@@ -259,25 +362,18 @@ export default function Social() {
                 )}
               </CardContent>
             </Card>
+
+            <PostTemplateDialog
+              open={templateDialogOpen}
+              onOpenChange={setTemplateDialogOpen}
+              template={editingTemplate}
+              onSave={handleSaveTemplate}
+            />
           </TabsContent>
 
           {/* Analytics Tab */}
           <TabsContent value="analytics">
-            <Card>
-              <CardHeader>
-                <CardTitle>Post Analytics</CardTitle>
-                <CardDescription>
-                  Track the performance of your social media posts
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-12 text-muted-foreground">
-                  <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>Analytics coming soon</p>
-                  <p className="text-sm">Connect your social accounts to see detailed metrics</p>
-                </div>
-              </CardContent>
-            </Card>
+            <SocialAnalyticsDashboard />
           </TabsContent>
         </Tabs>
       </div>

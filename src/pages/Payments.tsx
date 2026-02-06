@@ -17,6 +17,12 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -49,11 +55,16 @@ import {
   XCircle,
   TrendingUp,
   TrendingDown,
+  FileText,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { useWallet } from '@/hooks/useWallet';
 import { useTransactions } from '@/hooks/useTransactions';
+import { useBusiness } from '@/hooks/useBusiness';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { exportTransactionsToCSV, exportTransactionsToText, type ExportableTransaction } from '@/lib/exportUtils';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Payments() {
   const { wallet, loading: walletLoading, refetch: refetchWallet } = useWallet();
@@ -65,6 +76,8 @@ export default function Payments() {
     filterByStatus,
     activeFilters 
   } = useTransactions();
+  const { business } = useBusiness();
+  const { toast } = useToast();
   
   const [sendDialogOpen, setSendDialogOpen] = useState(false);
   const [depositDialogOpen, setDepositDialogOpen] = useState(false);
@@ -80,6 +93,70 @@ export default function Payments() {
     paymentMethod: 'mpesa',
   });
   const [sending, setSending] = useState(false);
+
+  const handleExportCSV = () => {
+    if (transactions.length === 0) {
+      toast({
+        title: 'No transactions to export',
+        description: 'Create some transactions first before exporting.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const exportData: ExportableTransaction[] = transactions.map(t => ({
+      id: t.id,
+      type: t.type,
+      amount: Number(t.amount),
+      currency: t.currency,
+      status: t.status,
+      recipient_name: (t as any).recipient_name,
+      recipient_phone: (t as any).recipient_phone,
+      description: t.description,
+      payment_method: t.payment_method,
+      reference: (t as any).external_reference,
+      created_at: t.created_at,
+      completed_at: (t as any).completed_at,
+    }));
+
+    exportTransactionsToCSV(exportData, business?.name);
+    toast({
+      title: 'Export successful',
+      description: 'Your transactions have been exported to CSV.',
+    });
+  };
+
+  const handleExportReport = () => {
+    if (transactions.length === 0) {
+      toast({
+        title: 'No transactions to export',
+        description: 'Create some transactions first before exporting.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const exportData: ExportableTransaction[] = transactions.map(t => ({
+      id: t.id,
+      type: t.type,
+      amount: Number(t.amount),
+      currency: t.currency,
+      status: t.status,
+      recipient_name: (t as any).recipient_name,
+      recipient_phone: (t as any).recipient_phone,
+      description: t.description,
+      payment_method: t.payment_method,
+      reference: (t as any).external_reference,
+      created_at: t.created_at,
+      completed_at: (t as any).completed_at,
+    }));
+
+    exportTransactionsToText(exportData, business?.name);
+    toast({
+      title: 'Report generated',
+      description: 'Your transaction report has been downloaded.',
+    });
+  };
 
   const handleSendMoney = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -450,10 +527,24 @@ export default function Payments() {
                 <CardDescription>View and filter your payment history</CardDescription>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Download className="w-4 h-4" />
-                  Export
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2">
+                      <Download className="w-4 h-4" />
+                      Export
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={handleExportCSV}>
+                      <FileSpreadsheet className="w-4 h-4 mr-2" />
+                      Export as CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleExportReport}>
+                      <FileText className="w-4 h-4 mr-2" />
+                      Download Report
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button variant="outline" size="sm" className="gap-2" onClick={() => refetchWallet()}>
                   <RefreshCw className="w-4 h-4" />
                   Refresh
