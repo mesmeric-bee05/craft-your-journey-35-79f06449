@@ -1,377 +1,151 @@
 
-# SmartReach AI - Full Development Roadmap
+# SmartReach AI - Continued Development Plan
 
-## Executive Summary
+## Issues Identified and Fixes Required
 
-SmartReach AI is an ambitious all-in-one marketing platform targeting African SMEs. The current implementation includes a solid foundation with authentication, onboarding, inbox management, AI content generation, live streaming, talent marketplace, payments, and analytics. This plan identifies gaps, incomplete features, and new capabilities to bring the platform to its full potential.
+### SLA Settings Issue - Root Cause Analysis
+After thorough investigation, I've identified the SLA settings issue. The problem lies in the `useBusiness` hook which only queries businesses where the current user is the `owner_id`. This means:
+1. If a user is a team member (not owner), they won't get a business and SLA policies won't load
+2. The SLA Settings component depends on `business?.id` which will be null for non-owners
 
----
+**Fix Required:**
+- Update `useBusiness` hook to also check `business_members` table
+- Ensure the query returns businesses where user is either owner OR active member
 
-## Current State Assessment
-
-### Fully Implemented Features
-- User authentication with MFA/2FA support
-- Business onboarding flow (3 steps)
-- Unified inbox with SLA tracking and CSAT surveys
-- AI content generation (using Lovable AI)
-- AI reply suggestions for customer service
-- Live streaming studio with multi-platform destinations
-- Talent marketplace (freelancers, job postings, contracts)
-- Wallet and payment system (M-Pesa focused)
-- Analytics dashboard (SLA, CSAT, team performance)
-- Notification system with real-time updates
-- Settings panel (profile, security, SLA policies, canned responses)
-- Help center with FAQ and support tickets
-
-### Partially Implemented / Gaps Identified
-1. **Social Analytics Tab** - Shows "Analytics coming soon"
-2. **Post Templates** - Database exists but creation UI incomplete
-3. **Social Channel OAuth** - Channels stored but no real OAuth integration
-4. **Team Member Management** - Invitations table exists but limited UI
-5. **Dashboard Stats** - Some metrics may need real data connections
-6. **Export Functionality** - Transaction export button exists but needs implementation
-7. **Email/SMS Sending** - Edge functions exist but need actual provider integration
+Additionally, the SLA Settings imports `useState` twice (once as `useState` and once aliased as `useStateMetrics`), which is unnecessary and could cause confusion.
 
 ---
 
-## Phase 1: Core Feature Completion
-
-### 1.1 Social Media Analytics Implementation
-Complete the "Analytics coming soon" placeholder in the Social page.
+## Phase 2 Implementation: Short-term Sprint
 
-**Database**: Already has `scheduled_posts` with metrics JSONB column
+Based on the roadmap, Phase 1 items (Social Analytics, Post Templates, Transaction Export) are now complete. This sprint focuses on:
 
-**New Components**:
-- `SocialAnalyticsDashboard.tsx` - Overview metrics
-- `PostPerformanceChart.tsx` - Engagement over time
-- `PlatformComparison.tsx` - Cross-platform performance
-- `TopPerformingPosts.tsx` - Best content analysis
+### 2.1 Fix SLA Settings (Critical Bug Fix)
 
-**Metrics to Display**:
-- Total posts by platform
-- Engagement rate (likes, comments, shares)
-- Best posting times
-- Hashtag performance
-- Audience growth trends
+**Changes to `src/hooks/useBusiness.tsx`:**
+- Modify the query to use an OR condition that checks both owner_id and business_members
+- Use a union query or join approach to find all businesses the user has access to
 
----
+**Changes to `src/components/settings/SLASettings.tsx`:**
+- Clean up duplicate useState import
+- Add better error handling when business is null
+- Show informative message if user has no business access
 
-### 1.2 Post Templates Management
-The `post_templates` table exists with full schema. Add complete UI.
+### 2.2 Team Management Enhancement
 
-**New Components**:
-- `PostTemplateDialog.tsx` - Create/edit template modal
-- Enhanced `PostTemplateCard.tsx` - With edit/delete actions
+Create a complete team management UI in the Settings page:
 
-**Features**:
-- Create templates from successful posts
-- Categorize templates (promotional, educational, engagement)
-- Quick-use button to populate composer
-- Track usage statistics
+**New Components:**
+1. `src/components/settings/TeamSettings.tsx` - Main team management tab
+2. `src/components/settings/team/TeamMembersList.tsx` - Display all members with roles
+3. `src/components/settings/team/InviteMemberDialog.tsx` - Send new invitations
+4. `src/components/settings/team/MemberCard.tsx` - Individual member display with actions
+5. `src/components/settings/team/PendingInvitations.tsx` - Show pending invites
 
----
+**Features:**
+- View all team members with their roles and status
+- Invite new members via email with role assignment
+- Manage pending invitations (resend, revoke)
+- Update member roles (admin, manager, member)
+- Remove team members (deactivate)
 
-### 1.3 Team Management Enhancement
-Expand the existing team invitation system.
+**Updates:**
+- Add Team tab to Settings.tsx
+- Create useTeamInvitations hook for invitation management
 
-**New Components**:
-- `TeamMembersList.tsx` - Show all team members
-- `InviteMemberDialog.tsx` - Send invitations by email
-- `MemberPermissionsCard.tsx` - Manage roles and permissions
-- `ActivityLogPanel.tsx` - Team activity tracking
+### 2.3 Email Provider Integration (Resend)
 
-**Features**:
-- Role-based access (owner, admin, member, viewer)
-- Pending invitation management
-- Revoke access functionality
-- Activity logs per member
+**Update `supabase/functions/send-email/index.ts`:**
+- Integrate with Resend API for actual email delivery
+- Add proper error handling for delivery failures
+- Track email delivery status
 
----
+**Required Secret:**
+- `RESEND_API_KEY` - User will need to provide this
 
-### 1.4 Transaction Export Implementation
-Add actual CSV/PDF export for payment transactions.
+**Email Templates:**
+- Team invitation email
+- Password reset (already handled by Supabase)
+- CSAT survey email
+- SLA breach notification
 
-**Implementation**:
-- Generate CSV with proper formatting
-- PDF reports with business branding
-- Date range filtering for exports
-- Email delivery option
+### 2.4 SMS Provider Integration (Africa's Talking)
 
----
+**Update `supabase/functions/send-sms/index.ts`:**
+- Integrate with Africa's Talking API
+- Support for Kenyan phone numbers
+- Delivery status callbacks
 
-## Phase 2: Platform Integrations
+**Required Secrets:**
+- `AT_API_KEY` - Africa's Talking API key
+- `AT_USERNAME` - Africa's Talking username
 
-### 2.1 OAuth Social Channel Connections
-Currently channels are stored but not authenticated. Implement real OAuth flows.
+### 2.5 Dashboard Stats Enhancement
 
-**Priority Platforms** (for African market):
-1. WhatsApp Business API
-2. Instagram Business
-3. Facebook Pages
-4. TikTok for Business
-5. Twitter/X API
+Connect dashboard statistics to real data:
 
-**New Edge Functions**:
-- `oauth-callback/index.ts` - Handle OAuth redirects
-- `refresh-tokens/index.ts` - Token refresh scheduler
-
-**Frontend Components**:
-- `OAuthConnectButton.tsx` - Platform-specific connect buttons
-- `ChannelAuthStatus.tsx` - Token validity indicator
-- `ReconnectPrompt.tsx` - Expired token handling
-
----
-
-### 2.2 Email Provider Integration
-The `send-email` edge function exists but needs a real provider.
-
-**Options**:
-- Resend (recommended - modern API, good deliverability)
-- SendGrid
-- Mailgun
-
-**Implementation**:
-- Add RESEND_API_KEY secret
-- Email templates for different scenarios
-- Delivery tracking
-- Bounce handling
-
----
-
-### 2.3 SMS Provider Integration (Africa-focused)
-The `send-sms` edge function needs an actual provider.
-
-**Recommended Providers**:
-- Africa's Talking (primary - covers Kenya, Nigeria, etc.)
-- Twilio (backup)
-
-**Features**:
-- M-Pesa STK push notifications
-- Delivery receipts
-- Bulk SMS campaigns
-- Two-way messaging
-
----
-
-### 2.4 M-Pesa Payment Gateway
-The payment system references M-Pesa but needs actual integration.
-
-**New Edge Functions**:
-- `mpesa-stk-push/index.ts` - Initiate payments
-- `mpesa-callback/index.ts` - Payment confirmation
-- `mpesa-b2c/index.ts` - Disbursements
-
-**Features**:
-- STK Push for deposits
-- B2C for payouts to freelancers
-- Transaction reconciliation
-- Automatic wallet updates
-
----
-
-## Phase 3: Advanced Features
-
-### 3.1 AI-Powered Insights Dashboard
-Leverage the existing AI infrastructure for deeper analytics.
-
-**New Capabilities**:
-- Customer sentiment analysis from conversations
-- Predictive churn detection
-- Optimal send time recommendations
-- Content performance predictions
-- Automated weekly insights reports
-
-**New Edge Function**:
-- `generate-insights/index.ts` - Periodic analysis
-
----
-
-### 3.2 Campaign Automation Builder
-The `campaigns` table exists but needs a visual builder.
-
-**New Components**:
-- `CampaignBuilder.tsx` - Visual workflow editor
-- `TriggerSelector.tsx` - Event-based triggers
-- `ActionNode.tsx` - Actions (send email, post, notify)
-- `ConditionNode.tsx` - Branching logic
-
-**Features**:
-- Drip campaigns
-- Welcome sequences
-- Re-engagement automations
-- A/B testing
-
----
-
-### 3.3 Customer Segmentation
-Enhance customer management with smart segmentation.
-
-**New Features**:
-- Dynamic segments based on behavior
-- RFM analysis (Recency, Frequency, Monetary)
-- Tag-based grouping
-- Segment-targeted campaigns
-
-**Database Changes**:
-- Add `customer_segments` table
-- Add `segment_rules` JSONB column
-
----
-
-### 3.4 Reporting & Business Intelligence
-Comprehensive reporting beyond current analytics.
-
-**New Components**:
-- `ReportBuilder.tsx` - Custom report creation
-- `ScheduledReports.tsx` - Automated delivery
-- `ExportCenter.tsx` - Centralized exports
-
-**Report Types**:
-- Revenue reports
-- Customer acquisition reports
-- Team performance reports
-- Channel ROI reports
-
----
-
-## Phase 4: Mobile & Performance Optimization
-
-### 4.1 Progressive Web App (PWA) Enhancement
-Enable offline capabilities and mobile installation.
-
-**Implementation**:
-- Service worker for offline caching
-- Push notification support
-- App manifest with icons
-- Offline inbox queue
-
----
-
-### 4.2 Real-time Sync Improvements
-Enhance existing realtime subscriptions.
-
-**Areas to Improve**:
-- Optimistic updates for better UX
-- Connection state indicators
-- Reconnection handling
-- Conflict resolution
-
----
-
-### 4.3 Performance Optimizations
-- Implement virtual scrolling for long lists
-- Add lazy loading for heavy components
-- Optimize bundle with code splitting
-- Add Redis caching layer for edge functions
-
----
-
-## Phase 5: Security & Compliance
-
-### 5.1 Audit Logging Enhancement
-Expand the existing `audit_logs` table usage.
-
-**Track**:
-- All data access
-- Permission changes
-- Settings modifications
-- Export activities
-
----
-
-### 5.2 Data Privacy Controls
-GDPR/POPIA compliance features.
-
-**Features**:
-- Data export (customer right to access)
-- Data deletion workflow
-- Consent management
-- Data retention policies
-
----
-
-### 5.3 Security Hardening
-Address findings from security scan.
-
-**Actions**:
-- Document JWT verification approach or switch to built-in
-- Review all RLS policies for edge cases
-- Add request signing for webhooks
-- Implement IP allowlisting for sensitive operations
+**Update `src/hooks/useDashboardStats.tsx`:**
+- Fetch actual conversation counts
+- Calculate real SLA compliance rates
+- Get actual revenue from transactions
+- Track active channel counts
 
 ---
 
 ## Technical Implementation Details
 
-### Database Migrations Required
+### Database Changes Required
+None - all required tables already exist (team_invitations, business_members, etc.)
 
-```text
-+----------------------------------+-------------------------------+
-| Migration                        | Purpose                       |
-+----------------------------------+-------------------------------+
-| Add customer_segments table      | Customer segmentation         |
-| Add automation_workflows table   | Campaign automation           |
-| Add report_definitions table     | Custom reports                |
-| Add webhook_endpoints table      | Inbound webhooks              |
-| Extend campaigns with workflow   | Automation triggers           |
-+----------------------------------+-------------------------------+
-```
+### File Changes Summary
 
-### New Edge Functions Required
+**Bug Fixes:**
+- `src/hooks/useBusiness.tsx` - Fix query to include business members
+- `src/components/settings/SLASettings.tsx` - Clean up imports, add error state
 
-```text
-+---------------------------+--------------------------------+
-| Function                  | Purpose                        |
-+---------------------------+--------------------------------+
-| oauth-callback            | Social platform OAuth          |
-| mpesa-stk-push            | Payment initiation             |
-| mpesa-callback            | Payment confirmation           |
-| generate-insights         | AI analytics                   |
-| send-bulk-sms             | Campaign SMS                   |
-| scheduled-post-publisher  | Auto-publish posts             |
-+---------------------------+--------------------------------+
-```
+**New Files:**
+- `src/components/settings/TeamSettings.tsx`
+- `src/components/settings/team/TeamMembersList.tsx`
+- `src/components/settings/team/InviteMemberDialog.tsx`
+- `src/components/settings/team/MemberCard.tsx`
+- `src/components/settings/team/PendingInvitations.tsx`
+- `src/hooks/useTeamInvitations.tsx`
 
-### External Services to Configure
+**Updated Files:**
+- `src/pages/Settings.tsx` - Add Team tab
+- `supabase/functions/send-email/index.ts` - Resend integration
+- `supabase/functions/send-sms/index.ts` - Africa's Talking integration
+- `src/hooks/useDashboardStats.tsx` - Connect to real data
 
-| Service | Purpose | Secret Required |
-|---------|---------|-----------------|
-| Africa's Talking | SMS/USSD | AT_API_KEY, AT_USERNAME |
-| Resend | Email | RESEND_API_KEY |
-| M-Pesa Daraja | Payments | MPESA_CONSUMER_KEY, MPESA_SECRET |
-| Meta Graph API | Facebook/Instagram | FB_APP_SECRET |
-| Twitter API v2 | Twitter/X | TWITTER_API_KEY |
+### Security Considerations
+1. Team invitations use unique tokens that expire after 7 days
+2. Only business owners can manage team members
+3. Email/SMS functions already have rate limiting and authentication
+4. All RLS policies are already in place for team_invitations table
+
+### External Service Dependencies
+- **Resend** (Email): Simple API, good deliverability, free tier available
+- **Africa's Talking** (SMS): Best coverage for African countries, affordable rates
 
 ---
 
-## Recommended Implementation Order
+## Implementation Order
 
-**Immediate (Next Sprint)**:
-1. Social Analytics implementation (complete placeholder)
-2. Post Templates management UI
-3. Transaction export functionality
-
-**Short-term (1-2 Sprints)**:
-4. Team management enhancement
-5. Email provider integration (Resend)
-6. SMS provider integration (Africa's Talking)
-
-**Medium-term (3-4 Sprints)**:
-7. M-Pesa integration
-8. Campaign automation builder
-9. Customer segmentation
-
-**Long-term (5+ Sprints)**:
-10. OAuth social connections
-11. AI insights dashboard
-12. PWA enhancements
-13. Reporting & BI
+1. **SLA Fix** (Immediate) - Fix useBusiness hook and SLASettings
+2. **Team Settings UI** - Complete team management experience
+3. **Dashboard Stats** - Connect to real data
+4. **Email Integration** - When RESEND_API_KEY is provided
+5. **SMS Integration** - When AT credentials are provided
 
 ---
 
-## Summary
+## Post-Implementation Testing
 
-This roadmap transforms SmartReach AI from a solid MVP into a comprehensive, production-ready platform that can compete with established marketing tools while being specifically optimized for African markets. The phased approach ensures each feature is fully implemented before moving to the next, maintaining code quality and user experience throughout.
+After implementation, test:
+1. SLA Settings loads correctly for business owners
+2. SLA policies can be created, edited, and deleted
+3. Team members can be viewed, invited, and managed
+4. Dashboard shows accurate real-time statistics
+5. Email/SMS functions work with configured providers
 
-The immediate priorities should focus on completing the "coming soon" features and enabling real integrations with payment and messaging providers, as these are critical for the core value proposition of serving African SMEs.
-
+This plan addresses the immediate SLA bug while continuing the roadmap to deliver a more complete, production-ready platform.
