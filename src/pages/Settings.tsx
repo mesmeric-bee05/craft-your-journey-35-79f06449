@@ -7,7 +7,8 @@ import { SecuritySettings } from '@/components/settings/SecuritySettings';
 import { SLASettings } from '@/components/settings/SLASettings';
 import { CSATSettings } from '@/components/settings/CSATSettings';
 import { CannedResponsesSettings } from '@/components/settings/CannedResponsesSettings';
-import { User, Bell, Link2, Shield, Clock, Star, MessageSquare } from 'lucide-react';
+import { TeamSettings } from '@/components/settings/TeamSettings';
+import { User, Bell, Link2, Shield, Clock, Star, MessageSquare, Users } from 'lucide-react';
 
 export default function Settings() {
   return (
@@ -21,10 +22,14 @@ export default function Settings() {
         </div>
 
         <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7 lg:w-[900px]">
+          <TabsList className="grid w-full grid-cols-8 lg:w-[1000px]">
             <TabsTrigger value="profile" className="gap-2">
               <User className="h-4 w-4" />
               <span className="hidden sm:inline">Profile</span>
+            </TabsTrigger>
+            <TabsTrigger value="team" className="gap-2">
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">Team</span>
             </TabsTrigger>
             <TabsTrigger value="notifications" className="gap-2">
               <Bell className="h-4 w-4" />
@@ -54,6 +59,10 @@ export default function Settings() {
 
           <TabsContent value="profile">
             <ProfileSettings />
+          </TabsContent>
+
+          <TabsContent value="team">
+            <TeamSettings />
           </TabsContent>
 
           <TabsContent value="notifications">

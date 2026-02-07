@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, Clock, AlertTriangle, CheckCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, Clock, AlertTriangle, CheckCircle, Building2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -7,14 +7,15 @@ import { useSLAPolicies, SLAPolicy, SLAPolicyInsert } from '@/hooks/useSLAPolici
 import { useSLATracking } from '@/hooks/useSLATracking';
 import { SLAPolicyCard } from './sla/SLAPolicyCard';
 import { SLAPolicyDialog } from './sla/SLAPolicyDialog';
-import { useEffect, useState as useStateMetrics } from 'react';
+import { useBusiness } from '@/hooks/useBusiness';
 
 export function SLASettings() {
+  const { business, loading: businessLoading } = useBusiness();
   const { policies, loading, createPolicy, updatePolicy, deletePolicy, setAsDefault } = useSLAPolicies();
   const { getSLAMetrics } = useSLATracking();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<SLAPolicy | null>(null);
-  const [metrics, setMetrics] = useStateMetrics<{
+  const [metrics, setMetrics] = useState<{
     total_conversations: number;
     first_response_compliance_rate: number | null;
     resolution_compliance_rate: number | null;
@@ -23,8 +24,10 @@ export function SLASettings() {
   } | null>(null);
 
   useEffect(() => {
-    getSLAMetrics().then(setMetrics);
-  }, [getSLAMetrics]);
+    if (business?.id) {
+      getSLAMetrics().then(setMetrics);
+    }
+  }, [getSLAMetrics, business?.id]);
 
   const handleEdit = (policy: SLAPolicy) => {
     setEditingPolicy(policy);
@@ -48,7 +51,7 @@ export function SLASettings() {
     await updatePolicy(id, { is_active: isActive });
   };
 
-  if (loading) {
+  if (loading || businessLoading) {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -62,6 +65,21 @@ export function SLASettings() {
           ))}
         </div>
       </div>
+    );
+  }
+
+  if (!business) {
+    return (
+      <Card>
+        <CardContent className="flex flex-col items-center justify-center py-12">
+          <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-medium mb-2">No Business Found</h3>
+          <p className="text-muted-foreground text-center max-w-md">
+            You need to create or join a business to manage SLA policies.
+            Complete the onboarding process to get started.
+          </p>
+        </CardContent>
+      </Card>
     );
   }
 
