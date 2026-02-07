@@ -43,7 +43,8 @@ export function useBusiness(): UseBusinessReturn {
       setLoading(true);
       setError(null);
 
-      const { data, error: fetchError } = await supabase
+      // First try to find businesses where user is owner
+      const { data: ownedBusiness, error: ownedError } = await supabase
         .from('businesses')
         .select('*')
         .eq('owner_id', user.id)
@@ -52,9 +53,40 @@ export function useBusiness(): UseBusinessReturn {
         .limit(1)
         .maybeSingle();
 
-      if (fetchError) throw fetchError;
+      if (ownedError) throw ownedError;
 
-      setBusiness(data as Business | null);
+      if (ownedBusiness) {
+        setBusiness(ownedBusiness as Business);
+        return;
+      }
+
+      // If not an owner, check business_members for membership
+      const { data: membership, error: memberError } = await supabase
+        .from('business_members')
+        .select('business_id')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .order('joined_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (memberError) throw memberError;
+
+      if (membership?.business_id) {
+        const { data: memberBusiness, error: businessError } = await supabase
+          .from('businesses')
+          .select('*')
+          .eq('id', membership.business_id)
+          .eq('is_active', true)
+          .single();
+
+        if (businessError) throw businessError;
+        setBusiness(memberBusiness as Business);
+        return;
+      }
+
+      // No business found
+      setBusiness(null);
     } catch (err: any) {
       setError(err.message);
       setBusiness(null);
