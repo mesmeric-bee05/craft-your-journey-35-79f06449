@@ -1,151 +1,217 @@
 
-# SmartReach AI - Continued Development Plan
+# SmartReach AI - Comprehensive Development & SLA Fix Plan
 
-## Issues Identified and Fixes Required
+## Issue Analysis: SLA Settings Blank Page
 
-### SLA Settings Issue - Root Cause Analysis
-After thorough investigation, I've identified the SLA settings issue. The problem lies in the `useBusiness` hook which only queries businesses where the current user is the `owner_id`. This means:
-1. If a user is a team member (not owner), they won't get a business and SLA policies won't load
-2. The SLA Settings component depends on `business?.id` which will be null for non-owners
+### Root Cause Identified
 
-**Fix Required:**
-- Update `useBusiness` hook to also check `business_members` table
-- Ensure the query returns businesses where user is either owner OR active member
+After thorough investigation of the codebase, I've identified **multiple potential causes** for the SLA Settings blank page:
 
-Additionally, the SLA Settings imports `useState` twice (once as `useState` and once aliased as `useStateMetrics`), which is unnecessary and could cause confusion.
+1. **Missing `finally` block in `useBusiness` hook fetch logic**: The `useBusiness.tsx` hook has a critical bug where the `setLoading(false)` is inside the `finally` block, but the function returns early for owned businesses without reaching `finally`:
+
+   ```typescript
+   if (ownedBusiness) {
+     setBusiness(ownedBusiness as Business);
+     return; // ← Returns here, finally block still executes BUT...
+   }
+   ```
+
+   The issue is that when looking up member businesses, if there's an error in the second query, the loading state might not update properly.
+
+2. **The `useBusiness` hook is called TWICE** - once in `SLASettings.tsx` directly, and again inside `useSLAPolicies.tsx`. This creates two separate hook instances that may have race conditions or conflicting state.
+
+3. **The `useSLAPolicies` hook depends on `useBusiness`** which creates a cascading dependency where `loading` states compound - if `useBusiness` takes time to resolve, the SLA component shows skeleton loading, but if business becomes null, the "No Business Found" card should show.
+
+### Evidence from Code Analysis
+
+Looking at `SLASettings.tsx` lines 54-69:
+```typescript
+if (loading || businessLoading) {
+  return <Skeleton ... />
+}
+
+if (!business) {
+  return <Card>"No Business Found"</Card>
+}
+```
+
+The blank page occurs when:
+- Both `loading` and `businessLoading` are `false` 
+- BUT `business` is `null`
+- AND somehow the component returns nothing or crashes silently
+
+The actual issue is likely a **React rendering edge case** or an **error in the SLASettings component** that's being swallowed.
 
 ---
 
-## Phase 2 Implementation: Short-term Sprint
+## Fixes Required
 
-Based on the roadmap, Phase 1 items (Social Analytics, Post Templates, Transaction Export) are now complete. This sprint focuses on:
+### Fix 1: Consolidate `useBusiness` usage in SLA hooks
 
-### 2.1 Fix SLA Settings (Critical Bug Fix)
+The `SLASettings` component should NOT call `useBusiness()` directly. Instead, `useSLAPolicies` should expose the business state, avoiding double-hook invocation.
 
-**Changes to `src/hooks/useBusiness.tsx`:**
-- Modify the query to use an OR condition that checks both owner_id and business_members
-- Use a union query or join approach to find all businesses the user has access to
+### Fix 2: Add Error Boundary to SLASettings
 
-**Changes to `src/components/settings/SLASettings.tsx`:**
-- Clean up duplicate useState import
-- Add better error handling when business is null
-- Show informative message if user has no business access
+Wrap SLASettings in an error boundary to catch silent failures.
 
-### 2.2 Team Management Enhancement
+### Fix 3: Defensive null checks in SLASettings
 
-Create a complete team management UI in the Settings page:
+The component assumes `metrics` has certain properties but checks for `null` incorrectly:
+```typescript
+{metrics?.first_response_compliance_rate !== null 
+```
+This should check for `undefined` as well since `metrics` itself might be null.
+
+### Fix 4: Improve `useBusiness` hook stability
+
+Add explicit error state handling and ensure loading always resolves correctly.
+
+---
+
+## Phase 2 Continued Development
+
+### 2.1 Fix SLA Settings Component
+
+**File: `src/components/settings/SLASettings.tsx`**
+- Remove direct `useBusiness()` call
+- Get business from `useSLAPolicies` hook (modify hook to expose it)
+- Add proper null/undefined checks
+- Add error state display
+
+**File: `src/hooks/useSLAPolicies.tsx`**
+- Expose `business` and `businessLoading` from the hook
+- Ensure proper loading state synchronization
+
+**File: `src/hooks/useBusiness.tsx`**
+- Add more robust error handling
+- Ensure `finally` block always executes loading state update
+- Add `hasError` state for better debugging
+
+### 2.2 Email Provider Integration (Resend)
+
+**File: `supabase/functions/send-email/index.ts`**
+- Replace placeholder with actual Resend API integration
+- Add email templates for:
+  - Team invitations
+  - CSAT survey requests
+  - SLA breach notifications
+  - Password reset (already handled by Supabase, but custom template)
+
+**Required Secret**: `RESEND_API_KEY`
+
+### 2.3 SMS Provider Integration (Africa's Talking)
+
+**File: `supabase/functions/send-sms/index.ts`**
+- Replace placeholder with Africa's Talking API integration
+- Add support for:
+  - Single SMS
+  - Bulk SMS campaigns
+  - Delivery status callbacks
+
+**Required Secrets**: `AT_API_KEY`, `AT_USERNAME`
+
+### 2.4 M-Pesa Payment Integration
+
+**New Files:**
+- `supabase/functions/mpesa-stk-push/index.ts` - Initiate STK Push payments
+- `supabase/functions/mpesa-callback/index.ts` - Handle payment callbacks
+
+**Required Secrets**: `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_PASSKEY`, `MPESA_SHORTCODE`
+
+### 2.5 Complete Campaign Automation Foundation
+
+**Database Migrations:**
+- Add `automation_workflows` table
+- Add `workflow_steps` table
+- Add `workflow_executions` table
 
 **New Components:**
-1. `src/components/settings/TeamSettings.tsx` - Main team management tab
-2. `src/components/settings/team/TeamMembersList.tsx` - Display all members with roles
-3. `src/components/settings/team/InviteMemberDialog.tsx` - Send new invitations
-4. `src/components/settings/team/MemberCard.tsx` - Individual member display with actions
-5. `src/components/settings/team/PendingInvitations.tsx` - Show pending invites
+- `src/components/marketing/CampaignAutomation.tsx`
+- `src/components/marketing/WorkflowBuilder.tsx`
 
-**Features:**
-- View all team members with their roles and status
-- Invite new members via email with role assignment
-- Manage pending invitations (resend, revoke)
-- Update member roles (admin, manager, member)
-- Remove team members (deactivate)
+### 2.6 Customer Segmentation
 
-**Updates:**
-- Add Team tab to Settings.tsx
-- Create useTeamInvitations hook for invitation management
+**Database Migrations:**
+- Add `customer_segments` table
+- Add `segment_rules` JSONB column
 
-### 2.3 Email Provider Integration (Resend)
-
-**Update `supabase/functions/send-email/index.ts`:**
-- Integrate with Resend API for actual email delivery
-- Add proper error handling for delivery failures
-- Track email delivery status
-
-**Required Secret:**
-- `RESEND_API_KEY` - User will need to provide this
-
-**Email Templates:**
-- Team invitation email
-- Password reset (already handled by Supabase)
-- CSAT survey email
-- SLA breach notification
-
-### 2.4 SMS Provider Integration (Africa's Talking)
-
-**Update `supabase/functions/send-sms/index.ts`:**
-- Integrate with Africa's Talking API
-- Support for Kenyan phone numbers
-- Delivery status callbacks
-
-**Required Secrets:**
-- `AT_API_KEY` - Africa's Talking API key
-- `AT_USERNAME` - Africa's Talking username
-
-### 2.5 Dashboard Stats Enhancement
-
-Connect dashboard statistics to real data:
-
-**Update `src/hooks/useDashboardStats.tsx`:**
-- Fetch actual conversation counts
-- Calculate real SLA compliance rates
-- Get actual revenue from transactions
-- Track active channel counts
+**New Components:**
+- `src/components/customers/CustomerSegments.tsx`
+- `src/components/customers/SegmentBuilder.tsx`
 
 ---
 
 ## Technical Implementation Details
 
-### Database Changes Required
-None - all required tables already exist (team_invitations, business_members, etc.)
+### Database Changes
+
+| Table | Purpose |
+|-------|---------|
+| `automation_workflows` | Store campaign automation flows |
+| `workflow_steps` | Individual steps in a workflow |
+| `workflow_executions` | Track workflow execution history |
+| `customer_segments` | Dynamic customer groupings |
+
+### New Edge Functions
+
+| Function | Purpose |
+|----------|---------|
+| `mpesa-stk-push` | Initiate M-Pesa payments |
+| `mpesa-callback` | Handle M-Pesa payment confirmations |
+| `execute-workflow` | Run automation workflows |
+| `send-bulk-sms` | Campaign SMS delivery |
 
 ### File Changes Summary
 
 **Bug Fixes:**
-- `src/hooks/useBusiness.tsx` - Fix query to include business members
-- `src/components/settings/SLASettings.tsx` - Clean up imports, add error state
+1. `src/hooks/useBusiness.tsx` - Improve stability and error handling
+2. `src/hooks/useSLAPolicies.tsx` - Expose business state
+3. `src/components/settings/SLASettings.tsx` - Fix blank page issue
+
+**Enhancements:**
+4. `supabase/functions/send-email/index.ts` - Resend integration
+5. `supabase/functions/send-sms/index.ts` - Africa's Talking integration
 
 **New Files:**
-- `src/components/settings/TeamSettings.tsx`
-- `src/components/settings/team/TeamMembersList.tsx`
-- `src/components/settings/team/InviteMemberDialog.tsx`
-- `src/components/settings/team/MemberCard.tsx`
-- `src/components/settings/team/PendingInvitations.tsx`
-- `src/hooks/useTeamInvitations.tsx`
-
-**Updated Files:**
-- `src/pages/Settings.tsx` - Add Team tab
-- `supabase/functions/send-email/index.ts` - Resend integration
-- `supabase/functions/send-sms/index.ts` - Africa's Talking integration
-- `src/hooks/useDashboardStats.tsx` - Connect to real data
-
-### Security Considerations
-1. Team invitations use unique tokens that expire after 7 days
-2. Only business owners can manage team members
-3. Email/SMS functions already have rate limiting and authentication
-4. All RLS policies are already in place for team_invitations table
-
-### External Service Dependencies
-- **Resend** (Email): Simple API, good deliverability, free tier available
-- **Africa's Talking** (SMS): Best coverage for African countries, affordable rates
+6. `supabase/functions/mpesa-stk-push/index.ts`
+7. `supabase/functions/mpesa-callback/index.ts`
+8. Campaign automation components
+9. Customer segmentation components
 
 ---
 
-## Implementation Order
+## Security Considerations
 
-1. **SLA Fix** (Immediate) - Fix useBusiness hook and SLASettings
-2. **Team Settings UI** - Complete team management experience
-3. **Dashboard Stats** - Connect to real data
-4. **Email Integration** - When RESEND_API_KEY is provided
-5. **SMS Integration** - When AT credentials are provided
+1. **API Keys Storage**: All external API keys stored as Supabase secrets
+2. **RLS Policies**: Already in place for new tables
+3. **Rate Limiting**: Already implemented in edge functions
+4. **Input Validation**: Using Zod schemas in edge functions
+5. **Webhook Security**: Add signature verification for M-Pesa callbacks
 
 ---
 
-## Post-Implementation Testing
+## Implementation Priority
 
-After implementation, test:
-1. SLA Settings loads correctly for business owners
-2. SLA policies can be created, edited, and deleted
-3. Team members can be viewed, invited, and managed
-4. Dashboard shows accurate real-time statistics
-5. Email/SMS functions work with configured providers
+| Order | Task | Criticality |
+|-------|------|-------------|
+| 1 | Fix SLA Settings blank page | CRITICAL - User-facing bug |
+| 2 | Stabilize useBusiness hook | HIGH - Affects multiple features |
+| 3 | Email integration (Resend) | MEDIUM - Enables team invites |
+| 4 | SMS integration (Africa's Talking) | MEDIUM - Core functionality |
+| 5 | M-Pesa integration | HIGH - Revenue critical |
+| 6 | Campaign automation | LOW - Phase 3 feature |
+| 7 | Customer segmentation | LOW - Phase 3 feature |
 
-This plan addresses the immediate SLA bug while continuing the roadmap to deliver a more complete, production-ready platform.
+---
+
+## Testing Checklist
+
+After implementation:
+- [ ] SLA Settings loads correctly for business owners
+- [ ] SLA Settings shows "No Business" message for users without business
+- [ ] SLA policies can be created, edited, deleted
+- [ ] Team invitations send emails (when Resend configured)
+- [ ] SMS messages send successfully (when AT configured)
+- [ ] M-Pesa payments initiate and complete (when configured)
+- [ ] Dashboard stats show real-time data
+- [ ] All settings tabs render without errors
