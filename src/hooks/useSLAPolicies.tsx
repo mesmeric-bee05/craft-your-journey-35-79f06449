@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { useBusiness } from '@/hooks/useBusiness';
+import { useBusiness, Business } from '@/hooks/useBusiness';
 import { toast } from 'sonner';
 import { logger } from '@/lib/logger';
 
@@ -34,6 +33,9 @@ interface UseSLAPoliciesReturn {
   defaultPolicy: SLAPolicy | null;
   loading: boolean;
   error: string | null;
+  // Expose business state to avoid double-hook calls
+  business: Business | null;
+  businessLoading: boolean;
   createPolicy: (policy: Omit<SLAPolicyInsert, 'business_id'>) => Promise<SLAPolicy | null>;
   updatePolicy: (id: string, updates: SLAPolicyUpdate) => Promise<boolean>;
   deletePolicy: (id: string) => Promise<boolean>;
@@ -42,8 +44,7 @@ interface UseSLAPoliciesReturn {
 }
 
 export function useSLAPolicies(): UseSLAPoliciesReturn {
-  const { user } = useAuth();
-  const { business } = useBusiness();
+  const { business, loading: businessLoading, error: businessError } = useBusiness();
   const [policies, setPolicies] = useState<SLAPolicy[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -190,11 +191,19 @@ export function useSLAPolicies(): UseSLAPoliciesReturn {
 
   const defaultPolicy = policies.find(p => p.is_default && p.is_active) || policies.find(p => p.is_active) || null;
 
+  // Combine loading states - show loading if either business or policies are loading
+  const combinedLoading = businessLoading || loading;
+  
+  // Combine errors - prioritize business error since it's foundational
+  const combinedError = businessError || error;
+
   return {
     policies,
     defaultPolicy,
-    loading,
-    error,
+    loading: combinedLoading,
+    error: combinedError,
+    business,
+    businessLoading,
     createPolicy,
     updatePolicy,
     deletePolicy,
