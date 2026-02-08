@@ -1,17 +1,28 @@
 import { useState, useEffect } from 'react';
-import { Plus, Clock, AlertTriangle, CheckCircle, Building2 } from 'lucide-react';
+import { Plus, Clock, AlertTriangle, CheckCircle, Building2, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useSLAPolicies, SLAPolicy, SLAPolicyInsert } from '@/hooks/useSLAPolicies';
 import { useSLATracking } from '@/hooks/useSLATracking';
 import { SLAPolicyCard } from './sla/SLAPolicyCard';
 import { SLAPolicyDialog } from './sla/SLAPolicyDialog';
-import { useBusiness } from '@/hooks/useBusiness';
 
 export function SLASettings() {
-  const { business, loading: businessLoading } = useBusiness();
-  const { policies, loading, createPolicy, updatePolicy, deletePolicy, setAsDefault } = useSLAPolicies();
+  // Use consolidated business state from useSLAPolicies - avoids double hook calls
+  const { 
+    policies, 
+    loading, 
+    error,
+    business,
+    businessLoading,
+    createPolicy, 
+    updatePolicy, 
+    deletePolicy, 
+    setAsDefault 
+  } = useSLAPolicies();
+  
   const { getSLAMetrics } = useSLATracking();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState<SLAPolicy | null>(null);
@@ -22,10 +33,15 @@ export function SLASettings() {
     first_response_breach_count: number;
     resolution_breach_count: number;
   } | null>(null);
+  const [metricsLoading, setMetricsLoading] = useState(false);
 
   useEffect(() => {
     if (business?.id) {
-      getSLAMetrics().then(setMetrics);
+      setMetricsLoading(true);
+      getSLAMetrics()
+        .then(setMetrics)
+        .catch(console.error)
+        .finally(() => setMetricsLoading(false));
     }
   }, [getSLAMetrics, business?.id]);
 
@@ -51,6 +67,7 @@ export function SLASettings() {
     await updatePolicy(id, { is_active: isActive });
   };
 
+  // Show loading skeleton while business or policies are loading
   if (loading || businessLoading) {
     return (
       <div className="space-y-6">
@@ -68,6 +85,20 @@ export function SLASettings() {
     );
   }
 
+  // Show error state if there was an error loading
+  if (error) {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Error Loading SLA Settings</AlertTitle>
+        <AlertDescription>
+          {error}. Please try refreshing the page.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  // Show message if no business found
   if (!business) {
     return (
       <Card>
@@ -83,6 +114,11 @@ export function SLASettings() {
     );
   }
 
+  // Safe access to metrics with proper null checks
+  const firstResponseRate = metrics?.first_response_compliance_rate;
+  const resolutionRate = metrics?.resolution_compliance_rate;
+  const totalBreaches = (metrics?.first_response_breach_count ?? 0) + (metrics?.resolution_breach_count ?? 0);
+
   return (
     <div className="space-y-6">
       {/* SLA Overview Cards */}
@@ -96,10 +132,13 @@ export function SLASettings() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {metrics?.first_response_compliance_rate !== null 
-                ? `${metrics.first_response_compliance_rate}%`
-                : 'N/A'
-              }
+              {metricsLoading ? (
+                <Skeleton className="h-8 w-16" />
+              ) : firstResponseRate != null ? (
+                `${firstResponseRate}%`
+              ) : (
+                'N/A'
+              )}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Last 30 days
@@ -116,10 +155,13 @@ export function SLASettings() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {metrics?.resolution_compliance_rate !== null 
-                ? `${metrics.resolution_compliance_rate}%`
-                : 'N/A'
-              }
+              {metricsLoading ? (
+                <Skeleton className="h-8 w-16" />
+              ) : resolutionRate != null ? (
+                `${resolutionRate}%`
+              ) : (
+                'N/A'
+              )}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Last 30 days
@@ -136,7 +178,11 @@ export function SLASettings() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-destructive">
-              {(metrics?.first_response_breach_count || 0) + (metrics?.resolution_breach_count || 0)}
+              {metricsLoading ? (
+                <Skeleton className="h-8 w-12" />
+              ) : (
+                totalBreaches
+              )}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Last 30 days
