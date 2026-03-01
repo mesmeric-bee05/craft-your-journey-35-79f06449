@@ -1,217 +1,152 @@
 
-# SmartReach AI - Comprehensive Development & SLA Fix Plan
 
-## Issue Analysis: SLA Settings Blank Page
+# SmartReach AI - Prompt 1: Inventory Intelligence Module
 
-### Root Cause Identified
+## Overview
 
-After thorough investigation of the codebase, I've identified **multiple potential causes** for the SLA Settings blank page:
+The uploaded document contains 12 sequential build prompts for completing SmartReach AI. Following the prescribed build order, this plan implements **Prompt 1: Inventory Intelligence Module** -- the highest priority feature that is currently 0% built. This is the fastest module to build and the most immediately valuable for Kenyan MSME traders.
 
-1. **Missing `finally` block in `useBusiness` hook fetch logic**: The `useBusiness.tsx` hook has a critical bug where the `setLoading(false)` is inside the `finally` block, but the function returns early for owned businesses without reaching `finally`:
+Additionally, the persistent **SLA Settings blank page bug** will be definitively fixed.
 
-   ```typescript
-   if (ownedBusiness) {
-     setBusiness(ownedBusiness as Business);
-     return; // ← Returns here, finally block still executes BUT...
-   }
-   ```
+---
 
-   The issue is that when looking up member businesses, if there's an error in the second query, the loading state might not update properly.
+## Part A: Fix SLA Settings Blank Page (Critical Bug)
 
-2. **The `useBusiness` hook is called TWICE** - once in `SLASettings.tsx` directly, and again inside `useSLAPolicies.tsx`. This creates two separate hook instances that may have race conditions or conflicting state.
+The SLA Settings component currently shows a blank page. The root cause is a timing issue between `useBusiness` and `useSLAPolicies` hooks where the combined loading state resolves but business may still be null in certain edge cases.
 
-3. **The `useSLAPolicies` hook depends on `useBusiness`** which creates a cascading dependency where `loading` states compound - if `useBusiness` takes time to resolve, the SLA component shows skeleton loading, but if business becomes null, the "No Business Found" card should show.
+**Fix approach:**
+- Add a guard in `useSLAPolicies` to not set `loading: false` until `businessLoading` is definitively `false`
+- Ensure the `fetchPolicies` callback does not run prematurely when business is still loading
+- Add an explicit `useEffect` dependency on `businessLoading` to re-evaluate when business state settles
 
-### Evidence from Code Analysis
+**Files to edit:**
+- `src/hooks/useSLAPolicies.tsx` -- fix loading state synchronization
 
-Looking at `SLASettings.tsx` lines 54-69:
-```typescript
-if (loading || businessLoading) {
-  return <Skeleton ... />
-}
+---
 
-if (!business) {
-  return <Card>"No Business Found"</Card>
-}
+## Part B: Inventory Intelligence Module
+
+### Database Tables (Migration)
+
+Create 3 new tables:
+
+1. **`products`** -- id, business_id, name, sku, category (enum: Fashion, Food & Beverage, Electronics, Beauty, General Merchandise, Other), buying_price, selling_price, current_stock, reorder_level, unit (pieces/kgs/litres/metres), supplier_id (nullable FK), image_url, is_active, created_at, updated_at
+
+2. **`suppliers`** -- id, business_id, name, phone, email, product_categories (text array), notes, created_at, updated_at
+
+3. **`stock_movements`** -- id, product_id, business_id, movement_type (enum: sale, restock, adjustment, loss), quantity_change, previous_stock, new_stock, note, created_by, created_at
+
+All tables with RLS policies scoped to `is_business_member(auth.uid(), business_id)`.
+
+### Navigation Update
+
+**File:** `src/components/layout/DashboardLayout.tsx`
+- Add "Inventory" nav item with `Package` icon between "Talent Hub" and "Payments"
+
+### Routing
+
+**File:** `src/App.tsx`
+- Add `/inventory` route with RequireAuth + RequireOnboarding wrappers
+
+### New Page
+
+**File:** `src/pages/Inventory.tsx`
+- Page header: "Inventory Intelligence" with subtitle
+- 4 KPI cards: Total Products, Total Stock Value (KES), Low Stock Alerts, Stockout Products
+- 4 tabs: Products, Low Stock Alerts, Stock Movements, Suppliers
+
+### Tab 1 -- Products
+
+Searchable table with columns: Product Name, SKU, Category (badge), Stock (red if below reorder), Reorder Level, Buying Price (KES), Selling Price (KES), Margin %, Supplier, Actions. Row highlighted red when stock is at or below reorder level. "+ Add Product" button top right.
+
+### Tab 2 -- Low Stock Alerts
+
+Cards for products where `current_stock <= reorder_level`. Each card shows product name, stock level (large red number), reorder level, supplier info, "Send Reorder WhatsApp" button (opens wa.me link), and "Send SMS" button.
+
+### Tab 3 -- Stock Movements
+
+Timeline of all stock changes with color-coded badges. Filterable by movement type and date range.
+
+### Tab 4 -- Suppliers
+
+Supplier cards with CRUD operations. Name, phone, categories, notes.
+
+### Modals
+
+1. **Add/Edit Product Modal** -- all product fields, auto-calculated margin, supplier dropdown
+2. **Adjust Stock Modal** -- current stock display, quantity change input, movement type, reason field. Updates both `products.current_stock` and inserts into `stock_movements`.
+
+### Hooks
+
+**File:** `src/hooks/useProducts.tsx` -- CRUD for products with real-time stock calculations
+**File:** `src/hooks/useSuppliers.tsx` -- CRUD for suppliers
+**File:** `src/hooks/useStockMovements.tsx` -- stock movement logging and retrieval
+
+### Components
+
+```text
+src/
+  pages/
+    Inventory.tsx
+  components/
+    inventory/
+      ProductsTab.tsx
+      ProductTable.tsx
+      AddEditProductDialog.tsx
+      AdjustStockDialog.tsx
+      LowStockAlerts.tsx
+      StockMovementsTab.tsx
+      SuppliersTab.tsx
+      SupplierCard.tsx
+      AddEditSupplierDialog.tsx
+      InventoryKPICards.tsx
+  hooks/
+    useProducts.tsx
+    useSuppliers.tsx
+    useStockMovements.tsx
 ```
 
-The blank page occurs when:
-- Both `loading` and `businessLoading` are `false` 
-- BUT `business` is `null`
-- AND somehow the component returns nothing or crashes silently
+### Automated Alerts
 
-The actual issue is likely a **React rendering edge case** or an **error in the SLASettings component** that's being swallowed.
+When a stock adjustment causes `current_stock <= reorder_level`, trigger a toast notification: "Low Stock Alert: [Product Name] has only [X] units remaining."
 
----
+### Mobile Optimization
 
-## Fixes Required
+Product cards in mobile view show large "+ Add Stock" and "- Record Sale" buttons for rapid one-tap updates.
 
-### Fix 1: Consolidate `useBusiness` usage in SLA hooks
+### Styling
 
-The `SLASettings` component should NOT call `useBusiness()` directly. Instead, `useSLAPolicies` should expose the business state, avoiding double-hook invocation.
+- Orange accent (#E85D04) for primary actions
+- Red (#DC2626) for stock alerts and low stock indicators
+- Green (#16A34A) for positive stock movements
+- Fully responsive, mobile-first layout
 
-### Fix 2: Add Error Boundary to SLASettings
+### Empty State
 
-Wrap SLASettings in an error boundary to catch silent failures.
-
-### Fix 3: Defensive null checks in SLASettings
-
-The component assumes `metrics` has certain properties but checks for `null` incorrectly:
-```typescript
-{metrics?.first_response_compliance_rate !== null 
-```
-This should check for `undefined` as well since `metrics` itself might be null.
-
-### Fix 4: Improve `useBusiness` hook stability
-
-Add explicit error state handling and ensure loading always resolves correctly.
+If no products exist, show illustration with "Your inventory is empty" message and prominent "+ Add Your First Product" button.
 
 ---
 
-## Phase 2 Continued Development
+## Implementation Sequence
 
-### 2.1 Fix SLA Settings Component
-
-**File: `src/components/settings/SLASettings.tsx`**
-- Remove direct `useBusiness()` call
-- Get business from `useSLAPolicies` hook (modify hook to expose it)
-- Add proper null/undefined checks
-- Add error state display
-
-**File: `src/hooks/useSLAPolicies.tsx`**
-- Expose `business` and `businessLoading` from the hook
-- Ensure proper loading state synchronization
-
-**File: `src/hooks/useBusiness.tsx`**
-- Add more robust error handling
-- Ensure `finally` block always executes loading state update
-- Add `hasError` state for better debugging
-
-### 2.2 Email Provider Integration (Resend)
-
-**File: `supabase/functions/send-email/index.ts`**
-- Replace placeholder with actual Resend API integration
-- Add email templates for:
-  - Team invitations
-  - CSAT survey requests
-  - SLA breach notifications
-  - Password reset (already handled by Supabase, but custom template)
-
-**Required Secret**: `RESEND_API_KEY`
-
-### 2.3 SMS Provider Integration (Africa's Talking)
-
-**File: `supabase/functions/send-sms/index.ts`**
-- Replace placeholder with Africa's Talking API integration
-- Add support for:
-  - Single SMS
-  - Bulk SMS campaigns
-  - Delivery status callbacks
-
-**Required Secrets**: `AT_API_KEY`, `AT_USERNAME`
-
-### 2.4 M-Pesa Payment Integration
-
-**New Files:**
-- `supabase/functions/mpesa-stk-push/index.ts` - Initiate STK Push payments
-- `supabase/functions/mpesa-callback/index.ts` - Handle payment callbacks
-
-**Required Secrets**: `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_PASSKEY`, `MPESA_SHORTCODE`
-
-### 2.5 Complete Campaign Automation Foundation
-
-**Database Migrations:**
-- Add `automation_workflows` table
-- Add `workflow_steps` table
-- Add `workflow_executions` table
-
-**New Components:**
-- `src/components/marketing/CampaignAutomation.tsx`
-- `src/components/marketing/WorkflowBuilder.tsx`
-
-### 2.6 Customer Segmentation
-
-**Database Migrations:**
-- Add `customer_segments` table
-- Add `segment_rules` JSONB column
-
-**New Components:**
-- `src/components/customers/CustomerSegments.tsx`
-- `src/components/customers/SegmentBuilder.tsx`
+1. Fix SLA Settings loading bug
+2. Run database migration for products, suppliers, stock_movements
+3. Create hooks (useProducts, useSuppliers, useStockMovements)
+4. Build inventory components (dialogs, tabs, cards)
+5. Create Inventory page with all tabs
+6. Add navigation and routing
+7. Test end-to-end
 
 ---
 
-## Technical Implementation Details
+## What Comes Next (Future Prompts)
 
-### Database Changes
+After this implementation, the next prompts in order are:
+- Prompt 2: M-Pesa Auto-Reconciliation Engine
+- Prompt 3: WhatsApp Business API Integration
+- Prompt 4: Swahili/Sheng' AI Content Generator
+- Prompt 5: SmartReach Score
+- Prompts 6-12: Onboarding, ODPC, PWA, Analytics, Social Publishing, Talent Hub, Dashboard
 
-| Table | Purpose |
-|-------|---------|
-| `automation_workflows` | Store campaign automation flows |
-| `workflow_steps` | Individual steps in a workflow |
-| `workflow_executions` | Track workflow execution history |
-| `customer_segments` | Dynamic customer groupings |
+Each will be implemented sequentially in subsequent sessions.
 
-### New Edge Functions
-
-| Function | Purpose |
-|----------|---------|
-| `mpesa-stk-push` | Initiate M-Pesa payments |
-| `mpesa-callback` | Handle M-Pesa payment confirmations |
-| `execute-workflow` | Run automation workflows |
-| `send-bulk-sms` | Campaign SMS delivery |
-
-### File Changes Summary
-
-**Bug Fixes:**
-1. `src/hooks/useBusiness.tsx` - Improve stability and error handling
-2. `src/hooks/useSLAPolicies.tsx` - Expose business state
-3. `src/components/settings/SLASettings.tsx` - Fix blank page issue
-
-**Enhancements:**
-4. `supabase/functions/send-email/index.ts` - Resend integration
-5. `supabase/functions/send-sms/index.ts` - Africa's Talking integration
-
-**New Files:**
-6. `supabase/functions/mpesa-stk-push/index.ts`
-7. `supabase/functions/mpesa-callback/index.ts`
-8. Campaign automation components
-9. Customer segmentation components
-
----
-
-## Security Considerations
-
-1. **API Keys Storage**: All external API keys stored as Supabase secrets
-2. **RLS Policies**: Already in place for new tables
-3. **Rate Limiting**: Already implemented in edge functions
-4. **Input Validation**: Using Zod schemas in edge functions
-5. **Webhook Security**: Add signature verification for M-Pesa callbacks
-
----
-
-## Implementation Priority
-
-| Order | Task | Criticality |
-|-------|------|-------------|
-| 1 | Fix SLA Settings blank page | CRITICAL - User-facing bug |
-| 2 | Stabilize useBusiness hook | HIGH - Affects multiple features |
-| 3 | Email integration (Resend) | MEDIUM - Enables team invites |
-| 4 | SMS integration (Africa's Talking) | MEDIUM - Core functionality |
-| 5 | M-Pesa integration | HIGH - Revenue critical |
-| 6 | Campaign automation | LOW - Phase 3 feature |
-| 7 | Customer segmentation | LOW - Phase 3 feature |
-
----
-
-## Testing Checklist
-
-After implementation:
-- [ ] SLA Settings loads correctly for business owners
-- [ ] SLA Settings shows "No Business" message for users without business
-- [ ] SLA policies can be created, edited, deleted
-- [ ] Team invitations send emails (when Resend configured)
-- [ ] SMS messages send successfully (when AT configured)
-- [ ] M-Pesa payments initiate and complete (when configured)
-- [ ] Dashboard stats show real-time data
-- [ ] All settings tabs render without errors
