@@ -19,6 +19,7 @@ import LiveStudio from "./pages/LiveStudio";
 import Analytics from "./pages/Analytics";
 import Payments from "./pages/Payments";
 import HelpCenter from "./pages/HelpCenter";
+import Inventory from "./pages/Inventory";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -145,6 +146,16 @@ const App = () => (
                 <RequireAuth>
                   <RequireOnboarding>
                     <HelpCenter />
+                  </RequireOnboarding>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/inventory"
+              element={
+                <RequireAuth>
+                  <RequireOnboarding>
+                    <Inventory />
                   </RequireOnboarding>
                 </RequireAuth>
               }

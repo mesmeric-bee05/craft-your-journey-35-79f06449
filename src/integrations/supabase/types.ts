@@ -1438,6 +1438,75 @@ export type Database = {
           },
         ]
       }
+      products: {
+        Row: {
+          business_id: string
+          buying_price: number
+          category: Database["public"]["Enums"]["product_category"]
+          created_at: string
+          current_stock: number
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          name: string
+          reorder_level: number
+          selling_price: number
+          sku: string | null
+          supplier_id: string | null
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          buying_price?: number
+          category?: Database["public"]["Enums"]["product_category"]
+          created_at?: string
+          current_stock?: number
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          name: string
+          reorder_level?: number
+          selling_price?: number
+          sku?: string | null
+          supplier_id?: string | null
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          buying_price?: number
+          category?: Database["public"]["Enums"]["product_category"]
+          created_at?: string
+          current_stock?: number
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          name?: string
+          reorder_level?: number
+          selling_price?: number
+          sku?: string | null
+          supplier_id?: string | null
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -1971,6 +2040,60 @@ export type Database = {
           },
         ]
       }
+      stock_movements: {
+        Row: {
+          business_id: string
+          created_at: string
+          created_by: string
+          id: string
+          movement_type: Database["public"]["Enums"]["stock_movement_type"]
+          new_stock: number
+          note: string | null
+          previous_stock: number
+          product_id: string
+          quantity_change: number
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          movement_type: Database["public"]["Enums"]["stock_movement_type"]
+          new_stock: number
+          note?: string | null
+          previous_stock: number
+          product_id: string
+          quantity_change: number
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          movement_type?: Database["public"]["Enums"]["stock_movement_type"]
+          new_stock?: number
+          note?: string | null
+          previous_stock?: number
+          product_id?: string
+          quantity_change?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stream_overlays: {
         Row: {
           content: Json
@@ -2075,6 +2198,50 @@ export type Database = {
             columns: ["stream_id"]
             isOneToOne: false
             referencedRelation: "live_streams_safe"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suppliers: {
+        Row: {
+          business_id: string
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          product_categories: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          product_categories?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          product_categories?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suppliers_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
             referencedColumns: ["id"]
           },
         ]
@@ -3035,8 +3202,16 @@ export type Database = {
         | "status_change"
       post_status: "draft" | "scheduled" | "publishing" | "published" | "failed"
       priority_level: "low" | "normal" | "high" | "urgent"
+      product_category:
+        | "fashion"
+        | "food_beverage"
+        | "electronics"
+        | "beauty"
+        | "general_merchandise"
+        | "other"
       review_type: "client_to_freelancer" | "freelancer_to_client"
       sender_type: "customer" | "agent" | "system" | "bot"
+      stock_movement_type: "sale" | "restock" | "adjustment" | "loss"
       ticket_category:
         | "technical"
         | "billing"
@@ -3282,8 +3457,17 @@ export const Constants = {
       ],
       post_status: ["draft", "scheduled", "publishing", "published", "failed"],
       priority_level: ["low", "normal", "high", "urgent"],
+      product_category: [
+        "fashion",
+        "food_beverage",
+        "electronics",
+        "beauty",
+        "general_merchandise",
+        "other",
+      ],
       review_type: ["client_to_freelancer", "freelancer_to_client"],
       sender_type: ["customer", "agent", "system", "bot"],
+      stock_movement_type: ["sale", "restock", "adjustment", "loss"],
       ticket_category: [
         "technical",
         "billing",
