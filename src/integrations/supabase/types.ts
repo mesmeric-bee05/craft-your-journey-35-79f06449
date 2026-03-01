@@ -126,6 +126,59 @@ export type Database = {
           },
         ]
       }
+      automation_workflows: {
+        Row: {
+          business_id: string
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          last_run_at: string | null
+          name: string
+          run_count: number | null
+          trigger_config: Json
+          trigger_type: string
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_run_at?: string | null
+          name: string
+          run_count?: number | null
+          trigger_config?: Json
+          trigger_type: string
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_run_at?: string | null
+          name?: string
+          run_count?: number | null
+          trigger_config?: Json
+          trigger_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_workflows_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_members: {
         Row: {
           business_id: string
@@ -700,6 +753,53 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "csat_surveys_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_segments: {
+        Row: {
+          business_id: string
+          created_at: string
+          customer_count: number | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          is_dynamic: boolean | null
+          name: string
+          rules: Json
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          customer_count?: number | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_dynamic?: boolean | null
+          name: string
+          rules?: Json
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          customer_count?: number | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_dynamic?: boolean | null
+          name?: string
+          rules?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_segments_business_id_fkey"
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
@@ -1581,6 +1681,49 @@ export type Database = {
           },
         ]
       }
+      segment_customers: {
+        Row: {
+          added_at: string
+          customer_id: string
+          id: string
+          segment_id: string
+        }
+        Insert: {
+          added_at?: string
+          customer_id: string
+          id?: string
+          segment_id: string
+        }
+        Update: {
+          added_at?: string
+          customer_id?: string
+          id?: string
+          segment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "segment_customers_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "segment_customers_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "segment_customers_segment_id_fkey"
+            columns: ["segment_id"]
+            isOneToOne: false
+            referencedRelation: "customer_segments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sla_breach_logs: {
         Row: {
           actual_minutes: number
@@ -2297,6 +2440,108 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_executions: {
+        Row: {
+          completed_at: string | null
+          context: Json
+          current_step: number | null
+          customer_id: string | null
+          error_message: string | null
+          id: string
+          next_step_at: string | null
+          started_at: string
+          status: string
+          workflow_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          context?: Json
+          current_step?: number | null
+          customer_id?: string | null
+          error_message?: string | null
+          id?: string
+          next_step_at?: string | null
+          started_at?: string
+          status?: string
+          workflow_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          context?: Json
+          current_step?: number | null
+          customer_id?: string | null
+          error_message?: string | null
+          id?: string
+          next_step_at?: string | null
+          started_at?: string
+          status?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_executions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_executions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers_safe"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_executions_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "automation_workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_steps: {
+        Row: {
+          config: Json
+          created_at: string
+          id: string
+          name: string | null
+          step_order: number
+          step_type: string
+          updated_at: string
+          workflow_id: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          id?: string
+          name?: string | null
+          step_order: number
+          step_type: string
+          updated_at?: string
+          workflow_id: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          id?: string
+          name?: string | null
+          step_order?: number
+          step_type?: string
+          updated_at?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_steps_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "automation_workflows"
             referencedColumns: ["id"]
           },
         ]
