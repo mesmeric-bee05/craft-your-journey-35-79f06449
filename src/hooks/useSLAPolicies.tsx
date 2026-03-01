@@ -50,6 +50,9 @@ export function useSLAPolicies(): UseSLAPoliciesReturn {
   const [error, setError] = useState<string | null>(null);
 
   const fetchPolicies = useCallback(async () => {
+    // Don't fetch if business is still loading or not available
+    if (businessLoading) return;
+    
     if (!business?.id) {
       setPolicies([]);
       setLoading(false);
@@ -77,7 +80,7 @@ export function useSLAPolicies(): UseSLAPoliciesReturn {
     } finally {
       setLoading(false);
     }
-  }, [business?.id]);
+  }, [business?.id, businessLoading]);
 
   useEffect(() => {
     fetchPolicies();
