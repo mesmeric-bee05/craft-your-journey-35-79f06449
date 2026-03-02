@@ -29,8 +29,9 @@ export function useConnectedChannels() {
 
     try {
       setLoading(true);
+      // SECURITY: Use safe view to avoid exposing OAuth tokens
       const { data, error } = await supabase
-        .from('social_channels')
+        .from('social_channels_safe')
         .select('*')
         .eq('business_id', business.id)
         .order('channel_type');
