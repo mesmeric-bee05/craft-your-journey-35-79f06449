@@ -601,13 +601,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "conversations_channel_id_fkey"
-            columns: ["channel_id"]
-            isOneToOne: false
-            referencedRelation: "social_channels_safe"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "conversations_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
@@ -1739,13 +1732,6 @@ export type Database = {
             columns: ["channel_id"]
             isOneToOne: false
             referencedRelation: "social_channels"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "scheduled_posts_channel_id_fkey"
-            columns: ["channel_id"]
-            isOneToOne: false
-            referencedRelation: "social_channels_safe"
             referencedColumns: ["id"]
           },
         ]
@@ -2893,56 +2879,6 @@ export type Database = {
         }
         Relationships: []
       }
-      social_channels_safe: {
-        Row: {
-          business_id: string | null
-          channel_name: string | null
-          channel_type: Database["public"]["Enums"]["channel_type"] | null
-          connected_at: string | null
-          created_at: string | null
-          id: string | null
-          is_active: boolean | null
-          is_connected: boolean | null
-          metadata: Json | null
-          settings: Json | null
-          updated_at: string | null
-        }
-        Insert: {
-          business_id?: string | null
-          channel_name?: string | null
-          channel_type?: Database["public"]["Enums"]["channel_type"] | null
-          connected_at?: string | null
-          created_at?: string | null
-          id?: string | null
-          is_active?: boolean | null
-          is_connected?: boolean | null
-          metadata?: Json | null
-          settings?: Json | null
-          updated_at?: string | null
-        }
-        Update: {
-          business_id?: string | null
-          channel_name?: string | null
-          channel_type?: Database["public"]["Enums"]["channel_type"] | null
-          connected_at?: string | null
-          created_at?: string | null
-          id?: string | null
-          is_active?: boolean | null
-          is_connected?: boolean | null
-          metadata?: Json | null
-          settings?: Json | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "social_channels_business_id_fkey"
-            columns: ["business_id"]
-            isOneToOne: false
-            referencedRelation: "businesses"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       transactions_safe: {
         Row: {
           amount: number | null
@@ -3077,6 +3013,22 @@ export type Database = {
           policy_id: string
           resolution_target: number
           warning_threshold: number
+        }[]
+      }
+      get_safe_channels: {
+        Args: { p_business_id: string }
+        Returns: {
+          business_id: string
+          channel_name: string
+          channel_type: string
+          connected_at: string
+          created_at: string
+          id: string
+          is_active: boolean
+          is_connected: boolean
+          metadata: Json
+          settings: Json
+          updated_at: string
         }[]
       }
       get_sla_metrics: {
