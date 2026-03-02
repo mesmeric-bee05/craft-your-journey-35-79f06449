@@ -29,12 +29,9 @@ export function useConnectedChannels() {
 
     try {
       setLoading(true);
-      // SECURITY: Use safe view to avoid exposing OAuth tokens
+      // SECURITY: Use RPC function to avoid exposing OAuth tokens
       const { data, error } = await supabase
-        .from('social_channels_safe')
-        .select('*')
-        .eq('business_id', business.id)
-        .order('channel_type');
+        .rpc('get_safe_channels', { p_business_id: business.id });
 
       if (error) throw error;
       setChannels(data as ConnectedChannel[]);
