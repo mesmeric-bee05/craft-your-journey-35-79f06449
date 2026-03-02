@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,6 +6,24 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Product, ProductInsert } from '@/hooks/useProducts';
 import { Supplier } from '@/hooks/useSuppliers';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+
+const productSchema = z.object({
+  name: z.string().trim().min(1, 'Product name is required').max(100, 'Max 100 characters'),
+  sku: z.string().trim().max(50, 'Max 50 characters').optional().or(z.literal('')),
+  category: z.enum(['fashion', 'food_beverage', 'electronics', 'beauty', 'general_merchandise', 'other']),
+  buying_price: z.coerce.number().min(0, 'Must be non-negative'),
+  selling_price: z.coerce.number().min(0, 'Must be non-negative'),
+  current_stock: z.coerce.number().int('Must be a whole number').min(0, 'Must be non-negative'),
+  reorder_level: z.coerce.number().int('Must be a whole number').min(0, 'Must be non-negative'),
+  unit: z.string().min(1, 'Unit is required'),
+  supplier_id: z.string().optional().or(z.literal('')),
+});
+
+type ProductFormValues = z.infer<typeof productSchema>;
 
 const categories = [
   { value: 'fashion', label: 'Fashion' },
@@ -28,34 +46,52 @@ interface AddEditProductDialogProps {
 }
 
 export function AddEditProductDialog({ open, onOpenChange, product, suppliers, onSave, onUpdate }: AddEditProductDialogProps) {
-  const [name, setName] = useState(product?.name || '');
-  const [sku, setSku] = useState(product?.sku || '');
-  const [category, setCategory] = useState<ProductInsert['category']>(product?.category || 'other');
-  const [buyingPrice, setBuyingPrice] = useState(product?.buying_price?.toString() || '0');
-  const [sellingPrice, setSellingPrice] = useState(product?.selling_price?.toString() || '0');
-  const [currentStock, setCurrentStock] = useState(product?.current_stock?.toString() || '0');
-  const [reorderLevel, setReorderLevel] = useState(product?.reorder_level?.toString() || '5');
-  const [unit, setUnit] = useState(product?.unit || 'pieces');
-  const [supplierId, setSupplierId] = useState(product?.supplier_id || '');
-  const [saving, setSaving] = useState(false);
+  const form = useForm<ProductFormValues>({
+    resolver: zodResolver(productSchema),
+    defaultValues: {
+      name: product?.name || '',
+      sku: product?.sku || '',
+      category: product?.category || 'other',
+      buying_price: product?.buying_price ?? 0,
+      selling_price: product?.selling_price ?? 0,
+      current_stock: product?.current_stock ?? 0,
+      reorder_level: product?.reorder_level ?? 5,
+      unit: product?.unit || 'pieces',
+      supplier_id: product?.supplier_id || '',
+    },
+  });
 
-  const buyNum = parseFloat(buyingPrice) || 0;
-  const sellNum = parseFloat(sellingPrice) || 0;
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        name: product?.name || '',
+        sku: product?.sku || '',
+        category: product?.category || 'other',
+        buying_price: product?.buying_price ?? 0,
+        selling_price: product?.selling_price ?? 0,
+        current_stock: product?.current_stock ?? 0,
+        reorder_level: product?.reorder_level ?? 5,
+        unit: product?.unit || 'pieces',
+        supplier_id: product?.supplier_id || '',
+      });
+    }
+  }, [open, product]);
+
+  const buyNum = form.watch('buying_price') || 0;
+  const sellNum = form.watch('selling_price') || 0;
   const margin = buyNum > 0 ? (((sellNum - buyNum) / buyNum) * 100).toFixed(1) : '—';
 
-  const handleSubmit = async () => {
-    if (!name.trim()) return;
-    setSaving(true);
+  const handleSubmit = async (values: ProductFormValues) => {
     const data: ProductInsert = {
-      name: name.trim(),
-      sku: sku.trim() || null,
-      category,
-      buying_price: buyNum,
-      selling_price: sellNum,
-      current_stock: parseInt(currentStock) || 0,
-      reorder_level: parseInt(reorderLevel) || 5,
-      unit,
-      supplier_id: supplierId || null,
+      name: values.name,
+      sku: values.sku || null,
+      category: values.category,
+      buying_price: values.buying_price,
+      selling_price: values.selling_price,
+      current_stock: values.current_stock,
+      reorder_level: values.reorder_level,
+      unit: values.unit,
+      supplier_id: values.supplier_id || null,
       image_url: product?.image_url || null,
       is_active: true,
     };
@@ -65,7 +101,6 @@ export function AddEditProductDialog({ open, onOpenChange, product, suppliers, o
     } else {
       await onSave(data);
     }
-    setSaving(false);
     onOpenChange(false);
   };
 
@@ -75,74 +110,105 @@ export function AddEditProductDialog({ open, onOpenChange, product, suppliers, o
         <DialogHeader>
           <DialogTitle>{product ? 'Edit Product' : 'Add Product'}</DialogTitle>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid gap-2">
-            <Label>Product Name *</Label>
-            <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. iPhone 15 Case" />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label>SKU</Label>
-              <Input value={sku} onChange={e => setSku(e.target.value)} placeholder="e.g. IP15-BLK-001" />
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="grid gap-4 py-4">
+            <FormField control={form.control} name="name" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Product Name *</FormLabel>
+                <FormControl><Input {...field} placeholder="e.g. iPhone 15 Case" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField control={form.control} name="sku" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>SKU</FormLabel>
+                  <FormControl><Input {...field} placeholder="e.g. IP15-BLK-001" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="category" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Category</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {categories.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
             </div>
-            <div className="grid gap-2">
-              <Label>Category</Label>
-              <Select value={category} onValueChange={(v) => setCategory(v as ProductInsert['category'])}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {categories.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-3 gap-4">
+              <FormField control={form.control} name="buying_price" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Buying Price (KES)</FormLabel>
+                  <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="selling_price" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Selling Price (KES)</FormLabel>
+                  <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <div className="grid gap-2">
+                <Label>Margin</Label>
+                <Input value={`${margin}%`} disabled className="bg-muted" />
+              </div>
             </div>
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="grid gap-2">
-              <Label>Buying Price (KES)</Label>
-              <Input type="number" value={buyingPrice} onChange={e => setBuyingPrice(e.target.value)} />
+            <div className="grid grid-cols-3 gap-4">
+              <FormField control={form.control} name="current_stock" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Current Stock</FormLabel>
+                  <FormControl><Input type="number" {...field} disabled={!!product} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="reorder_level" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Reorder Level</FormLabel>
+                  <FormControl><Input type="number" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="unit" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Unit</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {units.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )} />
             </div>
-            <div className="grid gap-2">
-              <Label>Selling Price (KES)</Label>
-              <Input type="number" value={sellingPrice} onChange={e => setSellingPrice(e.target.value)} />
-            </div>
-            <div className="grid gap-2">
-              <Label>Margin</Label>
-              <Input value={`${margin}%`} disabled className="bg-muted" />
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="grid gap-2">
-              <Label>Current Stock</Label>
-              <Input type="number" value={currentStock} onChange={e => setCurrentStock(e.target.value)} disabled={!!product} />
-            </div>
-            <div className="grid gap-2">
-              <Label>Reorder Level</Label>
-              <Input type="number" value={reorderLevel} onChange={e => setReorderLevel(e.target.value)} />
-            </div>
-            <div className="grid gap-2">
-              <Label>Unit</Label>
-              <Select value={unit} onValueChange={setUnit}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {units.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="grid gap-2">
-            <Label>Supplier</Label>
-            <Select value={supplierId} onValueChange={setSupplierId}>
-              <SelectTrigger><SelectValue placeholder="Select supplier (optional)" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">None</SelectItem>
-                {suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={saving || !name.trim()}>{saving ? 'Saving...' : product ? 'Update' : 'Add Product'}</Button>
-        </DialogFooter>
+            <FormField control={form.control} name="supplier_id" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Supplier</FormLabel>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <FormControl><SelectTrigger><SelectValue placeholder="Select supplier (optional)" /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    <SelectItem value="">None</SelectItem>
+                    {suppliers.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? 'Saving...' : product ? 'Update' : 'Add Product'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );
