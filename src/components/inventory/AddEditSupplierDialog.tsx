@@ -1,10 +1,23 @@
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Supplier } from '@/hooks/useSuppliers';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+
+const supplierSchema = z.object({
+  name: z.string().trim().min(1, 'Supplier name is required').max(100, 'Max 100 characters'),
+  phone: z.string().trim().max(20, 'Max 20 characters').optional().or(z.literal('')),
+  email: z.string().trim().email('Invalid email').max(255).optional().or(z.literal('')),
+  categories: z.string().max(500, 'Max 500 characters').optional().or(z.literal('')),
+  notes: z.string().max(1000, 'Max 1000 characters').optional().or(z.literal('')),
+});
+
+type SupplierFormValues = z.infer<typeof supplierSchema>;
 
 interface AddEditSupplierDialogProps {
   open: boolean;
@@ -15,22 +28,36 @@ interface AddEditSupplierDialogProps {
 }
 
 export function AddEditSupplierDialog({ open, onOpenChange, supplier, onSave, onUpdate }: AddEditSupplierDialogProps) {
-  const [name, setName] = useState(supplier?.name || '');
-  const [phone, setPhone] = useState(supplier?.phone || '');
-  const [email, setEmail] = useState(supplier?.email || '');
-  const [categories, setCategories] = useState(supplier?.product_categories?.join(', ') || '');
-  const [notes, setNotes] = useState(supplier?.notes || '');
-  const [saving, setSaving] = useState(false);
+  const form = useForm<SupplierFormValues>({
+    resolver: zodResolver(supplierSchema),
+    defaultValues: {
+      name: supplier?.name || '',
+      phone: supplier?.phone || '',
+      email: supplier?.email || '',
+      categories: supplier?.product_categories?.join(', ') || '',
+      notes: supplier?.notes || '',
+    },
+  });
 
-  const handleSubmit = async () => {
-    if (!name.trim()) return;
-    setSaving(true);
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        name: supplier?.name || '',
+        phone: supplier?.phone || '',
+        email: supplier?.email || '',
+        categories: supplier?.product_categories?.join(', ') || '',
+        notes: supplier?.notes || '',
+      });
+    }
+  }, [open, supplier]);
+
+  const handleSubmit = async (values: SupplierFormValues) => {
     const data = {
-      name: name.trim(),
-      phone: phone.trim() || null,
-      email: email.trim() || null,
-      product_categories: categories.split(',').map(c => c.trim()).filter(Boolean),
-      notes: notes.trim() || null,
+      name: values.name,
+      phone: values.phone || null,
+      email: values.email || null,
+      product_categories: values.categories ? values.categories.split(',').map(c => c.trim()).filter(Boolean) : [],
+      notes: values.notes || null,
     };
 
     if (supplier && onUpdate) {
@@ -38,7 +65,6 @@ export function AddEditSupplierDialog({ open, onOpenChange, supplier, onSave, on
     } else {
       await onSave(data);
     }
-    setSaving(false);
     onOpenChange(false);
   };
 
@@ -48,34 +74,53 @@ export function AddEditSupplierDialog({ open, onOpenChange, supplier, onSave, on
         <DialogHeader>
           <DialogTitle>{supplier ? 'Edit Supplier' : 'Add Supplier'}</DialogTitle>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
-          <div className="grid gap-2">
-            <Label>Supplier Name *</Label>
-            <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Eastleigh Wholesalers" />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="grid gap-2">
-              <Label>Phone</Label>
-              <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+254..." />
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="grid gap-4 py-4">
+            <FormField control={form.control} name="name" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Supplier Name *</FormLabel>
+                <FormControl><Input {...field} placeholder="e.g. Eastleigh Wholesalers" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField control={form.control} name="phone" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Phone</FormLabel>
+                  <FormControl><Input {...field} placeholder="+254..." /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="email" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl><Input type="email" {...field} placeholder="email@example.com" /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
             </div>
-            <div className="grid gap-2">
-              <Label>Email</Label>
-              <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@example.com" />
-            </div>
-          </div>
-          <div className="grid gap-2">
-            <Label>Product Categories</Label>
-            <Input value={categories} onChange={e => setCategories(e.target.value)} placeholder="Fashion, Electronics (comma-separated)" />
-          </div>
-          <div className="grid gap-2">
-            <Label>Notes</Label>
-            <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Additional notes..." rows={2} />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={saving || !name.trim()}>{saving ? 'Saving...' : supplier ? 'Update' : 'Add Supplier'}</Button>
-        </DialogFooter>
+            <FormField control={form.control} name="categories" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Product Categories</FormLabel>
+                <FormControl><Input {...field} placeholder="Fashion, Electronics (comma-separated)" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="notes" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Notes</FormLabel>
+                <FormControl><Textarea {...field} placeholder="Additional notes..." rows={2} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? 'Saving...' : supplier ? 'Update' : 'Add Supplier'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );

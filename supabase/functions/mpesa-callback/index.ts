@@ -4,63 +4,79 @@
  * Handles M-Pesa payment callbacks/webhooks
  * 
  * SECURITY:
- * - No JWT required (called by M-Pesa)
- * - Validates callback structure
- * - Updates transaction status securely
+ * - No JWT required (called by M-Pesa servers)
+ * - IP-based rate limiting (30/min)
+ * - Zod validation for callback body
+ * - Structured logging via shared utilities
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { getCorsHeaders, secureResponse } from "../_shared/security-headers.ts";
+import { createServiceClient } from "../_shared/auth.ts";
+import { rateLimit } from "../_shared/rate-limiter.ts";
+import { logError, logSecurityEvent } from "../_shared/errors.ts";
+import { parseJsonBody } from "../_shared/validators.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// Zod schema for M-Pesa callback body
+const MPesaCallbackItemSchema = z.object({
+  Name: z.string(),
+  Value: z.union([z.string(), z.number()]),
+});
 
-interface MPesaCallbackItem {
-  Name: string;
-  Value: string | number;
-}
-
-interface MPesaCallback {
-  Body: {
-    stkCallback: {
-      MerchantRequestID: string;
-      CheckoutRequestID: string;
-      ResultCode: number;
-      ResultDesc: string;
-      CallbackMetadata?: {
-        Item: MPesaCallbackItem[];
-      };
-    };
-  };
-}
+const MPesaCallbackSchema = z.object({
+  Body: z.object({
+    stkCallback: z.object({
+      MerchantRequestID: z.string(),
+      CheckoutRequestID: z.string(),
+      ResultCode: z.number(),
+      ResultDesc: z.string(),
+      CallbackMetadata: z.object({
+        Item: z.array(MPesaCallbackItemSchema),
+      }).optional(),
+    }),
+  }),
+});
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders('*');
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
+    // IP-based rate limiting for callback abuse protection
+    const rateLimitResult = rateLimit(req, null, {
+      ipLimit: { windowMs: 60000, maxRequests: 30 },
+      keyPrefix: 'mpesa-callback',
+    }, corsHeaders);
 
-    // Parse callback body
-    const callback: MPesaCallback = await req.json();
-    
-    console.log('[M-Pesa Callback] Received:', JSON.stringify(callback, null, 2));
+    if (!rateLimitResult.allowed) {
+      logSecurityEvent('rate_limit_exceeded', { endpoint: 'mpesa-callback', type: 'ip' });
+      return rateLimitResult.response!;
+    }
 
-    const { stkCallback } = callback.Body;
-    const { CheckoutRequestID, ResultCode, ResultDesc, CallbackMetadata } = stkCallback;
+    // Parse body with size limiting
+    const { data: rawBody, error: parseError } = await parseJsonBody(req, corsHeaders);
+    if (parseError) return parseError;
 
-    if (!CheckoutRequestID) {
-      return new Response(
-        JSON.stringify({ ResultCode: 1, ResultDesc: 'Missing CheckoutRequestID' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    // Validate callback structure
+    const validation = MPesaCallbackSchema.safeParse(rawBody);
+    if (!validation.success) {
+      logSecurityEvent('invalid_callback_body', { errors: validation.error.errors.slice(0, 3) });
+      return secureResponse(
+        JSON.stringify({ ResultCode: 1, ResultDesc: 'Invalid callback structure' }),
+        400, corsHeaders
       );
     }
 
-    // Find the transaction by checkout request ID
+    const supabase = createServiceClient();
+    const { stkCallback } = validation.data.Body;
+    const { CheckoutRequestID, ResultCode, ResultDesc, CallbackMetadata } = stkCallback;
+
+    logSecurityEvent('mpesa_callback_received', { CheckoutRequestID, ResultCode });
+
+    // Find the transaction
     const { data: transaction, error: findError } = await supabase
       .from('transactions')
       .select('*')
@@ -68,78 +84,56 @@ Deno.serve(async (req) => {
       .single();
 
     if (findError || !transaction) {
-      console.error('[M-Pesa Callback] Transaction not found:', CheckoutRequestID);
-      return new Response(
+      logError('mpesa-callback', new Error('Transaction not found'), { CheckoutRequestID });
+      return secureResponse(
         JSON.stringify({ ResultCode: 0, ResultDesc: 'Transaction not found but acknowledged' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        200, corsHeaders
       );
     }
 
-    // Process based on result code
     if (ResultCode === 0) {
       // Payment successful
-      const metadata: Record<string, unknown> = { 
+      const metadata: Record<string, unknown> = {
         ...(transaction.metadata as Record<string, unknown> || {}),
         mpesa_result_code: ResultCode,
         mpesa_result_desc: ResultDesc,
         completed_at: new Date().toISOString(),
       };
 
-      // Extract callback metadata
       if (CallbackMetadata?.Item) {
         for (const item of CallbackMetadata.Item) {
           switch (item.Name) {
-            case 'MpesaReceiptNumber':
-              metadata.mpesa_receipt = item.Value;
-              break;
-            case 'TransactionDate':
-              metadata.mpesa_transaction_date = item.Value;
-              break;
-            case 'PhoneNumber':
-              metadata.mpesa_phone = item.Value;
-              break;
-            case 'Amount':
-              metadata.mpesa_amount = item.Value;
-              break;
+            case 'MpesaReceiptNumber': metadata.mpesa_receipt = item.Value; break;
+            case 'TransactionDate': metadata.mpesa_transaction_date = item.Value; break;
+            case 'PhoneNumber': metadata.mpesa_phone = item.Value; break;
+            case 'Amount': metadata.mpesa_amount = item.Value; break;
           }
         }
       }
 
-      // Update transaction as completed
       const { error: updateError } = await supabase
         .from('transactions')
-        .update({
-          status: 'completed',
-          completed_at: new Date().toISOString(),
-          metadata,
-        })
+        .update({ status: 'completed', completed_at: new Date().toISOString(), metadata })
         .eq('id', transaction.id);
 
       if (updateError) {
-        console.error('[M-Pesa Callback] Update error:', updateError);
+        logError('mpesa-callback', updateError, { step: 'update_completed', transactionId: transaction.id });
       } else {
-        console.log('[M-Pesa Callback] Transaction completed:', transaction.id);
-        
-        // Update wallet balance if applicable
+        logSecurityEvent('mpesa_payment_completed', { transactionId: transaction.id, receipt: metadata.mpesa_receipt });
+
+        // Update wallet balance
         if (transaction.wallet_id) {
           const { data: wallet } = await supabase
-            .from('wallets')
-            .select('balance')
-            .eq('id', transaction.wallet_id)
-            .single();
-
+            .from('wallets').select('balance').eq('id', transaction.wallet_id).single();
           if (wallet) {
-            await supabase
-              .from('wallets')
-              .update({
-                balance: Number(wallet.balance) + Number(transaction.amount),
-                updated_at: new Date().toISOString(),
-              })
-              .eq('id', transaction.wallet_id);
+            await supabase.from('wallets').update({
+              balance: Number(wallet.balance) + Number(transaction.amount),
+              updated_at: new Date().toISOString(),
+            }).eq('id', transaction.wallet_id);
           }
         }
 
-        // Create notification for user
+        // Create notification
         await supabase.from('notifications').insert({
           business_id: transaction.business_id,
           user_id: transaction.user_id,
@@ -154,7 +148,7 @@ Deno.serve(async (req) => {
         });
       }
     } else {
-      // Payment failed or cancelled
+      // Payment failed
       const errorMessages: Record<number, string> = {
         1: 'Insufficient balance',
         1032: 'Transaction cancelled by user',
@@ -177,22 +171,21 @@ Deno.serve(async (req) => {
         .eq('id', transaction.id);
 
       if (updateError) {
-        console.error('[M-Pesa Callback] Failed update error:', updateError);
+        logError('mpesa-callback', updateError, { step: 'update_failed', transactionId: transaction.id });
       } else {
-        console.log('[M-Pesa Callback] Transaction failed:', transaction.id, ResultDesc);
+        logSecurityEvent('mpesa_payment_failed', { transactionId: transaction.id, resultCode: ResultCode, reason: errorMessages[ResultCode] || ResultDesc });
       }
     }
 
-    // Always acknowledge to M-Pesa
-    return new Response(
+    return secureResponse(
       JSON.stringify({ ResultCode: 0, ResultDesc: 'Callback received successfully' }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      200, corsHeaders
     );
   } catch (error) {
-    console.error('[M-Pesa Callback] Error:', error);
-    return new Response(
+    logError('mpesa-callback', error, { fatal: true });
+    return secureResponse(
       JSON.stringify({ ResultCode: 1, ResultDesc: 'Internal error' }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      200, corsHeaders
     );
   }
 });

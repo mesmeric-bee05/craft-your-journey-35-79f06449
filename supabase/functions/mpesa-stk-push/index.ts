@@ -6,30 +6,27 @@
  * SECURITY:
  * - JWT authentication required
  * - Business membership verification
- * - Rate limited (5/min per IP, 20/min per user)
+ * - Rate limited (sensitive: 5/hour per IP, 3/hour per user)
  * - Input validation with Zod
+ * - Body size limiting via parseJsonBody
  */
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { z } from "https://esm.sh/zod@3.22.4";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { getCorsHeaders, secureResponse } from "../_shared/security-headers.ts";
+import { verifyAuth, createServiceClient } from "../_shared/auth.ts";
+import { verifyBusinessMembership } from "../_shared/auth.ts";
+import { rateLimit, DEFAULT_LIMITS } from "../_shared/rate-limiter.ts";
+import { logError, logSecurityEvent, internalError, badRequest } from "../_shared/errors.ts";
+import { parseJsonBody, validateInput } from "../_shared/validators.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-// Validation schema for STK Push request
 const STKPushSchema = z.object({
   phone: z.string().min(9).max(15).regex(/^(?:\+254|254|0)?[17]\d{8}$/, 'Invalid Kenyan phone number'),
   amount: z.number().min(1).max(150000),
   reference: z.string().min(1).max(20),
   description: z.string().max(100).optional(),
   businessId: z.string().uuid(),
-});
+}).strict();
 
-type STKPushRequest = z.infer<typeof STKPushSchema>;
-
-// Normalize phone number to 254 format
 function normalizePhone(phone: string): string {
   const cleaned = phone.replace(/\s+/g, '');
   if (cleaned.startsWith('+254')) return cleaned.substring(1);
@@ -38,56 +35,62 @@ function normalizePhone(phone: string): string {
   return '254' + cleaned;
 }
 
-// Generate M-Pesa password
 function generatePassword(shortcode: string, passkey: string, timestamp: string): string {
-  const rawPassword = shortcode + passkey + timestamp;
-  return btoa(rawPassword);
+  return btoa(shortcode + passkey + timestamp);
 }
 
-// Get current timestamp in M-Pesa format
 function getTimestamp(): string {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  const hours = String(now.getHours()).padStart(2, '0');
-  const minutes = String(now.getMinutes()).padStart(2, '0');
-  const seconds = String(now.getSeconds()).padStart(2, '0');
-  return `${year}${month}${day}${hours}${minutes}${seconds}`;
+  return `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
 }
 
-// Get OAuth token from M-Pesa
 async function getAccessToken(consumerKey: string, consumerSecret: string, sandbox: boolean = true): Promise<string> {
-  const baseUrl = sandbox 
-    ? 'https://sandbox.safaricom.co.ke'
-    : 'https://api.safaricom.co.ke';
-    
+  const baseUrl = sandbox ? 'https://sandbox.safaricom.co.ke' : 'https://api.safaricom.co.ke';
   const auth = btoa(`${consumerKey}:${consumerSecret}`);
-  
   const response = await fetch(`${baseUrl}/oauth/v1/generate?grant_type=client_credentials`, {
     method: 'GET',
-    headers: {
-      'Authorization': `Basic ${auth}`,
-    },
+    headers: { 'Authorization': `Basic ${auth}` },
   });
-  
-  if (!response.ok) {
-    throw new Error('Failed to get M-Pesa access token');
-  }
-  
+  if (!response.ok) throw new Error('Failed to get M-Pesa access token');
   const data = await response.json();
   return data.access_token;
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders('*');
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Get environment variables
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    // Rate limiting (sensitive: 5/hour per IP)
+    const ipRateCheck = rateLimit(req, null, {
+      ...DEFAULT_LIMITS.sensitive,
+      keyPrefix: 'mpesa-stk-push',
+    }, corsHeaders);
+
+    if (!ipRateCheck.allowed) {
+      logSecurityEvent('rate_limit_exceeded', { endpoint: 'mpesa-stk-push', type: 'ip' });
+      return ipRateCheck.response!;
+    }
+
+    // Auth verification
+    const { user, supabase, error: authError } = await verifyAuth(req, corsHeaders);
+    if (authError) return authError;
+
+    // User-based rate limiting
+    const userRateCheck = rateLimit(req, user!.id, {
+      ...DEFAULT_LIMITS.sensitive,
+      keyPrefix: 'mpesa-stk-push',
+    }, corsHeaders);
+
+    if (!userRateCheck.allowed) {
+      logSecurityEvent('rate_limit_exceeded', { endpoint: 'mpesa-stk-push', type: 'user', userId: user!.id });
+      return userRateCheck.response!;
+    }
+
+    // Check M-Pesa configuration
     const consumerKey = Deno.env.get("MPESA_CONSUMER_KEY");
     const consumerSecret = Deno.env.get("MPESA_CONSUMER_SECRET");
     const passkey = Deno.env.get("MPESA_PASSKEY");
@@ -95,81 +98,29 @@ Deno.serve(async (req) => {
     const callbackUrl = Deno.env.get("MPESA_CALLBACK_URL");
     const isSandbox = Deno.env.get("MPESA_SANDBOX") !== 'false';
 
-    // Check if M-Pesa is configured
     if (!consumerKey || !consumerSecret || !passkey || !shortcode) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'M-Pesa not configured',
-          message: 'Please configure M-Pesa API credentials' 
-        }),
-        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      return secureResponse(
+        JSON.stringify({ error: { code: 'SERVICE_UNAVAILABLE', message: 'M-Pesa not configured' } }),
+        503, corsHeaders
       );
     }
 
-    // Verify authentication
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Authorization header required' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // Parse and validate body with size limit
+    const { data: rawBody, error: parseError } = await parseJsonBody(req, corsHeaders);
+    if (parseError) return parseError;
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } }
-    });
+    const validation = validateInput(STKPushSchema, rawBody, corsHeaders);
+    if (!validation.success) return validation.error!;
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Parse and validate request body
-    const body = await req.json();
-    const validation = STKPushSchema.safeParse(body);
-    
-    if (!validation.success) {
-      return new Response(
-        JSON.stringify({ error: 'Validation failed', details: validation.error.issues }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const { phone, amount, reference, description, businessId } = validation.data;
+    const { phone, amount, reference, description, businessId } = validation.data!;
 
     // Verify business membership
-    const { data: business, error: businessError } = await supabase
-      .from('businesses')
-      .select('id, owner_id')
-      .eq('id', businessId)
-      .single();
-
-    if (businessError || !business) {
-      return new Response(
-        JSON.stringify({ error: 'Business not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Check if user is owner or member
-    const { data: membership } = await supabase
-      .from('business_members')
-      .select('id')
-      .eq('business_id', businessId)
-      .eq('user_id', user.id)
-      .eq('is_active', true)
-      .single();
-
-    const isOwner = business.owner_id === user.id;
-    const isMember = !!membership;
-
-    if (!isOwner && !isMember) {
-      return new Response(
-        JSON.stringify({ error: 'Access denied' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    const isMember = await verifyBusinessMembership(supabase!, user!.id, businessId);
+    if (!isMember) {
+      logSecurityEvent('unauthorized_business_access', { userId: user!.id, businessId });
+      return secureResponse(
+        JSON.stringify({ error: { code: 'FORBIDDEN', message: 'Access denied' } }),
+        403, corsHeaders
       );
     }
 
@@ -177,125 +128,97 @@ Deno.serve(async (req) => {
     const timestamp = getTimestamp();
     const password = generatePassword(shortcode, passkey, timestamp);
     const normalizedPhone = normalizePhone(phone);
-
-    // Get access token
     const accessToken = await getAccessToken(consumerKey, consumerSecret, isSandbox);
 
-    // Create transaction record first
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const adminClient = createClient(supabaseUrl, serviceRoleKey);
+    // Create transaction record
+    const adminClient = createServiceClient();
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 
     const { data: transaction, error: txError } = await adminClient
       .from('transactions')
       .insert({
         business_id: businessId,
-        user_id: user.id,
+        user_id: user!.id,
         type: 'deposit',
-        amount: amount,
+        amount,
         currency: 'KES',
         status: 'pending',
         payment_method: 'mpesa',
-        reference: reference,
+        reference,
         description: description || 'M-Pesa Payment',
         recipient_phone: normalizedPhone,
-        metadata: {
-          initiated_at: new Date().toISOString(),
-          channel: 'stk_push',
-        },
+        metadata: { initiated_at: new Date().toISOString(), channel: 'stk_push' },
       })
       .select()
       .single();
 
     if (txError) {
-      console.error('Transaction creation error:', txError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to create transaction record' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      logError('mpesa-stk-push', txError, { step: 'create_transaction' });
+      return internalError(corsHeaders, 'Failed to create transaction record');
     }
 
-    // Initiate STK Push
-    const baseUrl = isSandbox 
-      ? 'https://sandbox.safaricom.co.ke'
-      : 'https://api.safaricom.co.ke';
+    logSecurityEvent('mpesa_stk_initiated', { transactionId: transaction.id, userId: user!.id, businessId });
 
-    const stkPushPayload = {
-      BusinessShortCode: shortcode,
-      Password: password,
-      Timestamp: timestamp,
-      TransactionType: 'CustomerPayBillOnline',
-      Amount: Math.round(amount),
-      PartyA: normalizedPhone,
-      PartyB: shortcode,
-      PhoneNumber: normalizedPhone,
-      CallBackURL: callbackUrl || `${supabaseUrl}/functions/v1/mpesa-callback`,
-      AccountReference: reference,
-      TransactionDesc: description || 'Payment',
-    };
+    // Initiate STK Push
+    const baseUrl = isSandbox ? 'https://sandbox.safaricom.co.ke' : 'https://api.safaricom.co.ke';
 
     const stkResponse = await fetch(`${baseUrl}/mpesa/stkpush/v1/processrequest`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(stkPushPayload),
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        BusinessShortCode: shortcode,
+        Password: password,
+        Timestamp: timestamp,
+        TransactionType: 'CustomerPayBillOnline',
+        Amount: Math.round(amount),
+        PartyA: normalizedPhone,
+        PartyB: shortcode,
+        PhoneNumber: normalizedPhone,
+        CallBackURL: callbackUrl || `${supabaseUrl}/functions/v1/mpesa-callback`,
+        AccountReference: reference,
+        TransactionDesc: description || 'Payment',
+      }),
     });
 
     const stkResult = await stkResponse.json();
 
     if (stkResult.ResponseCode === '0') {
-      // Update transaction with M-Pesa checkout request ID
-      await adminClient
-        .from('transactions')
-        .update({
-          external_reference: stkResult.CheckoutRequestID,
-          metadata: {
-            ...transaction.metadata,
-            merchant_request_id: stkResult.MerchantRequestID,
-            checkout_request_id: stkResult.CheckoutRequestID,
-          },
-        })
-        .eq('id', transaction.id);
+      await adminClient.from('transactions').update({
+        external_reference: stkResult.CheckoutRequestID,
+        metadata: {
+          ...transaction.metadata,
+          merchant_request_id: stkResult.MerchantRequestID,
+          checkout_request_id: stkResult.CheckoutRequestID,
+        },
+      }).eq('id', transaction.id);
 
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: 'STK Push initiated successfully',
-          transactionId: transaction.id,
-          checkoutRequestId: stkResult.CheckoutRequestID,
-          merchantRequestId: stkResult.MerchantRequestID,
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return secureResponse(JSON.stringify({
+        success: true,
+        message: 'STK Push initiated successfully',
+        transactionId: transaction.id,
+        checkoutRequestId: stkResult.CheckoutRequestID,
+        merchantRequestId: stkResult.MerchantRequestID,
+      }), 200, corsHeaders);
     } else {
-      // Update transaction as failed
-      await adminClient
-        .from('transactions')
-        .update({
-          status: 'failed',
-          metadata: {
-            ...transaction.metadata,
-            error: stkResult.errorMessage || stkResult.ResponseDescription,
-            response_code: stkResult.ResponseCode,
-          },
-        })
-        .eq('id', transaction.id);
+      await adminClient.from('transactions').update({
+        status: 'failed',
+        metadata: {
+          ...transaction.metadata,
+          error: stkResult.errorMessage || stkResult.ResponseDescription,
+          response_code: stkResult.ResponseCode,
+        },
+      }).eq('id', transaction.id);
 
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: stkResult.errorMessage || stkResult.ResponseDescription || 'STK Push failed',
-          transactionId: transaction.id,
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      logError('mpesa-stk-push', new Error(stkResult.errorMessage || stkResult.ResponseDescription), { transactionId: transaction.id });
+
+      return secureResponse(JSON.stringify({
+        success: false,
+        error: stkResult.errorMessage || stkResult.ResponseDescription || 'STK Push failed',
+        transactionId: transaction.id,
+      }), 400, corsHeaders);
     }
   } catch (error) {
-    console.error('M-Pesa STK Push error:', error);
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    logError('mpesa-stk-push', error, { fatal: true });
+    return internalError(corsHeaders);
   }
 });

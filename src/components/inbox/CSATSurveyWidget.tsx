@@ -8,6 +8,12 @@ import { useBusiness } from '@/hooks/useBusiness';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { logger } from '@/lib/logger';
+import { z } from 'zod';
+
+const csatSchema = z.object({
+  rating: z.number().int().min(1, 'Rating is required').max(11),
+  comment: z.string().max(1000, 'Max 1000 characters').optional().or(z.literal('')),
+});
 
 interface CSATSurveyWidgetProps {
   conversationId: string;
@@ -47,13 +53,11 @@ export function CSATSurveyWidget({
   const [alreadyResponded, setAlreadyResponded] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Fetch default CSAT survey and check if already responded
   useEffect(() => {
     const fetchSurveyAndCheckResponse = async () => {
       if (!business?.id) return;
 
       try {
-        // Check if already responded
         const { data: existingResponse } = await supabase
           .from('csat_responses')
           .select('id')
@@ -66,7 +70,6 @@ export function CSATSurveyWidget({
           return;
         }
 
-        // Fetch default survey
         const { data: surveyData, error } = await supabase
           .from('csat_surveys')
           .select('*')
@@ -80,7 +83,6 @@ export function CSATSurveyWidget({
         if (surveyData) {
           setSurvey(surveyData as CSATSurvey);
         } else {
-          // Try to get any active survey
           const { data: anySurvey } = await supabase
             .from('csat_surveys')
             .select('*')
@@ -89,9 +91,7 @@ export function CSATSurveyWidget({
             .limit(1)
             .maybeSingle();
 
-          if (anySurvey) {
-            setSurvey(anySurvey as CSATSurvey);
-          }
+          if (anySurvey) setSurvey(anySurvey as CSATSurvey);
         }
       } catch (err) {
         logger.error('Error fetching CSAT survey', err, { component: 'CSATSurveyWidget', conversationId });
@@ -106,6 +106,12 @@ export function CSATSurveyWidget({
   const handleSubmit = async () => {
     if (!survey || !business?.id || rating === 0) return;
 
+    const validation = csatSchema.safeParse({ rating, comment });
+    if (!validation.success) {
+      toast({ title: 'Invalid input', description: validation.error.errors[0]?.message, variant: 'destructive' });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const { error } = await supabase.from('csat_responses').insert({
@@ -114,9 +120,9 @@ export function CSATSurveyWidget({
         conversation_id: conversationId,
         customer_id: customerId,
         assigned_agent_id: assignedAgentId,
-        rating,
+        rating: validation.data.rating,
         channel_type: channelType,
-        comment: comment.trim() || null,
+        comment: validation.data.comment?.trim() || null,
       } as any);
 
       if (error) throw error;
@@ -125,27 +131,13 @@ export function CSATSurveyWidget({
       toast({ title: 'Feedback submitted!', description: 'Thank you for your response.' });
       onSubmit?.();
     } catch (err: any) {
-      toast({
-        title: 'Error submitting feedback',
-        description: err.message,
-        variant: 'destructive',
-      });
+      toast({ title: 'Error submitting feedback', description: err.message, variant: 'destructive' });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (loading) {
-    return null;
-  }
-
-  if (alreadyResponded) {
-    return null;
-  }
-
-  if (!survey) {
-    return null;
-  }
+  if (loading || alreadyResponded || !survey) return null;
 
   if (isSubmitted) {
     return (
@@ -188,36 +180,17 @@ export function CSATSurveyWidget({
 
         <p className="text-sm mb-4">{survey.question}</p>
 
-        {/* Star Rating */}
         {survey.scale_type === '5-star' && (
           <div className="flex items-center gap-1 mb-4">
             {[1, 2, 3, 4, 5].map((star) => (
-              <button
-                key={star}
-                onClick={() => setRating(star)}
-                onMouseEnter={() => setHoveredRating(star)}
-                onMouseLeave={() => setHoveredRating(0)}
-                className="p-1 transition-transform hover:scale-110"
-              >
-                <Star
-                  className={cn(
-                    'w-8 h-8 transition-colors',
-                    star <= displayRating
-                      ? 'fill-yellow-400 text-yellow-400'
-                      : 'fill-transparent text-muted-foreground'
-                  )}
-                />
+              <button key={star} onClick={() => setRating(star)} onMouseEnter={() => setHoveredRating(star)} onMouseLeave={() => setHoveredRating(0)} className="p-1 transition-transform hover:scale-110">
+                <Star className={cn('w-8 h-8 transition-colors', star <= displayRating ? 'fill-yellow-400 text-yellow-400' : 'fill-transparent text-muted-foreground')} />
               </button>
             ))}
-            {rating > 0 && (
-              <span className="ml-2 text-sm text-muted-foreground">
-                {rating}/5
-              </span>
-            )}
+            {rating > 0 && <span className="ml-2 text-sm text-muted-foreground">{rating}/5</span>}
           </div>
         )}
 
-        {/* Emoji Rating */}
         {survey.scale_type === 'emoji' && (
           <div className="flex items-center gap-2 mb-4">
             {[
@@ -227,41 +200,17 @@ export function CSATSurveyWidget({
               { value: 4, emoji: '😊', label: 'Happy' },
               { value: 5, emoji: '😍', label: 'Very Happy' },
             ].map((option) => (
-              <button
-                key={option.value}
-                onClick={() => setRating(option.value)}
-                className={cn(
-                  'text-3xl p-2 rounded-lg transition-all',
-                  rating === option.value
-                    ? 'bg-primary/20 scale-110'
-                    : 'hover:bg-muted opacity-60 hover:opacity-100'
-                )}
-                title={option.label}
-              >
+              <button key={option.value} onClick={() => setRating(option.value)} className={cn('text-3xl p-2 rounded-lg transition-all', rating === option.value ? 'bg-primary/20 scale-110' : 'hover:bg-muted opacity-60 hover:opacity-100')} title={option.label}>
                 {option.emoji}
               </button>
             ))}
           </div>
         )}
 
-        {/* NPS Scale */}
         {survey.scale_type === 'nps' && (
           <div className="flex flex-wrap gap-1 mb-4">
             {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => (
-              <button
-                key={score}
-                onClick={() => setRating(score + 1)} // Store as 1-11 internally
-                className={cn(
-                  'w-8 h-8 rounded text-sm font-medium transition-all',
-                  rating === score + 1
-                    ? score <= 6
-                      ? 'bg-red-500 text-white'
-                      : score <= 8
-                      ? 'bg-yellow-500 text-white'
-                      : 'bg-green-500 text-white'
-                    : 'bg-muted hover:bg-muted/80'
-                )}
-              >
+              <button key={score} onClick={() => setRating(score + 1)} className={cn('w-8 h-8 rounded text-sm font-medium transition-all', rating === score + 1 ? score <= 6 ? 'bg-red-500 text-white' : score <= 8 ? 'bg-yellow-500 text-white' : 'bg-green-500 text-white' : 'bg-muted hover:bg-muted/80')}>
                 {score}
               </button>
             ))}
@@ -272,25 +221,19 @@ export function CSATSurveyWidget({
           </div>
         )}
 
-        {/* Comment Field */}
         {survey.include_comment && rating > 0 && (
           <div className="mb-4">
             <Textarea
               placeholder={survey.comment_prompt || 'Any additional feedback?'}
               value={comment}
-              onChange={(e) => setComment(e.target.value)}
+              onChange={(e) => setComment(e.target.value.slice(0, 1000))}
               className="min-h-[60px] text-sm"
+              maxLength={1000}
             />
           </div>
         )}
 
-        {/* Submit Button */}
-        <Button
-          onClick={handleSubmit}
-          disabled={rating === 0 || isSubmitting}
-          size="sm"
-          className="w-full"
-        >
+        <Button onClick={handleSubmit} disabled={rating === 0 || isSubmitting} size="sm" className="w-full">
           <Send className="w-4 h-4 mr-2" />
           {isSubmitting ? 'Submitting...' : 'Submit Feedback'}
         </Button>
