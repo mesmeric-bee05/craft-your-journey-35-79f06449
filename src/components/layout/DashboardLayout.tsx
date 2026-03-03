@@ -18,6 +18,8 @@ import {
   Video,
   Share2,
   Package,
+  Contact,
+  Workflow,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -49,6 +51,8 @@ const mainNavItems: NavItem[] = [
   { label: 'AI Marketing', icon: Sparkles, href: '/marketing' },
   { label: 'Live Studio', icon: Video, href: '/live' },
   { label: 'Talent Hub', icon: Users, href: '/talent' },
+  { label: 'Customers', icon: Contact, href: '/customers' },
+  { label: 'Automations', icon: Workflow, href: '/automations' },
   { label: 'Inventory', icon: Package, href: '/inventory' },
   { label: 'Payments', icon: Wallet, href: '/payments' },
   { label: 'Analytics', icon: BarChart3, href: '/analytics' },
