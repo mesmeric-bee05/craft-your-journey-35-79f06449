@@ -21,6 +21,8 @@ import Payments from "./pages/Payments";
 import HelpCenter from "./pages/HelpCenter";
 import Inventory from "./pages/Inventory";
 import NotFound from "./pages/NotFound";
+import Customers from "./pages/Customers";
+import Automations from "./pages/Automations";
 
 const queryClient = new QueryClient();
 
@@ -156,6 +158,26 @@ const App = () => (
                 <RequireAuth>
                   <RequireOnboarding>
                     <Inventory />
+                  </RequireOnboarding>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/customers"
+              element={
+                <RequireAuth>
+                  <RequireOnboarding>
+                    <Customers />
+                  </RequireOnboarding>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/automations"
+              element={
+                <RequireAuth>
+                  <RequireOnboarding>
+                    <Automations />
                   </RequireOnboarding>
                 </RequireAuth>
               }
