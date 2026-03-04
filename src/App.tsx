@@ -23,8 +23,15 @@ import Inventory from "./pages/Inventory";
 import NotFound from "./pages/NotFound";
 import Customers from "./pages/Customers";
 import Automations from "./pages/Automations";
+import Reports from "./pages/Reports";
 
 const queryClient = new QueryClient();
+
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => (
+  <RequireAuth>
+    <RequireOnboarding>{children}</RequireOnboarding>
+  </RequireAuth>
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -36,153 +43,22 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/auth" element={<Auth />} />
-            <Route
-              path="/mfa-challenge"
-              element={
-                <RequireAuth>
-                  <MFAChallenge />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/onboarding"
-              element={
-                <RequireAuth>
-                  <Onboarding />
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/dashboard"
-              element={
-                <RequireAuth>
-                  <RequireOnboarding>
-                    <Dashboard />
-                  </RequireOnboarding>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/inbox"
-              element={
-                <RequireAuth>
-                  <RequireOnboarding>
-                    <Inbox />
-                  </RequireOnboarding>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/marketing"
-              element={
-                <RequireAuth>
-                  <RequireOnboarding>
-                    <Marketing />
-                  </RequireOnboarding>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/social"
-              element={
-                <RequireAuth>
-                  <RequireOnboarding>
-                    <Social />
-                  </RequireOnboarding>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/talent"
-              element={
-                <RequireAuth>
-                  <RequireOnboarding>
-                    <Talent />
-                  </RequireOnboarding>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/settings"
-              element={
-                <RequireAuth>
-                  <RequireOnboarding>
-                    <Settings />
-                  </RequireOnboarding>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/live"
-              element={
-                <RequireAuth>
-                  <RequireOnboarding>
-                    <LiveStudio />
-                  </RequireOnboarding>
-              </RequireAuth>
-              }
-            />
-            <Route
-              path="/analytics"
-              element={
-                <RequireAuth>
-                  <RequireOnboarding>
-                    <Analytics />
-                  </RequireOnboarding>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/payments"
-              element={
-                <RequireAuth>
-                  <RequireOnboarding>
-                    <Payments />
-                  </RequireOnboarding>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/help"
-              element={
-                <RequireAuth>
-                  <RequireOnboarding>
-                    <HelpCenter />
-                  </RequireOnboarding>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/inventory"
-              element={
-                <RequireAuth>
-                  <RequireOnboarding>
-                    <Inventory />
-                  </RequireOnboarding>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/customers"
-              element={
-                <RequireAuth>
-                  <RequireOnboarding>
-                    <Customers />
-                  </RequireOnboarding>
-                </RequireAuth>
-              }
-            />
-            <Route
-              path="/automations"
-              element={
-                <RequireAuth>
-                  <RequireOnboarding>
-                    <Automations />
-                  </RequireOnboarding>
-                </RequireAuth>
-              }
-            />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="/mfa-challenge" element={<RequireAuth><MFAChallenge /></RequireAuth>} />
+            <Route path="/onboarding" element={<RequireAuth><Onboarding /></RequireAuth>} />
+            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
+            <Route path="/marketing" element={<ProtectedRoute><Marketing /></ProtectedRoute>} />
+            <Route path="/social" element={<ProtectedRoute><Social /></ProtectedRoute>} />
+            <Route path="/talent" element={<ProtectedRoute><Talent /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+            <Route path="/live" element={<ProtectedRoute><LiveStudio /></ProtectedRoute>} />
+            <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+            <Route path="/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
+            <Route path="/help" element={<ProtectedRoute><HelpCenter /></ProtectedRoute>} />
+            <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
+            <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
+            <Route path="/automations" element={<ProtectedRoute><Automations /></ProtectedRoute>} />
+            <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

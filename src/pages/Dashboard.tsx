@@ -3,10 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { StatCard } from '@/components/dashboard/StatCard';
 import { QuickActions } from '@/components/dashboard/QuickActions';
-import { RecentActivity } from '@/components/dashboard/RecentActivity';
 import { ChannelStatus } from '@/components/dashboard/ChannelStatus';
+import { ConversationTrendsChart } from '@/components/dashboard/ConversationTrendsChart';
+import { RevenueChart } from '@/components/dashboard/RevenueChart';
+import { LiveActivityFeed } from '@/components/dashboard/LiveActivityFeed';
 import { useAuth } from '@/hooks/useAuth';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
+import { useDashboardCharts } from '@/hooks/useDashboardCharts';
 import { MessageSquare, Users, Wallet, TrendingUp, Zap, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -14,6 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function Dashboard() {
   const { user, loading: authLoading } = useAuth();
   const { stats, loading: statsLoading, refetch } = useDashboardStats();
+  const { chartData, loading: chartsLoading, refetch: refetchCharts } = useDashboardCharts();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -48,9 +52,14 @@ export default function Dashboard() {
     return num.toLocaleString();
   };
 
-  const formatChange = (change: number, suffix = '') => {
+  const formatChange = (change: number) => {
     const sign = change >= 0 ? '+' : '';
-    return `${sign}${change.toFixed(1)}%${suffix}`;
+    return `${sign}${change.toFixed(1)}%`;
+  };
+
+  const handleRefresh = () => {
+    refetch();
+    refetchCharts();
   };
 
   return (
@@ -69,7 +78,7 @@ export default function Dashboard() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => refetch()}
+            onClick={handleRefresh}
             disabled={statsLoading}
             className="gap-2"
           >
@@ -98,7 +107,7 @@ export default function Dashboard() {
                 change={`${formatChange(stats.messagesChange)} from last week`}
                 changeType={stats.messagesChange >= 0 ? 'positive' : 'negative'}
                 icon={MessageSquare}
-                iconColor="text-blue-500"
+                iconColor="text-primary"
               />
               <StatCard
                 title="Active Customers"
@@ -106,7 +115,7 @@ export default function Dashboard() {
                 change={`${formatChange(stats.customersChange)} from last week`}
                 changeType={stats.customersChange >= 0 ? 'positive' : 'negative'}
                 icon={Users}
-                iconColor="text-purple-500"
+                iconColor="text-chart-5"
               />
               <StatCard
                 title="Revenue (KES)"
@@ -114,7 +123,7 @@ export default function Dashboard() {
                 change={`${formatChange(stats.revenueChange)} from last week`}
                 changeType={stats.revenueChange >= 0 ? 'positive' : 'negative'}
                 icon={Wallet}
-                iconColor="text-green-500"
+                iconColor="text-success"
               />
               <StatCard
                 title="Engagement Rate"
@@ -122,7 +131,7 @@ export default function Dashboard() {
                 change={`${formatChange(stats.engagementChange)} from last week`}
                 changeType={stats.engagementChange >= 0 ? 'positive' : 'negative'}
                 icon={TrendingUp}
-                iconColor="text-orange-500"
+                iconColor="text-accent"
               />
             </>
           )}
@@ -156,11 +165,23 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Charts Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ConversationTrendsChart
+            data={chartData.map(d => ({ date: d.date, messages: d.messages, resolved: d.resolved }))}
+            loading={chartsLoading}
+          />
+          <RevenueChart
+            data={chartData.map(d => ({ date: d.date, revenue: d.revenue }))}
+            loading={chartsLoading}
+          />
+        </div>
+
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             <QuickActions />
-            <RecentActivity />
+            <LiveActivityFeed />
           </div>
           <div>
             <ChannelStatus />

@@ -20,6 +20,7 @@ import {
   Package,
   Contact,
   Workflow,
+  FileText,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -56,6 +57,7 @@ const mainNavItems: NavItem[] = [
   { label: 'Inventory', icon: Package, href: '/inventory' },
   { label: 'Payments', icon: Wallet, href: '/payments' },
   { label: 'Analytics', icon: BarChart3, href: '/analytics' },
+  { label: 'Reports', icon: FileText, href: '/reports' },
 ];
 
 const bottomNavItems: NavItem[] = [

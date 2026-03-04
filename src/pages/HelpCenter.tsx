@@ -22,28 +22,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  HelpCircle,
-  Search,
-  MessageSquare,
-  Book,
-  Video,
-  Keyboard,
-  Mail,
-  Phone,
-  Clock,
-  CheckCircle2,
-  Send,
-  ExternalLink,
-  Zap,
-  Users,
-  Settings,
-  BarChart3,
-  Wallet,
-  Sparkles,
+  HelpCircle, Search, MessageSquare, Book, Video, Keyboard,
+  Mail, Phone, Clock, CheckCircle2, Send, ExternalLink,
+  Zap, Users, Settings, BarChart3, Wallet, Sparkles,
 } from 'lucide-react';
 import { useFAQs } from '@/hooks/useFAQs';
 import { useSupportTickets } from '@/hooks/useSupportTickets';
 import { useToast } from '@/hooks/use-toast';
+import { AIChatWidget } from '@/components/help/AIChatWidget';
 
 const categoryIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   getting_started: Zap,
@@ -93,28 +79,16 @@ export default function HelpCenter() {
         title: 'Support ticket created',
         description: 'We\'ll get back to you within 24 hours.',
       });
-      setTicketForm({
-        subject: '',
-        description: '',
-        category: 'general',
-        priority: 'normal',
-      });
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to create support ticket. Please try again.',
-        variant: 'destructive',
-      });
+      setTicketForm({ subject: '', description: '', category: 'general', priority: 'normal' });
+    } catch {
+      toast({ title: 'Error', description: 'Failed to create support ticket.', variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Group FAQs by category
   const groupedFAQs = filteredFAQs.reduce((acc, faq) => {
-    if (!acc[faq.category]) {
-      acc[faq.category] = [];
-    }
+    if (!acc[faq.category]) acc[faq.category] = [];
     acc[faq.category].push(faq);
     return acc;
   }, {} as Record<string, typeof faqs>);
@@ -127,32 +101,18 @@ export default function HelpCenter() {
           <div className="w-16 h-16 rounded-2xl bg-gradient-primary flex items-center justify-center mx-auto mb-4">
             <HelpCircle className="w-8 h-8 text-primary-foreground" />
           </div>
-          <h1 className="text-3xl font-display font-bold text-foreground">
-            How can we help you?
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Search our knowledge base or contact support for assistance
-          </p>
-          
-          {/* Search */}
+          <h1 className="text-3xl font-display font-bold text-foreground">How can we help you?</h1>
+          <p className="text-muted-foreground mt-2">Search our knowledge base or chat with our AI assistant</p>
           <div className="relative mt-6 max-w-md mx-auto">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-            <Input
-              placeholder="Search for help..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-12 h-12 text-lg"
-            />
+            <Input placeholder="Search for help..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-12 h-12 text-lg" />
           </div>
         </div>
 
         {/* Quick Links */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {quickLinks.map((link) => (
-            <Card
-              key={link.title}
-              className="cursor-pointer hover:shadow-medium transition-shadow"
-            >
+            <Card key={link.title} className="cursor-pointer hover:shadow-medium transition-shadow">
               <CardContent className="flex flex-col items-center justify-center p-6 text-center">
                 <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-3">
                   <link.icon className="w-6 h-6 text-primary" />
@@ -166,39 +126,24 @@ export default function HelpCenter() {
         {/* Main Content */}
         <Tabs defaultValue="faq" className="space-y-6">
           <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
-            <TabsTrigger value="faq" className="gap-2">
-              <Book className="w-4 h-4" />
-              FAQ
-            </TabsTrigger>
-            <TabsTrigger value="contact" className="gap-2">
-              <MessageSquare className="w-4 h-4" />
-              Contact Support
-            </TabsTrigger>
+            <TabsTrigger value="faq" className="gap-2"><Book className="w-4 h-4" />FAQ</TabsTrigger>
+            <TabsTrigger value="contact" className="gap-2"><MessageSquare className="w-4 h-4" />Contact Support</TabsTrigger>
           </TabsList>
 
-          {/* FAQ Tab */}
           <TabsContent value="faq">
             <Card>
               <CardHeader>
                 <CardTitle>Frequently Asked Questions</CardTitle>
-                <CardDescription>
-                  Find quick answers to common questions
-                </CardDescription>
+                <CardDescription>Find quick answers to common questions</CardDescription>
               </CardHeader>
               <CardContent>
                 {faqsLoading ? (
-                  <div className="space-y-4">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                      <Skeleton key={i} className="h-16 w-full" />
-                    ))}
-                  </div>
+                  <div className="space-y-4">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
                 ) : filteredFAQs.length === 0 ? (
                   <div className="text-center py-12">
                     <Search className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                     <h3 className="text-lg font-semibold mb-2">No results found</h3>
-                    <p className="text-muted-foreground">
-                      Try adjusting your search or contact support for help
-                    </p>
+                    <p className="text-muted-foreground">Try adjusting your search or contact support</p>
                   </div>
                 ) : (
                   <div className="space-y-6">
@@ -208,26 +153,14 @@ export default function HelpCenter() {
                         <div key={category}>
                           <div className="flex items-center gap-2 mb-3">
                             <CategoryIcon className="w-5 h-5 text-primary" />
-                            <h3 className="font-semibold capitalize">
-                              {category.replace('_', ' ')}
-                            </h3>
-                            <Badge variant="secondary" className="ml-2">
-                              {categoryFaqs.length}
-                            </Badge>
+                            <h3 className="font-semibold capitalize">{category.replace('_', ' ')}</h3>
+                            <Badge variant="secondary" className="ml-2">{categoryFaqs.length}</Badge>
                           </div>
                           <Accordion type="single" collapsible className="space-y-2">
                             {categoryFaqs.map((faq) => (
-                              <AccordionItem
-                                key={faq.id}
-                                value={faq.id}
-                                className="border rounded-lg px-4"
-                              >
-                                <AccordionTrigger className="hover:no-underline">
-                                  <span className="text-left">{faq.question}</span>
-                                </AccordionTrigger>
-                                <AccordionContent className="text-muted-foreground">
-                                  {faq.answer}
-                                </AccordionContent>
+                              <AccordionItem key={faq.id} value={faq.id} className="border rounded-lg px-4">
+                                <AccordionTrigger className="hover:no-underline"><span className="text-left">{faq.question}</span></AccordionTrigger>
+                                <AccordionContent className="text-muted-foreground">{faq.answer}</AccordionContent>
                               </AccordionItem>
                             ))}
                           </Accordion>
@@ -240,29 +173,20 @@ export default function HelpCenter() {
             </Card>
           </TabsContent>
 
-          {/* Contact Tab */}
           <TabsContent value="contact">
             <div className="grid gap-6 lg:grid-cols-3">
-              {/* Contact Form */}
               <Card className="lg:col-span-2">
                 <CardHeader>
                   <CardTitle>Submit a Support Ticket</CardTitle>
-                  <CardDescription>
-                    Describe your issue and our team will respond within 24 hours
-                  </CardDescription>
+                  <CardDescription>Describe your issue and our team will respond within 24 hours</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handleSubmitTicket} className="space-y-4">
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
-                        <Label htmlFor="category">Category</Label>
-                        <Select
-                          value={ticketForm.category}
-                          onValueChange={(v) => setTicketForm(prev => ({ ...prev, category: v }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
+                        <Label>Category</Label>
+                        <Select value={ticketForm.category} onValueChange={(v) => setTicketForm(prev => ({ ...prev, category: v }))}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="general">General Question</SelectItem>
                             <SelectItem value="technical">Technical Issue</SelectItem>
@@ -273,14 +197,9 @@ export default function HelpCenter() {
                         </Select>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="priority">Priority</Label>
-                        <Select
-                          value={ticketForm.priority}
-                          onValueChange={(v) => setTicketForm(prev => ({ ...prev, priority: v }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
+                        <Label>Priority</Label>
+                        <Select value={ticketForm.priority} onValueChange={(v) => setTicketForm(prev => ({ ...prev, priority: v }))}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="low">Low</SelectItem>
                             <SelectItem value="normal">Normal</SelectItem>
@@ -290,93 +209,44 @@ export default function HelpCenter() {
                         </Select>
                       </div>
                     </div>
-
                     <div className="space-y-2">
-                      <Label htmlFor="subject">Subject</Label>
-                      <Input
-                        id="subject"
-                        placeholder="Brief description of your issue"
-                        value={ticketForm.subject}
-                        onChange={(e) => setTicketForm(prev => ({ ...prev, subject: e.target.value }))}
-                        required
-                      />
+                      <Label>Subject</Label>
+                      <Input placeholder="Brief description of your issue" value={ticketForm.subject} onChange={(e) => setTicketForm(prev => ({ ...prev, subject: e.target.value }))} required />
                     </div>
-
                     <div className="space-y-2">
-                      <Label htmlFor="description">Description</Label>
-                      <Textarea
-                        id="description"
-                        placeholder="Please provide as much detail as possible..."
-                        rows={6}
-                        value={ticketForm.description}
-                        onChange={(e) => setTicketForm(prev => ({ ...prev, description: e.target.value }))}
-                        required
-                      />
+                      <Label>Description</Label>
+                      <Textarea placeholder="Please provide as much detail as possible..." rows={6} value={ticketForm.description} onChange={(e) => setTicketForm(prev => ({ ...prev, description: e.target.value }))} required />
                     </div>
-
                     <Button type="submit" className="gap-2" disabled={submitting}>
-                      {submitting ? (
-                        'Submitting...'
-                      ) : (
-                        <>
-                          <Send className="w-4 h-4" />
-                          Submit Ticket
-                        </>
-                      )}
+                      {submitting ? 'Submitting...' : <><Send className="w-4 h-4" />Submit Ticket</>}
                     </Button>
                   </form>
                 </CardContent>
               </Card>
 
-              {/* Contact Info */}
               <div className="space-y-6">
                 <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Contact Information</CardTitle>
-                  </CardHeader>
+                  <CardHeader><CardTitle className="text-lg">Contact Information</CardTitle></CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <Mail className="w-5 h-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-medium">Email Support</p>
-                        <p className="text-sm text-muted-foreground">support@smartreach.ai</p>
-                      </div>
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0"><Mail className="w-5 h-5 text-primary" /></div>
+                      <div><p className="font-medium">Email Support</p><p className="text-sm text-muted-foreground">support@smartreach.ai</p></div>
                     </div>
                     <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center flex-shrink-0">
-                        <Phone className="w-5 h-5 text-success" />
-                      </div>
-                      <div>
-                        <p className="font-medium">Phone Support</p>
-                        <p className="text-sm text-muted-foreground">+254 700 000 000</p>
-                      </div>
+                      <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center flex-shrink-0"><Phone className="w-5 h-5 text-success" /></div>
+                      <div><p className="font-medium">Phone Support</p><p className="text-sm text-muted-foreground">+254 700 000 000</p></div>
                     </div>
                     <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center flex-shrink-0">
-                        <Clock className="w-5 h-5 text-warning" />
-                      </div>
-                      <div>
-                        <p className="font-medium">Business Hours</p>
-                        <p className="text-sm text-muted-foreground">Mon - Fri: 8am - 6pm EAT</p>
-                      </div>
+                      <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center flex-shrink-0"><Clock className="w-5 h-5 text-warning" /></div>
+                      <div><p className="font-medium">Business Hours</p><p className="text-sm text-muted-foreground">Mon - Fri: 8am - 6pm EAT</p></div>
                     </div>
                   </CardContent>
                 </Card>
-
                 <Card className="bg-gradient-primary text-primary-foreground">
                   <CardContent className="p-6">
-                    <div className="flex items-center gap-3 mb-3">
-                      <CheckCircle2 className="w-6 h-6" />
-                      <span className="font-semibold">Premium Support</span>
-                    </div>
-                    <p className="text-sm text-primary-foreground/90 mb-4">
-                      Get priority support with faster response times and dedicated assistance.
-                    </p>
-                    <Button variant="secondary" size="sm">
-                      Upgrade Plan
-                    </Button>
+                    <div className="flex items-center gap-3 mb-3"><CheckCircle2 className="w-6 h-6" /><span className="font-semibold">Premium Support</span></div>
+                    <p className="text-sm text-primary-foreground/90 mb-4">Get priority support with faster response times and dedicated assistance.</p>
+                    <Button variant="secondary" size="sm">Upgrade Plan</Button>
                   </CardContent>
                 </Card>
               </div>
@@ -384,16 +254,11 @@ export default function HelpCenter() {
           </TabsContent>
         </Tabs>
 
-        {/* Keyboard Shortcuts Reference */}
+        {/* Keyboard Shortcuts */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Keyboard className="w-5 h-5" />
-              Keyboard Shortcuts
-            </CardTitle>
-            <CardDescription>
-              Speed up your workflow with these handy shortcuts
-            </CardDescription>
+            <CardTitle className="flex items-center gap-2"><Keyboard className="w-5 h-5" />Keyboard Shortcuts</CardTitle>
+            <CardDescription>Speed up your workflow with these handy shortcuts</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -412,12 +277,7 @@ export default function HelpCenter() {
                   <span className="text-sm text-muted-foreground">{shortcut.action}</span>
                   <div className="flex gap-1">
                     {shortcut.keys.map((key, j) => (
-                      <kbd
-                        key={j}
-                        className="px-2 py-1 text-xs font-semibold bg-background border rounded shadow-sm"
-                      >
-                        {key}
-                      </kbd>
+                      <kbd key={j} className="px-2 py-1 text-xs font-semibold bg-background border rounded shadow-sm">{key}</kbd>
                     ))}
                   </div>
                 </div>
@@ -426,6 +286,9 @@ export default function HelpCenter() {
           </CardContent>
         </Card>
       </div>
+
+      {/* AI Chat Widget */}
+      <AIChatWidget />
     </DashboardLayout>
   );
 }
