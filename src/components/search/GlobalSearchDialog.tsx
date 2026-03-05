@@ -37,11 +37,15 @@ const typeIcons: Record<SearchResult['type'], React.ComponentType<{ className?: 
 const quickLinks = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
   { label: 'Social Inbox', icon: MessageSquare, href: '/inbox' },
+  { label: 'Customers', icon: Users, href: '/customers' },
   { label: 'AI Marketing', icon: Sparkles, href: '/marketing' },
   { label: 'Live Studio', icon: Video, href: '/live' },
   { label: 'Talent Hub', icon: Users, href: '/talent' },
   { label: 'Payments', icon: Wallet, href: '/payments' },
+  { label: 'Inventory', icon: BarChart3, href: '/inventory' },
   { label: 'Analytics', icon: BarChart3, href: '/analytics' },
+  { label: 'Reports', icon: BarChart3, href: '/reports' },
+  { label: 'Automations', icon: Settings, href: '/automations' },
   { label: 'Settings', icon: Settings, href: '/settings' },
   { label: 'Help Center', icon: HelpCircle, href: '/help' },
 ];

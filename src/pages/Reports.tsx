@@ -3,16 +3,18 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
-  FileText, Download, BarChart3, Users, Wallet, MessageSquare,
-  Calendar, TrendingUp, ArrowDownToLine, Loader2,
+  FileText, Users, Wallet, MessageSquare,
+  Calendar, TrendingUp, ArrowDownToLine, Loader2, Package, Contact,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useBusiness } from '@/hooks/useBusiness';
+import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { subDays, format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 type ReportType = 'conversations' | 'customers' | 'revenue' | 'team';
 type DateRange = '7d' | '30d' | '90d';
@@ -30,6 +32,57 @@ export default function Reports() {
   const [exporting, setExporting] = useState<ReportType | null>(null);
 
   const getDays = (range: DateRange) => range === '7d' ? 7 : range === '30d' ? 30 : 90;
+  const since = subDays(new Date(), getDays(dateRange)).toISOString();
+
+  // Fetch summary stats
+  const { data: summaryStats, isLoading: statsLoading } = useQuery({
+    queryKey: ['report-summary', business?.id, dateRange],
+    queryFn: async () => {
+      if (!business?.id) return null;
+
+      const [convRes, custRes, txRes, membersRes] = await Promise.all([
+        supabase
+          .from('conversations')
+          .select('id', { count: 'exact', head: true })
+          .eq('business_id', business.id)
+          .gte('created_at', since),
+        supabase
+          .from('customers')
+          .select('id', { count: 'exact', head: true })
+          .eq('business_id', business.id)
+          .gte('created_at', since),
+        (supabase as any)
+          .from('transactions')
+          .select('amount')
+          .eq('business_id', business.id)
+          .eq('status', 'completed')
+          .gte('created_at', since),
+        supabase
+          .from('business_members')
+          .select('id', { count: 'exact', head: true })
+          .eq('business_id', business.id)
+          .eq('is_active', true),
+      ]);
+
+      const totalRevenue = (txRes.data || []).reduce((s: number, t: any) => s + Number(t.amount), 0);
+
+      return {
+        conversations: convRes.count || 0,
+        customers: custRes.count || 0,
+        revenue: totalRevenue,
+        teamMembers: membersRes.count || 0,
+      };
+    },
+    enabled: !!business?.id,
+    staleTime: 30_000,
+  });
+
+  const statCards = [
+    { label: 'Conversations', value: summaryStats?.conversations ?? 0, icon: MessageSquare, color: 'text-primary' },
+    { label: 'New Customers', value: summaryStats?.customers ?? 0, icon: Contact, color: 'text-chart-5' },
+    { label: 'Revenue (KES)', value: `${(summaryStats?.revenue ?? 0).toLocaleString()}`, icon: Wallet, color: 'text-success' },
+    { label: 'Team Members', value: summaryStats?.teamMembers ?? 0, icon: Users, color: 'text-accent' },
+  ];
 
   const exportCSV = async (type: ReportType) => {
     if (!business?.id) return;
@@ -37,7 +90,7 @@ export default function Reports() {
 
     try {
       const days = getDays(dateRange);
-      const since = subDays(new Date(), days).toISOString();
+      const exportSince = subDays(new Date(), days).toISOString();
       let csvContent = '';
       let filename = '';
 
@@ -46,7 +99,7 @@ export default function Reports() {
           .from('conversations')
           .select('id, channel_type, status, priority, created_at, last_message_at, subject')
           .eq('business_id', business.id)
-          .gte('created_at', since)
+          .gte('created_at', exportSince)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -60,7 +113,7 @@ export default function Reports() {
           .from('customers')
           .select('id, name, email, phone, channel_type, created_at, last_contact_at, tags')
           .eq('business_id', business.id)
-          .gte('created_at', since)
+          .gte('created_at', exportSince)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -74,7 +127,7 @@ export default function Reports() {
           .from('transactions')
           .select('id, type, amount, status, payment_method, currency, created_at, description, reference')
           .eq('business_id', business.id)
-          .gte('created_at', since)
+          .gte('created_at', exportSince)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -97,7 +150,6 @@ export default function Reports() {
         filename = `team-report-${format(new Date(), 'yyyy-MM-dd')}.csv`;
       }
 
-      // Trigger download
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -132,6 +184,29 @@ export default function Reports() {
               <SelectItem value="90d">Last 90 days</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+
+        {/* Summary Stats */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {statCards.map((stat) => (
+            <Card key={stat.label} className="border-border/50">
+              <CardContent className="pt-5 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className={cn('p-2 rounded-lg bg-muted/50', stat.color)}>
+                    <stat.icon className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">{stat.label}</p>
+                    {statsLoading ? (
+                      <Skeleton className="h-6 w-12 mt-0.5" />
+                    ) : (
+                      <p className="text-lg font-bold text-foreground">{stat.value}</p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
         {/* Report Cards */}
@@ -177,8 +252,4 @@ export default function Reports() {
       </div>
     </DashboardLayout>
   );
-}
-
-function cn(...classes: (string | undefined | false)[]) {
-  return classes.filter(Boolean).join(' ');
 }
