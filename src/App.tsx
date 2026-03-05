@@ -25,7 +25,18 @@ import Customers from "./pages/Customers";
 import Automations from "./pages/Automations";
 import Reports from "./pages/Reports";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+    mutations: {
+      retry: 0,
+    },
+  },
+});
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => (
   <RequireAuth>
