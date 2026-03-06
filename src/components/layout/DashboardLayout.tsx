@@ -37,6 +37,7 @@ import { useUserProfile } from '@/hooks/useUserProfile';
 import { cn } from '@/lib/utils';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { GlobalSearchDialog } from '@/components/search/GlobalSearchDialog';
+import { useSessionTimeout } from '@/hooks/useSessionTimeout';
 
 interface NavItem {
   label: string;
@@ -76,6 +77,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { profile } = useUserProfile();
+  useSessionTimeout();
 
   // Keyboard shortcut for search (Cmd+K or Ctrl+K)
   useEffect(() => {

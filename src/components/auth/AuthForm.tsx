@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { passwordSchema, getPasswordStrength, PASSWORD_MIN_LENGTH } from '@/lib/validation/password';
+import { ForgotPasswordDialog } from './ForgotPasswordDialog';
 
 // SECURITY: Standardized password requirements across the app
 const signInSchema = z.object({
@@ -178,6 +179,9 @@ export function AuthForm({ mode, onModeChange }: AuthFormProps) {
               {signInForm.formState.errors.password && (
                 <p className="text-sm text-destructive">{signInForm.formState.errors.password.message}</p>
               )}
+              <div className="flex justify-end">
+                <ForgotPasswordDialog />
+              </div>
             </div>
 
             <Button

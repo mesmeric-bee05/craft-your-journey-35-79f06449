@@ -2731,7 +2731,7 @@ export type Database = {
           last_contact_at?: string | null
           metadata?: Json | null
           name?: string | null
-          notes?: never
+          notes?: string | null
           phone?: never
           tags?: string[] | null
           updated_at?: string | null
@@ -2748,7 +2748,7 @@ export type Database = {
           last_contact_at?: string | null
           metadata?: Json | null
           name?: string | null
-          notes?: never
+          notes?: string | null
           phone?: never
           tags?: string[] | null
           updated_at?: string | null
@@ -2849,7 +2849,7 @@ export type Database = {
           full_name?: string | null
           id?: string | null
           is_active?: boolean | null
-          kyc_document_url?: never
+          kyc_document_url?: string | null
           kyc_status?: Database["public"]["Enums"]["verification_status"] | null
           language?: string | null
           last_login_at?: string | null
@@ -2867,7 +2867,7 @@ export type Database = {
           full_name?: string | null
           id?: string | null
           is_active?: boolean | null
-          kyc_document_url?: never
+          kyc_document_url?: string | null
           kyc_status?: Database["public"]["Enums"]["verification_status"] | null
           language?: string | null
           last_login_at?: string | null
@@ -2889,6 +2889,7 @@ export type Database = {
           description: string | null
           external_reference: string | null
           id: string | null
+          metadata: Json | null
           payment_method: string | null
           recipient_email: string | null
           recipient_phone: string | null
@@ -2908,6 +2909,7 @@ export type Database = {
           description?: string | null
           external_reference?: string | null
           id?: string | null
+          metadata?: Json | null
           payment_method?: string | null
           recipient_email?: never
           recipient_phone?: never
@@ -2927,6 +2929,7 @@ export type Database = {
           description?: string | null
           external_reference?: string | null
           id?: string | null
+          metadata?: Json | null
           payment_method?: string | null
           recipient_email?: never
           recipient_phone?: never
