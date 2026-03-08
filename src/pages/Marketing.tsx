@@ -243,27 +243,50 @@ export default function Marketing() {
 
           <TabsContent value="campaigns">
             <Card>
-              <CardHeader>
-                <CardTitle>Campaigns</CardTitle>
-                <CardDescription>Manage your marketing campaigns</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Campaigns</CardTitle>
+                  <CardDescription>Manage your marketing campaigns</CardDescription>
+                </div>
+                <CreateCampaignDialog />
               </CardHeader>
               <CardContent>
                 {campaigns.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
-                    <p>No campaigns yet</p>
-                    <Button className="mt-4">Create Campaign</Button>
+                    <p>No campaigns yet. Create one to get started!</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {campaigns.map((campaign) => (
-                      <div key={campaign.id} className="p-4 rounded-lg border border-border">
-                        <div className="flex items-center justify-between">
-                          <h4 className="font-medium">{campaign.name}</h4>
-                          <Badge>{campaign.status}</Badge>
+                    {campaigns.map((campaign) => {
+                      const statusColors: Record<string, string> = {
+                        draft: 'bg-muted text-muted-foreground',
+                        scheduled: 'bg-blue-500/10 text-blue-600',
+                        active: 'bg-success/10 text-success',
+                        paused: 'bg-warning/10 text-warning',
+                        completed: 'bg-primary/10 text-primary',
+                        cancelled: 'bg-destructive/10 text-destructive',
+                      };
+                      return (
+                        <div key={campaign.id} className="p-4 rounded-lg border border-border hover:bg-muted/30 transition-colors">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-medium">{campaign.name}</h4>
+                            <Badge className={statusColors[campaign.status] || ''} variant="secondary">
+                              {campaign.status}
+                            </Badge>
+                          </div>
+                          {campaign.description && (
+                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{campaign.description}</p>
+                          )}
+                          <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+                            <span>Type: {campaign.type}</span>
+                            {campaign.budget && <span>Budget: KES {Number(campaign.budget).toLocaleString()}</span>}
+                            {campaign.target_channels?.length > 0 && (
+                              <span>{campaign.target_channels.length} channel{campaign.target_channels.length > 1 ? 's' : ''}</span>
+                            )}
+                          </div>
                         </div>
-                        <p className="text-sm text-muted-foreground mt-1">{campaign.description}</p>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
