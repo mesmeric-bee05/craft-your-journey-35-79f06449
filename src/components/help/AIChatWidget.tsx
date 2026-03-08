@@ -2,9 +2,11 @@ import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { Bot, Send, User, Loader2, X, Sparkles } from 'lucide-react';
+import { Bot, Send, User, Loader2, X, Sparkles, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { checkRateLimit } from '@/lib/rateLimiter';
+import { sanitizeRpcInput } from '@/lib/sanitize';
 
 interface Message {
   id: string;
@@ -12,25 +14,14 @@ interface Message {
   content: string;
 }
 
-const SYSTEM_PROMPT = `You are SmartReach AI Help Assistant. You help users with questions about the SmartReach platform.
-You can answer questions about:
-- Social Inbox (multi-channel messaging)
-- AI Marketing & Content Creation
-- Talent Hub (freelancer management)
-- Inventory Management
-- Payments & M-Pesa
-- Analytics & Reports
-- Team Management
-- Automations & Workflows
-Be helpful, concise, and friendly. If you don't know something, suggest contacting support.`;
-
 export function AIChatWidget() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { id: '0', role: 'assistant', content: 'Hi! 👋 I\'m your SmartReach AI assistant. How can I help you today?' },
+    { id: '0', role: 'assistant', content: 'Hi! 👋 I\'m your SmartReach AI assistant. Ask me anything about the platform — inbox, payments, inventory, marketing, and more.' },
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -38,29 +29,42 @@ export function AIChatWidget() {
   }, [messages]);
 
   const handleSend = async () => {
-    const trimmed = input.trim();
+    const trimmed = sanitizeRpcInput(input.trim(), 2000);
     if (!trimmed || loading) return;
 
+    // Client-side rate limiting: 10 messages per minute
+    const rl = checkRateLimit('ai-chat', 10, 60_000);
+    if (!rl.allowed) {
+      setError(`Too many messages. Please wait ${Math.ceil(rl.retryAfterMs / 1000)}s.`);
+      return;
+    }
+
+    setError(null);
     const userMsg: Message = { id: Date.now().toString(), role: 'user', content: trimmed };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('suggest-reply', {
-        body: {
-          customerMessage: trimmed,
-          context: `Platform help assistant. Previous messages: ${messages.slice(-4).map(m => `${m.role}: ${m.content}`).join(' | ')}`,
-        },
+      // Build history for context (last 10 messages)
+      const history = messages.slice(-10).map(m => ({
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+      }));
+
+      const { data, error: fnError } = await supabase.functions.invoke('ai-help-chat', {
+        body: { message: trimmed, history },
       });
 
-      const reply = data?.suggestion || data?.reply || 'I\'m sorry, I couldn\'t generate a response. Please try again or contact our support team.';
+      if (fnError) throw fnError;
+
+      const reply = data?.reply || 'I apologize, I could not process that. Please try again or submit a support ticket.';
       setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: 'assistant', content: reply }]);
     } catch {
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'Sorry, I\'m having trouble connecting. Please try again or submit a support ticket.',
+        content: 'Sorry, I\'m having trouble connecting right now. Please try again or visit the Help Center to submit a support ticket.',
       }]);
     } finally {
       setLoading(false);
@@ -73,6 +77,7 @@ export function AIChatWidget() {
         onClick={() => setOpen(true)}
         className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full shadow-glow-primary bg-gradient-primary hover:scale-105 transition-transform"
         size="icon"
+        aria-label="Open AI Assistant"
       >
         <Sparkles className="w-6 h-6 text-primary-foreground" />
       </Button>
@@ -80,12 +85,15 @@ export function AIChatWidget() {
   }
 
   return (
-    <Card className="fixed bottom-6 right-6 z-50 w-[380px] h-[520px] flex flex-col shadow-medium border-border/50 overflow-hidden">
+    <Card className="fixed bottom-6 right-6 z-50 w-[380px] max-w-[calc(100vw-2rem)] h-[520px] flex flex-col shadow-medium border-border/50 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-gradient-primary text-primary-foreground">
         <div className="flex items-center gap-2">
           <Bot className="w-5 h-5" />
-          <span className="font-semibold text-sm">SmartReach AI Assistant</span>
+          <div>
+            <span className="font-semibold text-sm">SmartReach AI</span>
+            <span className="text-xs opacity-80 ml-1.5">Help Assistant</span>
+          </div>
         </div>
         <Button variant="ghost" size="icon" onClick={() => setOpen(false)} className="h-8 w-8 hover:bg-primary-foreground/20 text-primary-foreground">
           <X className="w-4 h-4" />
@@ -97,12 +105,12 @@ export function AIChatWidget() {
         {messages.map((msg) => (
           <div key={msg.id} className={cn('flex gap-2', msg.role === 'user' ? 'justify-end' : 'justify-start')}>
             {msg.role === 'assistant' && (
-              <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
                 <Bot className="w-4 h-4 text-primary" />
               </div>
             )}
             <div className={cn(
-              'max-w-[80%] px-3 py-2 rounded-2xl text-sm',
+              'max-w-[80%] px-3 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap',
               msg.role === 'user'
                 ? 'bg-primary text-primary-foreground rounded-br-md'
                 : 'bg-muted text-foreground rounded-bl-md'
@@ -110,23 +118,35 @@ export function AIChatWidget() {
               {msg.content}
             </div>
             {msg.role === 'user' && (
-              <div className="w-7 h-7 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
+              <div className="w-7 h-7 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0 mt-0.5">
                 <User className="w-4 h-4 text-accent" />
               </div>
             )}
           </div>
         ))}
         {loading && (
-          <div className="flex gap-2 items-center">
+          <div className="flex gap-2 items-start">
             <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
               <Bot className="w-4 h-4 text-primary" />
             </div>
-            <div className="bg-muted px-4 py-2 rounded-2xl rounded-bl-md">
-              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+            <div className="bg-muted px-4 py-2.5 rounded-2xl rounded-bl-md">
+              <div className="flex gap-1">
+                <span className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
             </div>
           </div>
         )}
       </div>
+
+      {/* Error */}
+      {error && (
+        <div className="px-3 py-2 bg-destructive/10 text-destructive text-xs flex items-center gap-1.5">
+          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+          {error}
+        </div>
+      )}
 
       {/* Input */}
       <div className="border-t border-border p-3">
@@ -137,9 +157,10 @@ export function AIChatWidget() {
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask me anything..."
-            className="flex-1"
+            placeholder="Ask about any feature..."
+            className="flex-1 text-sm"
             disabled={loading}
+            maxLength={2000}
           />
           <Button type="submit" size="icon" disabled={!input.trim() || loading}>
             <Send className="w-4 h-4" />

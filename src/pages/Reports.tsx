@@ -16,13 +16,14 @@ import { toast } from 'sonner';
 import { subDays, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
-type ReportType = 'conversations' | 'customers' | 'revenue' | 'team';
+type ReportType = 'conversations' | 'customers' | 'revenue' | 'team' | 'inventory';
 type DateRange = '7d' | '30d' | '90d';
 
 const reportConfigs: Record<ReportType, { title: string; description: string; icon: React.ComponentType<{ className?: string }>; color: string }> = {
   conversations: { title: 'Conversation Report', description: 'Message volumes, resolution times, channel breakdown', icon: MessageSquare, color: 'text-primary' },
   customers: { title: 'Customer Report', description: 'Customer growth, segmentation, channel distribution', icon: Users, color: 'text-chart-5' },
   revenue: { title: 'Revenue Report', description: 'Transaction history, payment methods, daily revenue', icon: Wallet, color: 'text-success' },
+  inventory: { title: 'Inventory Report', description: 'Product stock levels, suppliers, low-stock items', icon: Package, color: 'text-warning' },
   team: { title: 'Team Performance', description: 'Response times, resolution rates, agent activity', icon: TrendingUp, color: 'text-accent' },
 };
 
@@ -136,6 +137,19 @@ export default function Reports() {
           `${r.id},${r.type},${r.amount},${r.status},${r.payment_method || ''},${r.currency},${r.created_at},${(r.description || '').replace(/,/g, ';')},${r.reference || ''}`
         ).join('\n');
         filename = `revenue-report-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+      } else if (type === 'inventory') {
+        const { data, error } = await supabase
+          .from('products')
+          .select('id, name, sku, category, current_stock, reorder_level, buying_price, selling_price, unit, is_active')
+          .eq('business_id', business.id)
+          .order('current_stock', { ascending: true });
+
+        if (error) throw error;
+        csvContent = 'ID,Name,SKU,Category,Stock,Reorder Level,Buying Price,Selling Price,Unit,Active\n';
+        csvContent += (data || []).map(r =>
+          `${r.id},${(r.name || '').replace(/,/g, ';')},${r.sku || ''},${r.category},${r.current_stock},${r.reorder_level},${r.buying_price},${r.selling_price},${r.unit},${r.is_active}`
+        ).join('\n');
+        filename = `inventory-report-${format(new Date(), 'yyyy-MM-dd')}.csv`;
       } else if (type === 'team') {
         const { data, error } = await supabase
           .from('business_members')

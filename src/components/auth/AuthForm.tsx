@@ -11,6 +11,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { passwordSchema, getPasswordStrength, PASSWORD_MIN_LENGTH } from '@/lib/validation/password';
 import { ForgotPasswordDialog } from './ForgotPasswordDialog';
+import { checkRateLimit } from '@/lib/rateLimiter';
+import { useToast } from '@/hooks/use-toast';
 
 // SECURITY: Standardized password requirements across the app
 const signInSchema = z.object({
@@ -63,7 +65,15 @@ export function AuthForm({ mode, onModeChange }: AuthFormProps) {
     defaultValues: { fullName: '', email: '', password: '', confirmPassword: '' },
   });
 
+  const { toast: toastFn } = useToast();
+
   const handleSignIn = async (data: SignInFormData) => {
+    // SECURITY: Client-side rate limiting - 5 attempts per minute
+    const rl = checkRateLimit('auth-signin', 5, 60_000);
+    if (!rl.allowed) {
+      toastFn({ title: 'Too many attempts', description: `Please wait ${Math.ceil(rl.retryAfterMs / 1000)} seconds.`, variant: 'destructive' });
+      return;
+    }
     setLoading(true);
     const { error } = await signIn(data.email, data.password);
     setLoading(false);
@@ -73,6 +83,12 @@ export function AuthForm({ mode, onModeChange }: AuthFormProps) {
   };
 
   const handleSignUp = async (data: SignUpFormData) => {
+    // SECURITY: Client-side rate limiting - 3 attempts per minute
+    const rl = checkRateLimit('auth-signup', 3, 60_000);
+    if (!rl.allowed) {
+      toastFn({ title: 'Too many attempts', description: `Please wait ${Math.ceil(rl.retryAfterMs / 1000)} seconds.`, variant: 'destructive' });
+      return;
+    }
     setLoading(true);
     const { error } = await signUp(data.email, data.password, data.fullName);
     setLoading(false);
