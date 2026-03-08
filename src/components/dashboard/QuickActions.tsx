@@ -1,10 +1,12 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   MessageSquarePlus,
   PenTool,
   UserPlus,
   CreditCard,
   ArrowRight,
+  CalendarPlus,
+  Package,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -32,11 +34,11 @@ const quickActions: QuickAction[] = [
     gradient: 'from-purple-500 to-pink-500',
   },
   {
-    label: 'Post a Job',
-    description: 'Find talent for your business',
-    icon: UserPlus,
-    href: '/talent',
-    gradient: 'from-green-500 to-emerald-500',
+    label: 'Schedule Post',
+    description: 'Plan social media content',
+    icon: CalendarPlus,
+    href: '/social',
+    gradient: 'from-teal-500 to-emerald-500',
   },
   {
     label: 'Send Payment',
@@ -45,20 +47,34 @@ const quickActions: QuickAction[] = [
     href: '/payments',
     gradient: 'from-orange-500 to-amber-500',
   },
+  {
+    label: 'Post a Job',
+    description: 'Find talent for your business',
+    icon: UserPlus,
+    href: '/talent',
+    gradient: 'from-green-500 to-emerald-500',
+  },
+  {
+    label: 'Add Product',
+    description: 'Track inventory & stock',
+    icon: Package,
+    href: '/inventory',
+    gradient: 'from-rose-500 to-pink-500',
+  },
 ];
 
 export function QuickActions() {
   return (
     <div className="bg-card rounded-2xl p-6 shadow-soft border border-border/50">
       <h3 className="text-lg font-display font-semibold text-foreground mb-4">Quick Actions</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {quickActions.map((action) => (
           <Link
-            key={action.href}
+            key={action.label}
             to={action.href}
             className="group flex items-center gap-4 p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-all"
           >
-            <div className={cn('p-3 rounded-xl bg-gradient-to-br text-white', action.gradient)}>
+            <div className={cn('p-3 rounded-xl bg-gradient-to-br text-white flex-shrink-0', action.gradient)}>
               <action.icon className="w-5 h-5" />
             </div>
             <div className="flex-1 min-w-0">
@@ -67,7 +83,7 @@ export function QuickActions() {
               </p>
               <p className="text-sm text-muted-foreground truncate">{action.description}</p>
             </div>
-            <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+            <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all flex-shrink-0" />
           </Link>
         ))}
       </div>
