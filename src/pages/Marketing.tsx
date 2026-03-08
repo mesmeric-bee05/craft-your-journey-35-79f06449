@@ -18,6 +18,7 @@ import { useLiveStream } from '@/hooks/useLiveStream';
 import { useToast } from '@/hooks/use-toast';
 import { format, formatDistanceStrict } from 'date-fns';
 import { ContentCalendar } from '@/components/marketing/ContentCalendar';
+import { CreateCampaignDialog } from '@/components/marketing/CreateCampaignDialog';
 
 export default function Marketing() {
   const navigate = useNavigate();
