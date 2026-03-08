@@ -137,6 +137,19 @@ export default function Reports() {
           `${r.id},${r.type},${r.amount},${r.status},${r.payment_method || ''},${r.currency},${r.created_at},${(r.description || '').replace(/,/g, ';')},${r.reference || ''}`
         ).join('\n');
         filename = `revenue-report-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+      } else if (type === 'inventory') {
+        const { data, error } = await supabase
+          .from('products')
+          .select('id, name, sku, category, current_stock, reorder_level, buying_price, selling_price, unit, is_active')
+          .eq('business_id', business.id)
+          .order('current_stock', { ascending: true });
+
+        if (error) throw error;
+        csvContent = 'ID,Name,SKU,Category,Stock,Reorder Level,Buying Price,Selling Price,Unit,Active\n';
+        csvContent += (data || []).map(r =>
+          `${r.id},${(r.name || '').replace(/,/g, ';')},${r.sku || ''},${r.category},${r.current_stock},${r.reorder_level},${r.buying_price},${r.selling_price},${r.unit},${r.is_active}`
+        ).join('\n');
+        filename = `inventory-report-${format(new Date(), 'yyyy-MM-dd')}.csv`;
       } else if (type === 'team') {
         const { data, error } = await supabase
           .from('business_members')
