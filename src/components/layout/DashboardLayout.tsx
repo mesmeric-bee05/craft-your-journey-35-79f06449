@@ -158,7 +158,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
           {/* Main Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-            {mainNavItems.map((item) => {
+            {navItems.map((item) => {
               const isActive = location.pathname === item.href;
               return (
                 <Link
