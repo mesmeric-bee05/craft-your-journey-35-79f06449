@@ -126,8 +126,40 @@ const testimonials = [
 ];
 
 export default function Index() {
+  // JSON-LD structured data for SEO
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "SmartReach AI",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web",
+    "description": "Intelligent marketing and business operations platform built for African SMEs. Unify social media, inbox, payments, inventory, and AI marketing.",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "KES",
+      "description": "Free starter plan available"
+    },
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "4.9",
+      "ratingCount": "1247",
+      "bestRating": "5"
+    },
+    "author": {
+      "@type": "Organization",
+      "name": "SmartReach AI",
+      "url": "https://smartreach.ai"
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
+      {/* JSON-LD Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* Navigation */}
       <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
