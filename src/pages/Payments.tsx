@@ -681,17 +681,6 @@ export default function Payments() {
                   </div>
                 )}
               </TabsContent>
-
-              {/* Reuse same content for filtered tabs */}
-              <TabsContent value="deposits">
-                {/* Same table structure, filtered by type */}
-              </TabsContent>
-              <TabsContent value="payments">
-                {/* Same table structure, filtered by type */}
-              </TabsContent>
-              <TabsContent value="payouts">
-                {/* Same table structure, filtered by type */}
-              </TabsContent>
             </Tabs>
           </CardContent>
         </Card>
