@@ -184,7 +184,16 @@ export default function Dashboard() {
             <QuickActions />
             <LiveActivityFeed />
           </div>
-          <div>
+          <div className="space-y-6">
+            <SmartReachScore
+              totalMessages={stats.totalMessages}
+              activeCustomers={stats.activeCustomers}
+              totalRevenue={stats.totalRevenue}
+              csatScore={stats.csatScore}
+              resolvedToday={stats.resolvedToday}
+              openConversations={stats.openConversations}
+              loading={statsLoading}
+            />
             <ChannelStatus />
           </div>
         </div>
