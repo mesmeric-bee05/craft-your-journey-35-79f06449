@@ -80,7 +80,29 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { profile } = useUserProfile();
+  const { business } = useBusiness();
   useSessionTimeout();
+
+  // Dynamic unread count for inbox badge
+  const { data: unreadCount } = useQuery({
+    queryKey: ['inbox-unread-count', business?.id],
+    queryFn: async () => {
+      if (!business?.id) return 0;
+      const { count } = await supabase
+        .from('conversations')
+        .select('id', { count: 'exact', head: true })
+        .eq('business_id', business.id)
+        .gt('unread_count', 0);
+      return count || 0;
+    },
+    enabled: !!business?.id,
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  });
+
+  const navItems = useMemo(() => mainNavItems.map(item =>
+    item.href === '/inbox' && unreadCount ? { ...item, badge: unreadCount } : item
+  ), [unreadCount]);
 
   // Keyboard shortcut for search (Cmd+K or Ctrl+K)
   useEffect(() => {
