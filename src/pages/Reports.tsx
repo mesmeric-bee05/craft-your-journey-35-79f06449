@@ -16,13 +16,14 @@ import { toast } from 'sonner';
 import { subDays, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
-type ReportType = 'conversations' | 'customers' | 'revenue' | 'team';
+type ReportType = 'conversations' | 'customers' | 'revenue' | 'team' | 'inventory';
 type DateRange = '7d' | '30d' | '90d';
 
 const reportConfigs: Record<ReportType, { title: string; description: string; icon: React.ComponentType<{ className?: string }>; color: string }> = {
   conversations: { title: 'Conversation Report', description: 'Message volumes, resolution times, channel breakdown', icon: MessageSquare, color: 'text-primary' },
   customers: { title: 'Customer Report', description: 'Customer growth, segmentation, channel distribution', icon: Users, color: 'text-chart-5' },
   revenue: { title: 'Revenue Report', description: 'Transaction history, payment methods, daily revenue', icon: Wallet, color: 'text-success' },
+  inventory: { title: 'Inventory Report', description: 'Product stock levels, suppliers, low-stock items', icon: Package, color: 'text-warning' },
   team: { title: 'Team Performance', description: 'Response times, resolution rates, agent activity', icon: TrendingUp, color: 'text-accent' },
 };
 
