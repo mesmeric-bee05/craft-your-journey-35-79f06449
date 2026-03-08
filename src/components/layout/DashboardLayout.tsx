@@ -1,4 +1,4 @@
-import { ReactNode, useState, useEffect } from 'react';
+import { ReactNode, useState, useEffect, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -38,6 +38,9 @@ import { cn } from '@/lib/utils';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { GlobalSearchDialog } from '@/components/search/GlobalSearchDialog';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
+import { supabase } from '@/integrations/supabase/client';
+import { useBusiness } from '@/hooks/useBusiness';
+import { useQuery } from '@tanstack/react-query';
 
 interface NavItem {
   label: string;
@@ -48,7 +51,7 @@ interface NavItem {
 
 const mainNavItems: NavItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
-  { label: 'Social Inbox', icon: MessageSquare, href: '/inbox', badge: 12 },
+  { label: 'Social Inbox', icon: MessageSquare, href: '/inbox' },
   { label: 'Social Manager', icon: Share2, href: '/social' },
   { label: 'AI Marketing', icon: Sparkles, href: '/marketing' },
   { label: 'Live Studio', icon: Video, href: '/live' },
@@ -77,7 +80,29 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { profile } = useUserProfile();
+  const { business } = useBusiness();
   useSessionTimeout();
+
+  // Dynamic unread count for inbox badge
+  const { data: unreadCount } = useQuery({
+    queryKey: ['inbox-unread-count', business?.id],
+    queryFn: async () => {
+      if (!business?.id) return 0;
+      const { count } = await supabase
+        .from('conversations')
+        .select('id', { count: 'exact', head: true })
+        .eq('business_id', business.id)
+        .gt('unread_count', 0);
+      return count || 0;
+    },
+    enabled: !!business?.id,
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  });
+
+  const navItems = useMemo(() => mainNavItems.map(item =>
+    item.href === '/inbox' && unreadCount ? { ...item, badge: unreadCount } : item
+  ), [unreadCount]);
 
   // Keyboard shortcut for search (Cmd+K or Ctrl+K)
   useEffect(() => {
@@ -133,7 +158,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
           {/* Main Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-            {mainNavItems.map((item) => {
+            {navItems.map((item) => {
               const isActive = location.pathname === item.href;
               return (
                 <Link

@@ -1,82 +1,137 @@
 
 
-## Plan: Video Tutorials Activation, Security Fixes, and Feature Expansion
+# Security Hardening and Project Enhancement Plan
 
-### Problem Analysis
-
-1. **Video Tutorial Play Buttons (Screenshot):** Currently clicking any tutorial card shows a toast saying "coming soon." The user wants these to actually work.
-2. **Security Vulnerabilities:** 4 critical findings — all `*_safe` views are still `security_definer` (the previous migration did not successfully convert them to `security_invoker`). They bypass RLS entirely.
-3. **Feature gaps across modules** that need continued development.
+## Overview
+This plan addresses three areas: (1) comprehensive input sanitization across all client-side forms and search queries, (2) rate limiting on the two edge functions that currently lack it (`mpesa-stk-push` and `mpesa-callback`), and (3) modernizing those edge functions to use the shared security utilities already established in the codebase.
 
 ---
 
-### Implementation Plan
+## Part 1: Client-Side Input Sanitization
 
-#### 1. Fix Safe Views Security (Database Migration)
+Several forms currently lack Zod schema validation and rely only on basic checks like `!name.trim()`. We will add proper validation to all unprotected forms.
 
-Drop and recreate all 4 views (`profiles_safe`, `transactions_safe`, `customers_safe`, `live_streams_safe`) using explicit `CREATE OR REPLACE VIEW ... WITH (security_invoker = true)` syntax. The previous migration likely failed silently or used incorrect syntax.
+### 1.1 Add Zod Validation to Inventory Forms
 
-#### 2. Video Tutorial Player Modal
+**Files:** `src/components/inventory/AddEditProductDialog.tsx`, `AddEditSupplierDialog.tsx`, `AdjustStockDialog.tsx`
 
-Create a `VideoPlayerDialog.tsx` component that opens when a tutorial card is clicked:
-- Full-screen dialog with the tutorial title and category badge
-- Since actual video files do not exist, build an **interactive walkthrough player** that displays step-by-step slides for each tutorial topic with animated content
-- Each tutorial maps to 3-5 walkthrough steps with illustrations (gradient backgrounds, icons, descriptive text)
-- Navigation controls: Previous / Next / Close
-- Progress indicator showing current step
-- Mark tutorials as "watched" in local state with a checkmark badge
+- Replace ad-hoc state-based validation with Zod schemas and `react-hook-form`
+- Product form: validate name (1-100 chars), SKU (optional, max 50), prices (non-negative numbers), stock (non-negative integer), reorder level (non-negative integer)
+- Supplier form: validate name (1-100 chars), contact fields (email format, phone format)
+- Stock adjustment form: validate quantity (positive integer), note (optional, max 500 chars)
 
-Update `VideoTutorialsSection.tsx`:
-- Replace the toast handler with dialog open logic
-- Add "Watched" badge overlay on completed tutorials
-- Track watched state via `useState`
+### 1.2 Add Zod Validation to Talent Forms
 
-#### 3. Enhanced Notifications with Real Badge Counts
+**File:** `src/components/talent/JobPostingForm.tsx`
 
-Update `DashboardLayout.tsx` sidebar:
-- Replace the hardcoded `badge: 12` on Social Inbox with actual unread conversation count from the `useConversations` hook (or a lightweight count query)
+- Add schema: title (1-200 chars), description (1-5000 chars), budget range (positive numbers), skills array validation
 
-#### 4. Reports Page — Add Contact/Customer Export
+### 1.3 Add Zod Validation to Marketing/Calendar Form
 
-Extend the existing CSV export in `Reports.tsx` to include a proper customer report export with name, email, channel, tags, and engagement metrics.
+**File:** `src/components/marketing/ContentCalendar.tsx`
 
-#### 5. Getting Started Guide — Persist Completion State
+- Add schema: title (1-200 chars), description (max 2000), date validation
 
-Update `GettingStartedGuide.tsx` to persist completed steps to `localStorage` so progress survives page refreshes. Key: `smartreach_onboarding_steps`.
+### 1.4 Add Zod Validation to Profile Settings
+
+**File:** `src/components/settings/ProfileSettings.tsx`
+
+- Add schema: full_name (2-100 chars), company (max 100), phone (optional, E.164 pattern)
+
+### 1.5 Add Zod Validation to CSAT Survey Widget
+
+**File:** `src/components/inbox/CSATSurveyWidget.tsx`
+
+- Validate rating (1-5 integer), feedback text (max 1000 chars)
+
+### 1.6 Sanitize String Inputs in Hooks
+
+Several hooks pass user text to `.trim()` but don't sanitize for LIKE patterns. The `useGlobalSearch` hook already uses `sanitizeSearchInput` -- no further hooks use raw `.ilike()` without sanitization, so this is already covered.
 
 ---
 
-### Technical Details
+## Part 2: Rate Limiting on Edge Functions
 
-**Video Walkthrough Data Structure:**
+### 2.1 Harden `mpesa-stk-push`
+
+**File:** `supabase/functions/mpesa-stk-push/index.ts`
+
+Current state: Uses inline CORS headers, inline auth, no rate limiting, no shared utilities.
+
+Changes:
+- Import and use `getCorsHeaders`, `secureResponse` from `_shared/security-headers.ts`
+- Import and use `verifyAuth` from `_shared/auth.ts`
+- Import and use `rateLimit`, `DEFAULT_LIMITS` from `_shared/rate-limiter.ts`
+- Import and use `logError`, `logSecurityEvent`, `internalError`, `badRequest` from `_shared/errors.ts`
+- Apply `sensitive` rate limits (5/hour per IP, 3/hour per user) since this initiates real payments
+- Use `parseJsonBody` for body size limiting
+- Move validation to use shared `validateInput` pattern
+
+### 2.2 Harden `mpesa-callback`
+
+**File:** `supabase/functions/mpesa-callback/index.ts`
+
+Current state: Uses inline CORS headers, raw `console.log`/`console.error`, no rate limiting, creates its own Supabase client manually.
+
+Changes:
+- Import shared utilities (`getCorsHeaders`, `createServiceClient`, `logError`, `logSecurityEvent`, `badRequest`)
+- Add IP-based rate limiting (30/min -- callbacks are server-to-server but we want abuse protection)
+- Add Zod validation for the callback body structure
+- Replace `console.log`/`console.error` with `logSecurityEvent`/`logError`
+- Use `secureResponse` for consistent response formatting
+
+---
+
+## Part 3: Additional Security Improvements
+
+### 3.1 Add `parseJsonBody` Size Limiting to `mpesa-stk-push`
+
+Currently uses raw `await req.json()` with no size limit. Switch to the shared `parseJsonBody` which enforces a 1MB limit.
+
+### 3.2 Consistent Timing-Safe Signature Verification
+
+The `mpesa-callback` doesn't verify any signature from Safaricom. While M-Pesa's sandbox doesn't sign callbacks, we should add an optional IP allowlist or shared-secret check pattern (logged but not blocking in sandbox mode) for production readiness.
+
+---
+
+## Technical Details
+
+### New Zod Schema Example (Product Form)
 ```typescript
-interface WalkthroughStep {
-  title: string;
-  description: string;
-  icon: LucideIcon;
-  gradient: string;
-}
-// Each tutorial ID maps to an array of WalkthroughStep
+const productSchema = z.object({
+  name: z.string().trim().min(1, 'Product name is required').max(100),
+  sku: z.string().trim().max(50).optional().or(z.literal('')),
+  category: z.enum(['fashion', 'food_beverage', 'electronics', 'beauty', 'general_merchandise', 'other']),
+  buying_price: z.coerce.number().min(0, 'Must be non-negative'),
+  selling_price: z.coerce.number().min(0, 'Must be non-negative'),
+  current_stock: z.coerce.number().int().min(0),
+  reorder_level: z.coerce.number().int().min(0),
+  unit: z.string().min(1),
+  supplier_id: z.string().uuid().optional().or(z.literal('')),
+});
 ```
 
-**View Recreation SQL Pattern:**
-```sql
-DROP VIEW IF EXISTS public.profiles_safe;
-CREATE VIEW public.profiles_safe
-WITH (security_invoker = true) AS
-SELECT ... CASE WHEN user_id = auth.uid() THEN email ELSE NULL END ...
-FROM public.profiles;
-GRANT SELECT ON public.profiles_safe TO authenticated, anon;
+### Rate Limit Configuration for M-Pesa STK Push
+```typescript
+const rateLimitResult = rateLimit(req, user.id, {
+  ...DEFAULT_LIMITS.sensitive,
+  keyPrefix: 'mpesa-stk-push',
+}, corsHeaders);
 ```
 
-**Files to create:**
-- `src/components/help/VideoPlayerDialog.tsx`
+### Files Modified (Summary)
+| File | Change |
+|------|--------|
+| `src/components/inventory/AddEditProductDialog.tsx` | Add Zod + react-hook-form validation |
+| `src/components/inventory/AddEditSupplierDialog.tsx` | Add Zod validation |
+| `src/components/inventory/AdjustStockDialog.tsx` | Add Zod validation |
+| `src/components/talent/JobPostingForm.tsx` | Add Zod validation |
+| `src/components/marketing/ContentCalendar.tsx` | Add Zod validation |
+| `src/components/settings/ProfileSettings.tsx` | Add Zod validation |
+| `src/components/inbox/CSATSurveyWidget.tsx` | Add Zod validation |
+| `supabase/functions/mpesa-stk-push/index.ts` | Add rate limiting + shared utilities |
+| `supabase/functions/mpesa-callback/index.ts` | Add rate limiting + shared utilities + Zod validation |
 
-**Files to modify:**
-- `src/components/help/VideoTutorialsSection.tsx` — integrate dialog + watched state
-- `src/components/help/GettingStartedGuide.tsx` — localStorage persistence
-- `src/components/layout/DashboardLayout.tsx` — dynamic inbox badge
-
-**Database migration:**
-- Recreate all 4 safe views with `security_invoker = true`
+### No New Dependencies Required
+All tools are already installed: `zod`, `@hookform/resolvers`, `react-hook-form`.
 

@@ -2724,7 +2724,7 @@ export type Database = {
           business_id?: string | null
           channel_type?: Database["public"]["Enums"]["channel_type"] | null
           created_at?: string | null
-          email?: string | null
+          email?: never
           external_id?: string | null
           first_contact_at?: string | null
           id?: string | null
@@ -2732,7 +2732,7 @@ export type Database = {
           metadata?: Json | null
           name?: string | null
           notes?: string | null
-          phone?: string | null
+          phone?: never
           tags?: string[] | null
           updated_at?: string | null
         }
@@ -2741,7 +2741,7 @@ export type Database = {
           business_id?: string | null
           channel_type?: Database["public"]["Enums"]["channel_type"] | null
           created_at?: string | null
-          email?: string | null
+          email?: never
           external_id?: string | null
           first_contact_at?: string | null
           id?: string | null
@@ -2749,7 +2749,7 @@ export type Database = {
           metadata?: Json | null
           name?: string | null
           notes?: string | null
-          phone?: string | null
+          phone?: never
           tags?: string[] | null
           updated_at?: string | null
         }
