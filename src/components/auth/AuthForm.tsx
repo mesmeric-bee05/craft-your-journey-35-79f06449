@@ -11,6 +11,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { passwordSchema, getPasswordStrength, PASSWORD_MIN_LENGTH } from '@/lib/validation/password';
 import { ForgotPasswordDialog } from './ForgotPasswordDialog';
+import { checkRateLimit } from '@/lib/rateLimiter';
+import { useToast } from '@/hooks/use-toast';
 
 // SECURITY: Standardized password requirements across the app
 const signInSchema = z.object({
