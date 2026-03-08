@@ -169,6 +169,9 @@ export function SecuritySettings() {
       {/* Two-Factor Authentication */}
       <TwoFactorSetup />
 
+      {/* Activity Log */}
+      <AuditLogViewer />
+
       {/* Danger Zone */}
       <Card className="border-destructive/50">
         <CardHeader>
