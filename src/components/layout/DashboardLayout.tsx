@@ -38,6 +38,9 @@ import { cn } from '@/lib/utils';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { GlobalSearchDialog } from '@/components/search/GlobalSearchDialog';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
+import { supabase } from '@/integrations/supabase/client';
+import { useBusiness } from '@/hooks/useBusiness';
+import { useQuery } from '@tanstack/react-query';
 
 interface NavItem {
   label: string;
