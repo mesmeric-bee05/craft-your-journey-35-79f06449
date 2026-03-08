@@ -22,6 +22,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { PASSWORD_MIN_LENGTH, getPasswordStrength } from '@/lib/validation/password';
 import { TwoFactorSetup } from './TwoFactorSetup';
+import { AuditLogViewer } from './AuditLogViewer';
 
 export function SecuritySettings() {
   const { toast } = useToast();
