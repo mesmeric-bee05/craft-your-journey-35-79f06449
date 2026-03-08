@@ -58,6 +58,18 @@ export function sanitizeUrl(url: string): string {
 }
 
 /**
+ * Strip all HTML tags from a string to prevent XSS in contexts
+ * where HTML might be rendered (e.g. notification bodies, email previews)
+ * 
+ * @param html - The potentially-HTML string to strip
+ * @returns Plain text with all tags removed
+ */
+export function stripHtml(html: string): string {
+  if (!html) return '';
+  return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+}
+
+/**
  * Sanitizes user input for use in Supabase RPC function parameters
  * Prevents SQL injection in dynamic queries
  * 
@@ -69,4 +81,33 @@ export function sanitizeRpcInput(input: string, maxLength: number = 1000): strin
   if (!input) return '';
   // Remove null bytes and truncate
   return input.replace(/\0/g, '').slice(0, maxLength);
+}
+
+/**
+ * Validate that a file type is in an allowlist
+ * Prevents upload of dangerous file types
+ */
+export function isAllowedFileType(
+  mimeType: string,
+  allowedTypes: string[] = [
+    'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+    'application/pdf',
+    'text/plain', 'text/csv',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  ]
+): boolean {
+  return allowedTypes.includes(mimeType.toLowerCase());
+}
+
+/**
+ * Sanitize a filename for safe storage
+ * Removes path traversal characters and special chars
+ */
+export function sanitizeFilename(filename: string): string {
+  if (!filename) return 'unnamed';
+  return filename
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .replace(/\.{2,}/g, '.')
+    .slice(0, 255);
 }
