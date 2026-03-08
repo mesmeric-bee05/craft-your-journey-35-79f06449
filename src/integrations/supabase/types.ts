@@ -2724,7 +2724,7 @@ export type Database = {
           business_id?: string | null
           channel_type?: Database["public"]["Enums"]["channel_type"] | null
           created_at?: string | null
-          email?: never
+          email?: string | null
           external_id?: string | null
           first_contact_at?: string | null
           id?: string | null
@@ -2732,7 +2732,7 @@ export type Database = {
           metadata?: Json | null
           name?: string | null
           notes?: string | null
-          phone?: never
+          phone?: string | null
           tags?: string[] | null
           updated_at?: string | null
         }
@@ -2741,7 +2741,7 @@ export type Database = {
           business_id?: string | null
           channel_type?: Database["public"]["Enums"]["channel_type"] | null
           created_at?: string | null
-          email?: never
+          email?: string | null
           external_id?: string | null
           first_contact_at?: string | null
           id?: string | null
@@ -2749,7 +2749,7 @@ export type Database = {
           metadata?: Json | null
           name?: string | null
           notes?: string | null
-          phone?: never
+          phone?: string | null
           tags?: string[] | null
           updated_at?: string | null
         }
@@ -2849,7 +2849,7 @@ export type Database = {
           full_name?: string | null
           id?: string | null
           is_active?: boolean | null
-          kyc_document_url?: string | null
+          kyc_document_url?: never
           kyc_status?: Database["public"]["Enums"]["verification_status"] | null
           language?: string | null
           last_login_at?: string | null
@@ -2867,7 +2867,7 @@ export type Database = {
           full_name?: string | null
           id?: string | null
           is_active?: boolean | null
-          kyc_document_url?: string | null
+          kyc_document_url?: never
           kyc_status?: Database["public"]["Enums"]["verification_status"] | null
           language?: string | null
           last_login_at?: string | null

@@ -7,6 +7,7 @@ import { ChannelStatus } from '@/components/dashboard/ChannelStatus';
 import { ConversationTrendsChart } from '@/components/dashboard/ConversationTrendsChart';
 import { RevenueChart } from '@/components/dashboard/RevenueChart';
 import { LiveActivityFeed } from '@/components/dashboard/LiveActivityFeed';
+import { SmartReachScore } from '@/components/dashboard/SmartReachScore';
 import { useAuth } from '@/hooks/useAuth';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
 import { useDashboardCharts } from '@/hooks/useDashboardCharts';
@@ -183,7 +184,16 @@ export default function Dashboard() {
             <QuickActions />
             <LiveActivityFeed />
           </div>
-          <div>
+          <div className="space-y-6">
+            <SmartReachScore
+              totalMessages={stats.totalMessages}
+              activeCustomers={stats.activeCustomers}
+              totalRevenue={stats.totalRevenue}
+              csatScore={stats.csatScore}
+              resolvedToday={stats.resolvedToday}
+              openConversations={stats.openConversations}
+              loading={statsLoading}
+            />
             <ChannelStatus />
           </div>
         </div>

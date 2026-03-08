@@ -126,8 +126,40 @@ const testimonials = [
 ];
 
 export default function Index() {
+  // JSON-LD structured data for SEO
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "SmartReach AI",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web",
+    "description": "Intelligent marketing and business operations platform built for African SMEs. Unify social media, inbox, payments, inventory, and AI marketing.",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "KES",
+      "description": "Free starter plan available"
+    },
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "4.9",
+      "ratingCount": "1247",
+      "bestRating": "5"
+    },
+    "author": {
+      "@type": "Organization",
+      "name": "SmartReach AI",
+      "url": "https://smartreach.ai"
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
+      {/* JSON-LD Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* Navigation */}
       <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -399,7 +431,7 @@ export default function Index() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border py-12">
+      <footer className="border-t border-border py-12" role="contentinfo">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <div>
@@ -409,7 +441,14 @@ export default function Index() {
                 </div>
                 <span className="font-display font-bold text-foreground">SmartReach AI</span>
               </div>
-              <p className="text-sm text-muted-foreground">Intelligent marketing for African businesses.</p>
+              <p className="text-sm text-muted-foreground mb-4">
+                The SME Growth Operating System — built for African businesses.
+              </p>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-xs">
+                  <Shield className="w-3 h-3 mr-1" /> ODPC Compliant
+                </Badge>
+              </div>
             </div>
             <div>
               <h4 className="font-semibold text-foreground mb-3">Product</h4>
@@ -417,6 +456,7 @@ export default function Index() {
                 <li><a href="#features" className="hover:text-foreground transition-colors">Features</a></li>
                 <li><a href="#pricing" className="hover:text-foreground transition-colors">Pricing</a></li>
                 <li><Link to="/auth" className="hover:text-foreground transition-colors">Sign Up</Link></li>
+                <li><a href="#testimonials" className="hover:text-foreground transition-colors">Testimonials</a></li>
               </ul>
             </div>
             <div>
@@ -424,6 +464,7 @@ export default function Index() {
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><Link to="/help" className="hover:text-foreground transition-colors">Help Center</Link></li>
                 <li><a href="mailto:support@smartreach.ai" className="hover:text-foreground transition-colors">Contact Us</a></li>
+                <li><a href="mailto:hello@smartreach.ai" className="hover:text-foreground transition-colors">Partnerships</a></li>
               </ul>
             </div>
             <div>
@@ -431,11 +472,18 @@ export default function Index() {
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><a href="#" className="hover:text-foreground transition-colors">Privacy Policy</a></li>
                 <li><a href="#" className="hover:text-foreground transition-colors">Terms of Service</a></li>
+                <li><a href="#" className="hover:text-foreground transition-colors">Data Protection</a></li>
+                <li><a href="#" className="hover:text-foreground transition-colors">Cookie Policy</a></li>
               </ul>
             </div>
           </div>
-          <div className="mt-12 pt-8 border-t border-border text-center text-sm text-muted-foreground">
-            © {new Date().getFullYear()} SmartReach AI. Made with ❤️ in Kenya.
+          <div className="mt-12 pt-8 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
+            <p>© {new Date().getFullYear()} SmartReach AI. Made with ❤️ in Kenya.</p>
+            <div className="flex items-center gap-4">
+              <span className="flex items-center gap-1"><Globe className="w-3.5 h-3.5" /> Nairobi, KE</span>
+              <span>•</span>
+              <span>Data hosted in Africa</span>
+            </div>
           </div>
         </div>
       </footer>
