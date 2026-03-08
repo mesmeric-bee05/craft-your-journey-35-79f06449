@@ -48,7 +48,7 @@ interface NavItem {
 
 const mainNavItems: NavItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
-  { label: 'Social Inbox', icon: MessageSquare, href: '/inbox', badge: 12 },
+  { label: 'Social Inbox', icon: MessageSquare, href: '/inbox' },
   { label: 'Social Manager', icon: Share2, href: '/social' },
   { label: 'AI Marketing', icon: Sparkles, href: '/marketing' },
   { label: 'Live Studio', icon: Video, href: '/live' },
