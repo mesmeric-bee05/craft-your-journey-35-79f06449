@@ -252,6 +252,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
           {/* Right side */}
           <div className="flex items-center gap-3">
+            {/* Theme Toggle */}
+            <ThemeToggle />
+
             {/* Notifications */}
             <NotificationCenter />
 
