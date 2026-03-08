@@ -479,10 +479,11 @@ export default function Index() {
           </div>
           <div className="mt-12 pt-8 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
             <p>© {new Date().getFullYear()} SmartReach AI. Made with ❤️ in Kenya.</p>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-6">
+              <a href="https://twitter.com/smartreachai" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Twitter/X</a>
+              <a href="https://linkedin.com/company/smartreachai" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">LinkedIn</a>
+              <a href="https://instagram.com/smartreachai" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Instagram</a>
               <span className="flex items-center gap-1"><Globe className="w-3.5 h-3.5" /> Nairobi, KE</span>
-              <span>•</span>
-              <span>Data hosted in Africa</span>
             </div>
           </div>
         </div>

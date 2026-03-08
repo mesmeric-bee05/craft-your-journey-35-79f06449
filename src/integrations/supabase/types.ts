@@ -607,13 +607,6 @@ export type Database = {
             referencedRelation: "customers"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "conversations_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "customers_safe"
-            referencedColumns: ["id"]
-          },
         ]
       }
       csat_responses: {
@@ -676,13 +669,6 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "csat_responses_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "customers_safe"
             referencedColumns: ["id"]
           },
           {
@@ -1156,13 +1142,6 @@ export type Database = {
             referencedRelation: "live_streams"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "live_chat_messages_stream_id_fkey"
-            columns: ["stream_id"]
-            isOneToOne: false
-            referencedRelation: "live_streams_safe"
-            referencedColumns: ["id"]
-          },
         ]
       }
       live_stream_destinations: {
@@ -1202,13 +1181,6 @@ export type Database = {
             columns: ["stream_id"]
             isOneToOne: false
             referencedRelation: "live_streams"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "live_stream_destinations_stream_id_fkey"
-            columns: ["stream_id"]
-            isOneToOne: false
-            referencedRelation: "live_streams_safe"
             referencedColumns: ["id"]
           },
         ]
@@ -1764,13 +1736,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "segment_customers_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "customers_safe"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "segment_customers_segment_id_fkey"
             columns: ["segment_id"]
             isOneToOne: false
@@ -2131,13 +2096,6 @@ export type Database = {
             referencedRelation: "live_streams"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "stream_overlays_stream_id_fkey"
-            columns: ["stream_id"]
-            isOneToOne: false
-            referencedRelation: "live_streams_safe"
-            referencedColumns: ["id"]
-          },
         ]
       }
       stream_polls: {
@@ -2177,13 +2135,6 @@ export type Database = {
             columns: ["stream_id"]
             isOneToOne: false
             referencedRelation: "live_streams"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "stream_polls_stream_id_fkey"
-            columns: ["stream_id"]
-            isOneToOne: false
-            referencedRelation: "live_streams_safe"
             referencedColumns: ["id"]
           },
         ]
@@ -2643,13 +2594,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "workflow_executions_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "customers_safe"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "workflow_executions_workflow_id_fkey"
             columns: ["workflow_id"]
             isOneToOne: false
@@ -2701,262 +2645,7 @@ export type Database = {
       }
     }
     Views: {
-      customers_safe: {
-        Row: {
-          avatar_url: string | null
-          business_id: string | null
-          channel_type: Database["public"]["Enums"]["channel_type"] | null
-          created_at: string | null
-          email: string | null
-          external_id: string | null
-          first_contact_at: string | null
-          id: string | null
-          last_contact_at: string | null
-          metadata: Json | null
-          name: string | null
-          notes: string | null
-          phone: string | null
-          tags: string[] | null
-          updated_at: string | null
-        }
-        Insert: {
-          avatar_url?: string | null
-          business_id?: string | null
-          channel_type?: Database["public"]["Enums"]["channel_type"] | null
-          created_at?: string | null
-          email?: never
-          external_id?: string | null
-          first_contact_at?: string | null
-          id?: string | null
-          last_contact_at?: string | null
-          metadata?: Json | null
-          name?: string | null
-          notes?: string | null
-          phone?: never
-          tags?: string[] | null
-          updated_at?: string | null
-        }
-        Update: {
-          avatar_url?: string | null
-          business_id?: string | null
-          channel_type?: Database["public"]["Enums"]["channel_type"] | null
-          created_at?: string | null
-          email?: never
-          external_id?: string | null
-          first_contact_at?: string | null
-          id?: string | null
-          last_contact_at?: string | null
-          metadata?: Json | null
-          name?: string | null
-          notes?: string | null
-          phone?: never
-          tags?: string[] | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "customers_business_id_fkey"
-            columns: ["business_id"]
-            isOneToOne: false
-            referencedRelation: "businesses"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      live_streams_safe: {
-        Row: {
-          business_id: string | null
-          created_at: string | null
-          description: string | null
-          ended_at: string | null
-          id: string | null
-          metadata: Json | null
-          peak_viewers: number | null
-          platforms: Json | null
-          started_at: string | null
-          status: Database["public"]["Enums"]["live_stream_status"] | null
-          title: string | null
-          updated_at: string | null
-          user_id: string | null
-          viewer_count: number | null
-        }
-        Insert: {
-          business_id?: string | null
-          created_at?: string | null
-          description?: string | null
-          ended_at?: string | null
-          id?: string | null
-          metadata?: Json | null
-          peak_viewers?: number | null
-          platforms?: Json | null
-          started_at?: string | null
-          status?: Database["public"]["Enums"]["live_stream_status"] | null
-          title?: string | null
-          updated_at?: string | null
-          user_id?: string | null
-          viewer_count?: number | null
-        }
-        Update: {
-          business_id?: string | null
-          created_at?: string | null
-          description?: string | null
-          ended_at?: string | null
-          id?: string | null
-          metadata?: Json | null
-          peak_viewers?: number | null
-          platforms?: Json | null
-          started_at?: string | null
-          status?: Database["public"]["Enums"]["live_stream_status"] | null
-          title?: string | null
-          updated_at?: string | null
-          user_id?: string | null
-          viewer_count?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "live_streams_business_id_fkey"
-            columns: ["business_id"]
-            isOneToOne: false
-            referencedRelation: "businesses"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      profiles_safe: {
-        Row: {
-          avatar_url: string | null
-          bio: string | null
-          created_at: string | null
-          email: string | null
-          full_name: string | null
-          id: string | null
-          is_active: boolean | null
-          kyc_document_url: string | null
-          kyc_status: Database["public"]["Enums"]["verification_status"] | null
-          language: string | null
-          last_login_at: string | null
-          location: string | null
-          phone: string | null
-          timezone: string | null
-          updated_at: string | null
-          user_id: string | null
-        }
-        Insert: {
-          avatar_url?: string | null
-          bio?: string | null
-          created_at?: string | null
-          email?: never
-          full_name?: string | null
-          id?: string | null
-          is_active?: boolean | null
-          kyc_document_url?: never
-          kyc_status?: Database["public"]["Enums"]["verification_status"] | null
-          language?: string | null
-          last_login_at?: string | null
-          location?: string | null
-          phone?: never
-          timezone?: string | null
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          avatar_url?: string | null
-          bio?: string | null
-          created_at?: string | null
-          email?: never
-          full_name?: string | null
-          id?: string | null
-          is_active?: boolean | null
-          kyc_document_url?: never
-          kyc_status?: Database["public"]["Enums"]["verification_status"] | null
-          language?: string | null
-          last_login_at?: string | null
-          location?: string | null
-          phone?: never
-          timezone?: string | null
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
-      }
-      transactions_safe: {
-        Row: {
-          amount: number | null
-          business_id: string | null
-          completed_at: string | null
-          created_at: string | null
-          currency: string | null
-          description: string | null
-          external_reference: string | null
-          id: string | null
-          metadata: Json | null
-          payment_method: string | null
-          recipient_email: string | null
-          recipient_phone: string | null
-          reference: string | null
-          status: Database["public"]["Enums"]["transaction_status"] | null
-          type: Database["public"]["Enums"]["transaction_type"] | null
-          updated_at: string | null
-          user_id: string | null
-          wallet_id: string | null
-        }
-        Insert: {
-          amount?: number | null
-          business_id?: string | null
-          completed_at?: string | null
-          created_at?: string | null
-          currency?: string | null
-          description?: string | null
-          external_reference?: string | null
-          id?: string | null
-          metadata?: Json | null
-          payment_method?: string | null
-          recipient_email?: never
-          recipient_phone?: never
-          reference?: string | null
-          status?: Database["public"]["Enums"]["transaction_status"] | null
-          type?: Database["public"]["Enums"]["transaction_type"] | null
-          updated_at?: string | null
-          user_id?: string | null
-          wallet_id?: string | null
-        }
-        Update: {
-          amount?: number | null
-          business_id?: string | null
-          completed_at?: string | null
-          created_at?: string | null
-          currency?: string | null
-          description?: string | null
-          external_reference?: string | null
-          id?: string | null
-          metadata?: Json | null
-          payment_method?: string | null
-          recipient_email?: never
-          recipient_phone?: never
-          reference?: string | null
-          status?: Database["public"]["Enums"]["transaction_status"] | null
-          type?: Database["public"]["Enums"]["transaction_type"] | null
-          updated_at?: string | null
-          user_id?: string | null
-          wallet_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "transactions_business_id_fkey"
-            columns: ["business_id"]
-            isOneToOne: false
-            referencedRelation: "businesses"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "transactions_wallet_id_fkey"
-            columns: ["wallet_id"]
-            isOneToOne: false
-            referencedRelation: "wallets"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
       check_sla_breaches: { Args: never; Returns: number }

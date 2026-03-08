@@ -21,7 +21,11 @@ import {
   Contact,
   Workflow,
   FileText,
+  Sun,
+  Moon,
+  Monitor,
 } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -71,6 +75,21 @@ const bottomNavItems: NavItem[] = [
 
 interface DashboardLayoutProps {
   children: ReactNode;
+}
+
+function ThemeToggle() {
+  const { theme, setTheme } = useTheme();
+  const cycleTheme = () => {
+    if (theme === 'light') setTheme('dark');
+    else if (theme === 'dark') setTheme('system');
+    else setTheme('light');
+  };
+  const icon = theme === 'dark' ? <Moon className="w-5 h-5" /> : theme === 'light' ? <Sun className="w-5 h-5" /> : <Monitor className="w-5 h-5" />;
+  return (
+    <Button variant="ghost" size="icon" onClick={cycleTheme} title={`Theme: ${theme}`}>
+      {icon}
+    </Button>
+  );
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
@@ -248,6 +267,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
           {/* Right side */}
           <div className="flex items-center gap-3">
+            {/* Theme Toggle */}
+            <ThemeToggle />
+
             {/* Notifications */}
             <NotificationCenter />
 
