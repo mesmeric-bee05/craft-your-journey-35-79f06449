@@ -77,6 +77,21 @@ interface DashboardLayoutProps {
   children: ReactNode;
 }
 
+function ThemeToggle() {
+  const { theme, setTheme } = useTheme();
+  const cycleTheme = () => {
+    if (theme === 'light') setTheme('dark');
+    else if (theme === 'dark') setTheme('system');
+    else setTheme('light');
+  };
+  const icon = theme === 'dark' ? <Moon className="w-5 h-5" /> : theme === 'light' ? <Sun className="w-5 h-5" /> : <Monitor className="w-5 h-5" />;
+  return (
+    <Button variant="ghost" size="icon" onClick={cycleTheme} title={`Theme: ${theme}`}>
+      {icon}
+    </Button>
+  );
+}
+
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
