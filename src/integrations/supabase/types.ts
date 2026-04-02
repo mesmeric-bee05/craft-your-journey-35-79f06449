@@ -451,6 +451,59 @@ export type Database = {
           },
         ]
       }
+      competitors: {
+        Row: {
+          business_id: string
+          created_at: string | null
+          id: string
+          industry: string | null
+          is_active: boolean | null
+          metrics: Json | null
+          name: string
+          notes: string | null
+          social_handles: Json | null
+          swot: Json | null
+          updated_at: string | null
+          website: string | null
+        }
+        Insert: {
+          business_id: string
+          created_at?: string | null
+          id?: string
+          industry?: string | null
+          is_active?: boolean | null
+          metrics?: Json | null
+          name: string
+          notes?: string | null
+          social_handles?: Json | null
+          swot?: Json | null
+          updated_at?: string | null
+          website?: string | null
+        }
+        Update: {
+          business_id?: string
+          created_at?: string | null
+          id?: string
+          industry?: string | null
+          is_active?: boolean | null
+          metrics?: Json | null
+          name?: string
+          notes?: string | null
+          social_handles?: Json | null
+          swot?: Json | null
+          updated_at?: string | null
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competitors_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contracts: {
         Row: {
           business_id: string
