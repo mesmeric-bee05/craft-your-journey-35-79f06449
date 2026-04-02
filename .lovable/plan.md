@@ -1,137 +1,127 @@
 
 
-# Security Hardening and Project Enhancement Plan
+## Plan: Mental Health AI, Competitor Intelligence, and Feature Expansion
 
-## Overview
-This plan addresses three areas: (1) comprehensive input sanitization across all client-side forms and search queries, (2) rate limiting on the two edge functions that currently lack it (`mpesa-stk-push` and `mpesa-callback`), and (3) modernizing those edge functions to use the shared security utilities already established in the codebase.
+### Overview
 
----
-
-## Part 1: Client-Side Input Sanitization
-
-Several forms currently lack Zod schema validation and rely only on basic checks like `!name.trim()`. We will add proper validation to all unprotected forms.
-
-### 1.1 Add Zod Validation to Inventory Forms
-
-**Files:** `src/components/inventory/AddEditProductDialog.tsx`, `AddEditSupplierDialog.tsx`, `AdjustStockDialog.tsx`
-
-- Replace ad-hoc state-based validation with Zod schemas and `react-hook-form`
-- Product form: validate name (1-100 chars), SKU (optional, max 50), prices (non-negative numbers), stock (non-negative integer), reorder level (non-negative integer)
-- Supplier form: validate name (1-100 chars), contact fields (email format, phone format)
-- Stock adjustment form: validate quantity (positive integer), note (optional, max 500 chars)
-
-### 1.2 Add Zod Validation to Talent Forms
-
-**File:** `src/components/talent/JobPostingForm.tsx`
-
-- Add schema: title (1-200 chars), description (1-5000 chars), budget range (positive numbers), skills array validation
-
-### 1.3 Add Zod Validation to Marketing/Calendar Form
-
-**File:** `src/components/marketing/ContentCalendar.tsx`
-
-- Add schema: title (1-200 chars), description (max 2000), date validation
-
-### 1.4 Add Zod Validation to Profile Settings
-
-**File:** `src/components/settings/ProfileSettings.tsx`
-
-- Add schema: full_name (2-100 chars), company (max 100), phone (optional, E.164 pattern)
-
-### 1.5 Add Zod Validation to CSAT Survey Widget
-
-**File:** `src/components/inbox/CSATSurveyWidget.tsx`
-
-- Validate rating (1-5 integer), feedback text (max 1000 chars)
-
-### 1.6 Sanitize String Inputs in Hooks
-
-Several hooks pass user text to `.trim()` but don't sanitize for LIKE patterns. The `useGlobalSearch` hook already uses `sanitizeSearchInput` -- no further hooks use raw `.ilike()` without sanitization, so this is already covered.
+Add three major new features — a Mental Health AI wellness companion, a Competitor Niche Tracker with real-time insights, and a Social Reels/Video Feed for competitor monitoring — plus continue hardening security and fixing existing gaps.
 
 ---
 
-## Part 2: Rate Limiting on Edge Functions
+### 1. Mental Health AI Wellness Widget
 
-### 2.1 Harden `mpesa-stk-push`
+**New file:** `src/components/wellness/MentalHealthWidget.tsx`
 
-**File:** `supabase/functions/mpesa-stk-push/index.ts`
+A dashboard-accessible wellness tool for business owners experiencing entrepreneurial stress. Features:
+- Mood check-in selector (5 moods: Great, Good, Neutral, Low, Stressed)
+- AI-powered supportive responses using the existing `ai-help-chat` edge function pattern (Lovable AI — no API key needed)
+- Daily wellness tips carousel (productivity, burnout prevention, work-life balance)
+- Breathing exercise timer (4-7-8 technique with animated circle)
+- Journaling quick-entry that saves to localStorage
+- Stress level tracker with weekly mood chart (using Recharts)
 
-Current state: Uses inline CORS headers, inline auth, no rate limiting, no shared utilities.
+**New file:** `src/pages/Wellness.tsx` — full page with mood history, journal entries, guided exercises
 
-Changes:
-- Import and use `getCorsHeaders`, `secureResponse` from `_shared/security-headers.ts`
-- Import and use `verifyAuth` from `_shared/auth.ts`
-- Import and use `rateLimit`, `DEFAULT_LIMITS` from `_shared/rate-limiter.ts`
-- Import and use `logError`, `logSecurityEvent`, `internalError`, `badRequest` from `_shared/errors.ts`
-- Apply `sensitive` rate limits (5/hour per IP, 3/hour per user) since this initiates real payments
-- Use `parseJsonBody` for body size limiting
-- Move validation to use shared `validateInput` pattern
-
-### 2.2 Harden `mpesa-callback`
-
-**File:** `supabase/functions/mpesa-callback/index.ts`
-
-Current state: Uses inline CORS headers, raw `console.log`/`console.error`, no rate limiting, creates its own Supabase client manually.
-
-Changes:
-- Import shared utilities (`getCorsHeaders`, `createServiceClient`, `logError`, `logSecurityEvent`, `badRequest`)
-- Add IP-based rate limiting (30/min -- callbacks are server-to-server but we want abuse protection)
-- Add Zod validation for the callback body structure
-- Replace `console.log`/`console.error` with `logSecurityEvent`/`logError`
-- Use `secureResponse` for consistent response formatting
+**Modify:** `src/components/layout/DashboardLayout.tsx` — add "Wellness" nav item with Heart icon  
+**Modify:** `src/App.tsx` — add `/wellness` route
 
 ---
 
-## Part 3: Additional Security Improvements
+### 2. Competitor Niche Tracker
 
-### 3.1 Add `parseJsonBody` Size Limiting to `mpesa-stk-push`
+**New file:** `src/components/competitors/CompetitorTracker.tsx`
 
-Currently uses raw `await req.json()` with no size limit. Switch to the shared `parseJsonBody` which enforces a 1MB limit.
+A competitor intelligence dashboard showing:
+- Add/manage competitor profiles (name, industry, social handles, website)
+- Niche positioning map (quadrant chart: price vs quality, using Recharts ScatterChart)
+- Competitor activity feed showing simulated real-time updates
+- SWOT analysis cards for each competitor (editable)
+- Market trends panel with AI-generated niche insights
 
-### 3.2 Consistent Timing-Safe Signature Verification
+**New file:** `src/components/competitors/AddCompetitorDialog.tsx` — form to add competitors  
+**New file:** `src/components/competitors/CompetitorCard.tsx` — individual competitor display  
+**New file:** `src/pages/Competitors.tsx` — full page with tabs: Overview, Feed, Analysis
 
-The `mpesa-callback` doesn't verify any signature from Safaricom. While M-Pesa's sandbox doesn't sign callbacks, we should add an optional IP allowlist or shared-secret check pattern (logged but not blocking in sandbox mode) for production readiness.
-
----
-
-## Technical Details
-
-### New Zod Schema Example (Product Form)
-```typescript
-const productSchema = z.object({
-  name: z.string().trim().min(1, 'Product name is required').max(100),
-  sku: z.string().trim().max(50).optional().or(z.literal('')),
-  category: z.enum(['fashion', 'food_beverage', 'electronics', 'beauty', 'general_merchandise', 'other']),
-  buying_price: z.coerce.number().min(0, 'Must be non-negative'),
-  selling_price: z.coerce.number().min(0, 'Must be non-negative'),
-  current_stock: z.coerce.number().int().min(0),
-  reorder_level: z.coerce.number().int().min(0),
-  unit: z.string().min(1),
-  supplier_id: z.string().uuid().optional().or(z.literal('')),
-});
+**Database migration:** Create `competitors` table:
+```sql
+CREATE TABLE public.competitors (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  website TEXT,
+  social_handles JSONB DEFAULT '{}',
+  industry TEXT,
+  notes TEXT,
+  swot JSONB DEFAULT '{"strengths":[],"weaknesses":[],"opportunities":[],"threats":[]}',
+  metrics JSONB DEFAULT '{}',
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE public.competitors ENABLE ROW LEVEL SECURITY;
+-- RLS: business members can CRUD their own competitors
 ```
 
-### Rate Limit Configuration for M-Pesa STK Push
-```typescript
-const rateLimitResult = rateLimit(req, user.id, {
-  ...DEFAULT_LIMITS.sensitive,
-  keyPrefix: 'mpesa-stk-push',
-}, corsHeaders);
-```
+**Modify:** `DashboardLayout.tsx` — add "Competitors" nav item with Target icon  
+**Modify:** `App.tsx` — add `/competitors` route
 
-### Files Modified (Summary)
-| File | Change |
-|------|--------|
-| `src/components/inventory/AddEditProductDialog.tsx` | Add Zod + react-hook-form validation |
-| `src/components/inventory/AddEditSupplierDialog.tsx` | Add Zod validation |
-| `src/components/inventory/AdjustStockDialog.tsx` | Add Zod validation |
-| `src/components/talent/JobPostingForm.tsx` | Add Zod validation |
-| `src/components/marketing/ContentCalendar.tsx` | Add Zod validation |
-| `src/components/settings/ProfileSettings.tsx` | Add Zod validation |
-| `src/components/inbox/CSATSurveyWidget.tsx` | Add Zod validation |
-| `supabase/functions/mpesa-stk-push/index.ts` | Add rate limiting + shared utilities |
-| `supabase/functions/mpesa-callback/index.ts` | Add rate limiting + shared utilities + Zod validation |
+---
 
-### No New Dependencies Required
-All tools are already installed: `zod`, `@hookform/resolvers`, `react-hook-form`.
+### 3. Social Reels / Video Feed (Competitor Content Monitor)
+
+**New file:** `src/components/competitors/CompetitorReelsFeed.tsx`
+
+A TikTok/Instagram Reels-style vertical scrolling feed that displays:
+- Competitor content cards with video-style previews (gradient thumbnails with play overlay since actual videos require API integrations)
+- Each card shows: competitor name, platform badge, post content preview, engagement metrics (simulated), posted date
+- Swipe/scroll interaction with snap scrolling
+- Filter by competitor or platform
+- "Save for reference" action that bookmarks content locally
+- Content gap analysis panel — AI-suggested content ideas based on what competitors are posting
+
+This integrates into the Competitors page as a "Reels" tab.
+
+---
+
+### 4. Security Hardening (Continued)
+
+**Audit log INSERT policy fix:** The current `audit_logs` INSERT policy only allows `service_role`. But the `log_security_event()` function is `SECURITY DEFINER` and inserts correctly. Confirm this is working — no change needed.
+
+**Add notification sound file:** Create a simple notification audio file at `/public/notification.mp3` (generate a short beep tone via edge function or embed a base64 data URI in the hook to avoid a missing file 404).
+
+---
+
+### 5. Dashboard Integration
+
+Add a "Wellness Score" mini-card to the Dashboard page showing the user's latest mood and streak count (days of consecutive check-ins).
+
+---
+
+### Technical Details
+
+**New pages and routes:**
+| Route | Page | Nav Label |
+|-------|------|-----------|
+| `/wellness` | `Wellness.tsx` | Wellness |
+| `/competitors` | `Competitors.tsx` | Competitors |
+
+**New files (8):**
+- `src/pages/Wellness.tsx`
+- `src/pages/Competitors.tsx`
+- `src/components/wellness/MentalHealthWidget.tsx`
+- `src/components/wellness/BreathingExercise.tsx`
+- `src/components/wellness/MoodTracker.tsx`
+- `src/components/competitors/CompetitorTracker.tsx`
+- `src/components/competitors/AddCompetitorDialog.tsx`
+- `src/components/competitors/CompetitorReelsFeed.tsx`
+
+**Modified files (2):**
+- `src/components/layout/DashboardLayout.tsx` — add Wellness + Competitors nav items
+- `src/App.tsx` — add 2 new routes
+
+**Database migration:**
+- Create `competitors` table with full RLS policies
+- Add `wellness_entries` table for mood/journal persistence (optional — can start with localStorage)
+
+**No new dependencies needed.** Uses existing Recharts, Lucide icons, Tailwind, and Supabase client.
 
