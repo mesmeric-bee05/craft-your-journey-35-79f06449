@@ -31,7 +31,7 @@ function generateMockReels(competitors: Competitor[]): ReelItem[] {
   const contents = [
     'New product launch announcement with behind-the-scenes footage 🎬',
     'Customer testimonial story — How we helped 1000+ businesses 📈',
-    'Industry trend breakdown: What's coming in 2026 🔮',
+    'Industry trend breakdown: What is coming in 2026',
     'Team culture spotlight — Meet our team 👥',
     'Tutorial: How to use our latest feature ✨',
     'Competitor comparison — Why customers switch to us 💡',
