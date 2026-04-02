@@ -196,6 +196,7 @@ export default function Dashboard() {
               loading={statsLoading}
             />
             <ChannelStatus />
+            <WellnessScoreCard />
           </div>
         </div>
       </div>
