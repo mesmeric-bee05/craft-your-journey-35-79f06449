@@ -27,6 +27,8 @@ import Automations from "./pages/Automations";
 import Reports from "./pages/Reports";
 import Index from "./pages/Index";
 import ResetPassword from "./pages/ResetPassword";
+import Wellness from "./pages/Wellness";
+import Competitors from "./pages/Competitors";
 
 const queryClient = new QueryClient({
   defaultOptions: {
