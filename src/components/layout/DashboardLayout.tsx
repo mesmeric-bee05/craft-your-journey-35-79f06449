@@ -24,6 +24,8 @@ import {
   Sun,
   Moon,
   Monitor,
+  Heart,
+  Target,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
