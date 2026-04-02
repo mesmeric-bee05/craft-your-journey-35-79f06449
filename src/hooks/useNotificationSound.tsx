@@ -1,12 +1,16 @@
 import { useCallback, useRef, useEffect } from 'react';
 import { useUserSettings } from '@/hooks/useUserSettings';
 
+// Tiny inline notification beep — avoids 404 on missing /notification.mp3
+const BEEP_DATA_URI =
+  'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+
 export function useNotificationSound() {
   const { settings } = useUserSettings();
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    audioRef.current = new Audio('/notification.mp3');
+    audioRef.current = new Audio(BEEP_DATA_URI);
     audioRef.current.volume = 0.5;
     return () => {
       audioRef.current = null;

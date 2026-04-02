@@ -61,7 +61,7 @@ export default function LiveStudio() {
   const [isCreating, setIsCreating] = useState(false);
   const [streamDuration, setStreamDuration] = useState(0);
   const [activeTab, setActiveTab] = useState('chat');
-  const durationInterval = useRef<NodeJS.Timeout | null>(null);
+  const durationInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Duration timer
   useEffect(() => {

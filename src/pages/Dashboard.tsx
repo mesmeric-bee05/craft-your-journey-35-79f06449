@@ -8,6 +8,7 @@ import { ConversationTrendsChart } from '@/components/dashboard/ConversationTren
 import { RevenueChart } from '@/components/dashboard/RevenueChart';
 import { LiveActivityFeed } from '@/components/dashboard/LiveActivityFeed';
 import { SmartReachScore } from '@/components/dashboard/SmartReachScore';
+import { WellnessScoreCard } from '@/components/dashboard/WellnessScoreCard';
 import { useAuth } from '@/hooks/useAuth';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
 import { useDashboardCharts } from '@/hooks/useDashboardCharts';
@@ -195,6 +196,7 @@ export default function Dashboard() {
               loading={statsLoading}
             />
             <ChannelStatus />
+            <WellnessScoreCard />
           </div>
         </div>
       </div>

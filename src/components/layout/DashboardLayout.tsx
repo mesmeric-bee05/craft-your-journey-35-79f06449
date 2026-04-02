@@ -24,6 +24,8 @@ import {
   Sun,
   Moon,
   Monitor,
+  Heart,
+  Target,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
@@ -66,6 +68,8 @@ const mainNavItems: NavItem[] = [
   { label: 'Payments', icon: Wallet, href: '/payments' },
   { label: 'Analytics', icon: BarChart3, href: '/analytics' },
   { label: 'Reports', icon: FileText, href: '/reports' },
+  { label: 'Competitors', icon: Target, href: '/competitors' },
+  { label: 'Wellness', icon: Heart, href: '/wellness' },
 ];
 
 const bottomNavItems: NavItem[] = [
