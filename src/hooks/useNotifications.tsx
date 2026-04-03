@@ -66,16 +66,16 @@ export function useNotifications() {
     }
   }, []);
 
-  // Play notification sound
+  // Play notification sound using inline base64 beep (no external file needed)
+  const BEEP_DATA_URI =
+    'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
   const playNotificationSound = useCallback(() => {
     if (settings?.notification_sound) {
       try {
-        const audio = new Audio('/notification.mp3');
+        const audio = new Audio(BEEP_DATA_URI);
         audio.volume = 0.5;
-        audio.play().catch(() => {
-          // Ignore autoplay errors
-        });
-      } catch (error) {
+        audio.play().catch(() => {});
+      } catch {
         // Ignore audio errors
       }
     }
