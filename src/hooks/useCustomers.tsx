@@ -116,8 +116,9 @@ export function useCustomers(): UseCustomersReturn {
   };
 
   const updateCustomer = async (id: string, data: Partial<Customer>) => {
+    if (!business?.id) return;
     const updateData: Record<string, unknown> = { ...data };
-    const { error } = await supabase.from('customers').update(updateData as any).eq('id', id);
+    const { error } = await supabase.from('customers').update(updateData as any).eq('id', id).eq('business_id', business.id);
     if (error) {
       toast({ title: 'Error updating customer', description: error.message, variant: 'destructive' });
       return;
