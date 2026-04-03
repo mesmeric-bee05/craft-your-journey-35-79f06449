@@ -128,7 +128,8 @@ export function useCustomers(): UseCustomersReturn {
   };
 
   const deleteCustomer = async (id: string) => {
-    const { error } = await supabase.from('customers').delete().eq('id', id);
+    if (!business?.id) return;
+    const { error } = await supabase.from('customers').delete().eq('id', id).eq('business_id', business.id);
     if (error) {
       toast({ title: 'Error deleting customer', description: error.message, variant: 'destructive' });
       return;
