@@ -43,10 +43,12 @@ export function useCompetitors() {
 
   const deleteCompetitor = useMutation({
     mutationFn: async (id: string) => {
+      if (!businessId) throw new Error('No business');
       const { error } = await supabase
         .from('competitors' as any)
         .update({ is_active: false } as any)
-        .eq('id', id);
+        .eq('id', id)
+        .eq('business_id', businessId);
       if (error) throw error;
     },
     onSuccess: () => {

@@ -146,13 +146,15 @@ export function useNotifications() {
   // Mark notification as clicked
   const markAsClickedMutation = useMutation({
     mutationFn: async (notificationId: string) => {
+      if (!user?.id) throw new Error('Not authenticated');
       const { error } = await supabase
         .from('notifications')
         .update({ 
           read_at: new Date().toISOString(),
           clicked_at: new Date().toISOString() 
         })
-        .eq('id', notificationId);
+        .eq('id', notificationId)
+        .eq('user_id', user.id);
 
       if (error) throw error;
     },
