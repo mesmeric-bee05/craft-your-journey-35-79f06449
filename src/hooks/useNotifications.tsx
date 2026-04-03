@@ -66,16 +66,16 @@ export function useNotifications() {
     }
   }, []);
 
-  // Play notification sound
+  // Play notification sound using inline base64 beep (no external file needed)
+  const BEEP_DATA_URI =
+    'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
   const playNotificationSound = useCallback(() => {
     if (settings?.notification_sound) {
       try {
-        const audio = new Audio('/notification.mp3');
+        const audio = new Audio(BEEP_DATA_URI);
         audio.volume = 0.5;
-        audio.play().catch(() => {
-          // Ignore autoplay errors
-        });
-      } catch (error) {
+        audio.play().catch(() => {});
+      } catch {
         // Ignore audio errors
       }
     }
@@ -129,10 +129,12 @@ export function useNotifications() {
   // Mark notification as read
   const markAsReadMutation = useMutation({
     mutationFn: async (notificationId: string) => {
+      if (!user?.id) throw new Error('Not authenticated');
       const { error } = await supabase
         .from('notifications')
         .update({ read_at: new Date().toISOString() })
-        .eq('id', notificationId);
+        .eq('id', notificationId)
+        .eq('user_id', user.id);
 
       if (error) throw error;
     },
@@ -144,13 +146,15 @@ export function useNotifications() {
   // Mark notification as clicked
   const markAsClickedMutation = useMutation({
     mutationFn: async (notificationId: string) => {
+      if (!user?.id) throw new Error('Not authenticated');
       const { error } = await supabase
         .from('notifications')
         .update({ 
           read_at: new Date().toISOString(),
           clicked_at: new Date().toISOString() 
         })
-        .eq('id', notificationId);
+        .eq('id', notificationId)
+        .eq('user_id', user.id);
 
       if (error) throw error;
     },

@@ -2601,6 +2601,50 @@ export type Database = {
           },
         ]
       }
+      wellness_entries: {
+        Row: {
+          ai_response: string | null
+          business_id: string | null
+          content: string | null
+          created_at: string | null
+          entry_type: string
+          id: string
+          mood: string | null
+          mood_value: number | null
+          user_id: string
+        }
+        Insert: {
+          ai_response?: string | null
+          business_id?: string | null
+          content?: string | null
+          created_at?: string | null
+          entry_type: string
+          id?: string
+          mood?: string | null
+          mood_value?: number | null
+          user_id: string
+        }
+        Update: {
+          ai_response?: string | null
+          business_id?: string | null
+          content?: string | null
+          created_at?: string | null
+          entry_type?: string
+          id?: string
+          mood?: string | null
+          mood_value?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wellness_entries_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workflow_executions: {
         Row: {
           completed_at: string | null

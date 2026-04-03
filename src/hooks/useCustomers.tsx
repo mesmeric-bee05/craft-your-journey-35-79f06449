@@ -116,8 +116,9 @@ export function useCustomers(): UseCustomersReturn {
   };
 
   const updateCustomer = async (id: string, data: Partial<Customer>) => {
+    if (!business?.id) return;
     const updateData: Record<string, unknown> = { ...data };
-    const { error } = await supabase.from('customers').update(updateData as any).eq('id', id);
+    const { error } = await supabase.from('customers').update(updateData as any).eq('id', id).eq('business_id', business.id);
     if (error) {
       toast({ title: 'Error updating customer', description: error.message, variant: 'destructive' });
       return;
@@ -127,7 +128,8 @@ export function useCustomers(): UseCustomersReturn {
   };
 
   const deleteCustomer = async (id: string) => {
-    const { error } = await supabase.from('customers').delete().eq('id', id);
+    if (!business?.id) return;
+    const { error } = await supabase.from('customers').delete().eq('id', id).eq('business_id', business.id);
     if (error) {
       toast({ title: 'Error deleting customer', description: error.message, variant: 'destructive' });
       return;

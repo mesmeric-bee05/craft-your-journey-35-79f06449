@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Smile, Meh, Frown, Heart, AlertTriangle } from 'lucide-react';
+import { Smile, Meh, Frown, Heart, AlertTriangle, Sparkles, Loader2 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { format } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useBusiness } from '@/hooks/useBusiness';
 
 const MOODS = [
   { key: 'great', label: 'Great', icon: Heart, color: 'text-green-500', value: 5 },
@@ -17,31 +20,87 @@ interface MoodEntry {
   date: string;
   mood: string;
   value: number;
-  note?: string;
+  ai_response?: string;
 }
 
 export function MoodTracker() {
+  const { user } = useAuth();
+  const { business } = useBusiness();
   const [entries, setEntries] = useState<MoodEntry[]>([]);
   const [todayMood, setTodayMood] = useState<string | null>(null);
+  const [aiResponse, setAiResponse] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
+  // Load from DB
   useEffect(() => {
-    const saved = localStorage.getItem('wellness_mood_entries');
-    if (saved) {
-      const parsed: MoodEntry[] = JSON.parse(saved);
-      setEntries(parsed);
-      const today = format(new Date(), 'yyyy-MM-dd');
-      const todayEntry = parsed.find(e => e.date === today);
-      if (todayEntry) setTodayMood(todayEntry.mood);
+    if (!user?.id) return;
+    (async () => {
+      const { data } = await supabase
+        .from('wellness_entries' as any)
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('entry_type', 'mood')
+        .order('created_at', { ascending: false })
+        .limit(30);
+      if (data && Array.isArray(data)) {
+        const mapped = data.map((d: any) => ({
+          date: format(new Date(d.created_at), 'yyyy-MM-dd'),
+          mood: d.mood || '',
+          value: d.mood_value || 3,
+          ai_response: d.ai_response,
+        }));
+        setEntries(mapped);
+        const today = format(new Date(), 'yyyy-MM-dd');
+        const todayEntry = mapped.find(e => e.date === today);
+        if (todayEntry) {
+          setTodayMood(todayEntry.mood);
+          if (todayEntry.ai_response) setAiResponse(todayEntry.ai_response);
+        }
+      }
+    })();
+  }, [user?.id]);
+
+  const fetchAiResponse = useCallback(async (moodKey: string) => {
+    setAiLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('wellness-ai-chat', {
+        body: { mood: moodKey },
+      });
+      if (!error && data?.response) {
+        setAiResponse(data.response);
+        return data.response;
+      }
+    } catch {
+      // fallback
+    } finally {
+      setAiLoading(false);
     }
+    return null;
   }, []);
 
-  const logMood = (moodKey: string, value: number) => {
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const newEntry: MoodEntry = { date: today, mood: moodKey, value };
-    const updated = [...entries.filter(e => e.date !== today), newEntry].slice(-30);
-    setEntries(updated);
+  const logMood = async (moodKey: string, value: number) => {
+    if (!user?.id) return;
     setTodayMood(moodKey);
-    localStorage.setItem('wellness_mood_entries', JSON.stringify(updated));
+
+    // Get AI response
+    const aiMsg = await fetchAiResponse(moodKey);
+
+    // Save to DB
+    await supabase.from('wellness_entries' as any).insert({
+      user_id: user.id,
+      business_id: business?.id || null,
+      entry_type: 'mood',
+      mood: moodKey,
+      mood_value: value,
+      ai_response: aiMsg || null,
+    } as any);
+
+    // Update local state
+    const today = format(new Date(), 'yyyy-MM-dd');
+    setEntries(prev => {
+      const filtered = prev.filter(e => e.date !== today);
+      return [{ date: today, mood: moodKey, value, ai_response: aiMsg || undefined }, ...filtered];
+    });
   };
 
   const streak = (() => {
@@ -85,6 +144,7 @@ export function MoodTracker() {
                 size="sm"
                 className="gap-1.5"
                 onClick={() => logMood(m.key, m.value)}
+                disabled={aiLoading}
               >
                 <m.icon className={`w-4 h-4 ${todayMood === m.key ? '' : m.color}`} />
                 {m.label}
@@ -92,6 +152,23 @@ export function MoodTracker() {
             ))}
           </div>
         </div>
+
+        {/* AI Response */}
+        {(aiLoading || aiResponse) && (
+          <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium text-primary">Wellness AI</span>
+            </div>
+            {aiLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="w-3 h-3 animate-spin" /> Reflecting on your mood...
+              </div>
+            ) : (
+              <p className="text-sm text-foreground">{aiResponse}</p>
+            )}
+          </div>
+        )}
 
         {chartData.length > 2 && (
           <div className="h-40">

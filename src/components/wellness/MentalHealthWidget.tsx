@@ -2,7 +2,10 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { BookOpen, Lightbulb, ChevronLeft, ChevronRight } from 'lucide-react';
+import { BookOpen, Lightbulb, ChevronLeft, ChevronRight, Loader2, Sparkles } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useBusiness } from '@/hooks/useBusiness';
 
 const TIPS = [
   "Take a 5-minute walk between tasks to reset your focus.",
@@ -16,23 +19,61 @@ const TIPS = [
 ];
 
 export function MentalHealthWidget() {
+  const { user } = useAuth();
+  const { business } = useBusiness();
   const [journalText, setJournalText] = useState('');
-  const [entries, setEntries] = useState<{ date: string; text: string }[]>([]);
+  const [entries, setEntries] = useState<{ date: string; text: string; ai_response?: string }[]>([]);
   const [tipIdx, setTipIdx] = useState(0);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem('wellness_journal');
-    if (saved) setEntries(JSON.parse(saved));
     setTipIdx(Math.floor(Math.random() * TIPS.length));
-  }, []);
+    if (!user?.id) return;
+    // Load journal entries from DB
+    (async () => {
+      const { data } = await supabase
+        .from('wellness_entries' as any)
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('entry_type', 'journal')
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (data && Array.isArray(data)) {
+        setEntries(data.map((d: any) => ({
+          date: d.created_at,
+          text: d.content || '',
+          ai_response: d.ai_response,
+        })));
+      }
+    })();
+  }, [user?.id]);
 
-  const saveJournal = () => {
-    if (!journalText.trim()) return;
-    const entry = { date: new Date().toISOString(), text: journalText.trim() };
-    const updated = [entry, ...entries].slice(0, 50);
-    setEntries(updated);
-    localStorage.setItem('wellness_journal', JSON.stringify(updated));
+  const saveJournal = async () => {
+    if (!journalText.trim() || !user?.id) return;
+    setSaving(true);
+
+    let aiMsg: string | null = null;
+    try {
+      const { data } = await supabase.functions.invoke('wellness-ai-chat', {
+        body: { journalText: journalText.trim() },
+      });
+      if (data?.response) aiMsg = data.response;
+    } catch {
+      // best-effort AI
+    }
+
+    await supabase.from('wellness_entries' as any).insert({
+      user_id: user.id,
+      business_id: business?.id || null,
+      entry_type: 'journal',
+      content: journalText.trim(),
+      ai_response: aiMsg,
+    } as any);
+
+    const entry = { date: new Date().toISOString(), text: journalText.trim(), ai_response: aiMsg || undefined };
+    setEntries(prev => [entry, ...prev].slice(0, 50));
     setJournalText('');
+    setSaving(false);
   };
 
   return (
@@ -72,20 +113,30 @@ export function MentalHealthWidget() {
             value={journalText}
             onChange={e => setJournalText(e.target.value)}
             rows={3}
+            maxLength={2000}
           />
-          <Button size="sm" onClick={saveJournal} disabled={!journalText.trim()}>
-            Save Entry
+          <Button size="sm" onClick={saveJournal} disabled={!journalText.trim() || saving}>
+            {saving ? <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Saving...</> : 'Save Entry'}
           </Button>
 
           {entries.length > 0 && (
-            <div className="mt-4 space-y-2 max-h-48 overflow-y-auto">
+            <div className="mt-4 space-y-2 max-h-64 overflow-y-auto">
               <p className="text-xs font-medium text-muted-foreground">Recent entries</p>
               {entries.slice(0, 5).map((e, i) => (
-                <div key={i} className="p-2 rounded-lg bg-muted/50 text-sm">
-                  <p className="text-xs text-muted-foreground mb-1">
+                <div key={i} className="p-3 rounded-lg bg-muted/50 text-sm space-y-2">
+                  <p className="text-xs text-muted-foreground">
                     {new Date(e.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                   </p>
                   <p className="text-foreground">{e.text}</p>
+                  {e.ai_response && (
+                    <div className="p-2 rounded-md bg-primary/5 border border-primary/10">
+                      <div className="flex items-center gap-1 mb-1">
+                        <Sparkles className="w-3 h-3 text-primary" />
+                        <span className="text-xs font-medium text-primary">AI Response</span>
+                      </div>
+                      <p className="text-xs text-foreground">{e.ai_response}</p>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

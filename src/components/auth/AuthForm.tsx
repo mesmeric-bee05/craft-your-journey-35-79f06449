@@ -77,7 +77,19 @@ export function AuthForm({ mode, onModeChange }: AuthFormProps) {
     setLoading(true);
     const { error } = await signIn(data.email, data.password);
     setLoading(false);
-    if (!error) {
+    if (error) {
+      // SECURITY: Log failed login attempt via audit log
+      try {
+        const { supabase } = await import('@/integrations/supabase/client');
+        await supabase.rpc('log_security_event', {
+          p_action: 'login_failed',
+          p_entity_type: 'auth',
+          p_metadata: { email: data.email, reason: error.message },
+        });
+      } catch {
+        // Audit logging is best-effort; don't block the user
+      }
+    } else {
       navigate('/dashboard');
     }
   };
