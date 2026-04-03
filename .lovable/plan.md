@@ -1,127 +1,122 @@
 
 
-## Plan: Mental Health AI, Competitor Intelligence, and Feature Expansion
+## Plan: Full-Depth Security Hardening, AI Wellness, and Feature Activation
 
-### Overview
+### Current State Assessment
 
-Add three major new features — a Mental Health AI wellness companion, a Competitor Niche Tracker with real-time insights, and a Social Reels/Video Feed for competitor monitoring — plus continue hardening security and fixing existing gaps.
+The project already has solid security foundations: JWT auth on all edge functions, server-side rate limiting, Zod input validation, CSP headers, client-side rate limiting on auth forms, 30-min session timeout, sanitization utilities, and proper RLS policies. The main gaps are:
 
----
-
-### 1. Mental Health AI Wellness Widget
-
-**New file:** `src/components/wellness/MentalHealthWidget.tsx`
-
-A dashboard-accessible wellness tool for business owners experiencing entrepreneurial stress. Features:
-- Mood check-in selector (5 moods: Great, Good, Neutral, Low, Stressed)
-- AI-powered supportive responses using the existing `ai-help-chat` edge function pattern (Lovable AI — no API key needed)
-- Daily wellness tips carousel (productivity, burnout prevention, work-life balance)
-- Breathing exercise timer (4-7-8 technique with animated circle)
-- Journaling quick-entry that saves to localStorage
-- Stress level tracker with weekly mood chart (using Recharts)
-
-**New file:** `src/pages/Wellness.tsx` — full page with mood history, journal entries, guided exercises
-
-**Modify:** `src/components/layout/DashboardLayout.tsx` — add "Wellness" nav item with Heart icon  
-**Modify:** `src/App.tsx` — add `/wellness` route
+1. **Wellness AI** — MoodTracker and journal exist but have no AI-powered responses
+2. **Competitor Reels** — static mock data with no real interaction
+3. **Several non-functional buttons** across pages (Quick Actions on dashboard, etc.)
+4. **IDOR risk** — some hooks don't guard business_id scoping on mutations
+5. **Missing `updated_at` trigger** on `competitors` table
+6. **Notification sound** — still references `/notification.mp3` file in useNotifications (old code) instead of the base64 hook
+7. **Wellness data persistence** — mood/journal only in localStorage, not database
 
 ---
 
-### 2. Competitor Niche Tracker
+### 1. Wellness AI Companion (Edge Function)
 
-**New file:** `src/components/competitors/CompetitorTracker.tsx`
+Create a new `wellness-ai-chat` edge function that provides empathetic, evidence-based mental health support responses when users log moods or journal entries.
 
-A competitor intelligence dashboard showing:
-- Add/manage competitor profiles (name, industry, social handles, website)
-- Niche positioning map (quadrant chart: price vs quality, using Recharts ScatterChart)
-- Competitor activity feed showing simulated real-time updates
-- SWOT analysis cards for each competitor (editable)
-- Market trends panel with AI-generated niche insights
+- Endpoint accepts `{ mood, journalText, history }` 
+- Uses Lovable AI (`google/gemini-2.5-flash-lite`) with a wellness-focused system prompt
+- Full auth + rate limiting (10/min) + Zod validation
+- Integrate into `MoodTracker.tsx` — after logging a mood, call the function and display a supportive AI message
+- Add a "Talk to AI" mini-chat inside the Wellness page
 
-**New file:** `src/components/competitors/AddCompetitorDialog.tsx` — form to add competitors  
-**New file:** `src/components/competitors/CompetitorCard.tsx` — individual competitor display  
-**New file:** `src/pages/Competitors.tsx` — full page with tabs: Overview, Feed, Analysis
+### 2. Database: `wellness_entries` Table + Competitors Trigger
 
-**Database migration:** Create `competitors` table:
+**Migration SQL:**
 ```sql
-CREATE TABLE public.competitors (
+-- Persist wellness data to database
+CREATE TABLE public.wellness_entries (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  website TEXT,
-  social_handles JSONB DEFAULT '{}',
-  industry TEXT,
-  notes TEXT,
-  swot JSONB DEFAULT '{"strengths":[],"weaknesses":[],"opportunities":[],"threats":[]}',
-  metrics JSONB DEFAULT '{}',
-  is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  business_id UUID REFERENCES public.businesses(id) ON DELETE SET NULL,
+  entry_type TEXT NOT NULL CHECK (entry_type IN ('mood', 'journal')),
+  mood TEXT,
+  mood_value INTEGER,
+  content TEXT,
+  ai_response TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
 );
-ALTER TABLE public.competitors ENABLE ROW LEVEL SECURITY;
--- RLS: business members can CRUD their own competitors
+
+ALTER TABLE public.wellness_entries ENABLE ROW LEVEL SECURITY;
+
+-- IDOR Protection: Users can only access their own entries
+CREATE POLICY "Users manage own wellness entries"
+  ON public.wellness_entries FOR ALL
+  TO authenticated
+  USING (user_id = auth.uid())
+  WITH CHECK (user_id = auth.uid());
+
+-- Add updated_at trigger to competitors
+CREATE TRIGGER update_competitors_updated_at
+  BEFORE UPDATE ON public.competitors
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 ```
 
-**Modify:** `DashboardLayout.tsx` — add "Competitors" nav item with Target icon  
-**Modify:** `App.tsx` — add `/competitors` route
+### 3. Security Hardening — IDOR Prevention Audit
 
----
+Fix mutations across hooks to ensure business_id scoping:
 
-### 3. Social Reels / Video Feed (Competitor Content Monitor)
+- **`useCompetitors.tsx`** — `deleteCompetitor` currently only filters by `id`. Add `.eq('business_id', businessId)` to prevent cross-business deletion.
+- **`useCustomers.tsx`** — Verify `deleteCustomer` and `updateCustomer` include `business_id` filter.
+- **`useNotifications.tsx`** — Fix `markAsRead` and `markAsClicked` to include `.eq('user_id', user.id)` filter to prevent unauthorized notification manipulation.
+- **`useMessages.tsx`** — `sendMessage` should verify conversation belongs to user's business (RLS handles this, but add client-side guard).
 
-**New file:** `src/components/competitors/CompetitorReelsFeed.tsx`
+### 4. Fix Notification Sound Duplication
 
-A TikTok/Instagram Reels-style vertical scrolling feed that displays:
-- Competitor content cards with video-style previews (gradient thumbnails with play overlay since actual videos require API integrations)
-- Each card shows: competitor name, platform badge, post content preview, engagement metrics (simulated), posted date
-- Swipe/scroll interaction with snap scrolling
-- Filter by competitor or platform
-- "Save for reference" action that bookmarks content locally
-- Content gap analysis panel — AI-suggested content ideas based on what competitors are posting
+`useNotifications.tsx` still creates `new Audio('/notification.mp3')` directly. Replace with the base64 data URI from `useNotificationSound.tsx` or import and use the existing hook. Remove dead code path.
 
-This integrates into the Competitors page as a "Reels" tab.
+### 5. Competitor Reels — Functional Interactions
 
----
+Make the Reels feed interactive:
+- **Save for Reference** button saves bookmarked competitor content to localStorage with a "Saved" badge
+- **Content Gap Analysis** button calls the existing `generate-content` edge function with competitor context to suggest content ideas
+- Add filter pills by platform (Instagram, TikTok, YouTube) that actually filter the feed
+- Add "Analyze Niche" button on CompetitorTracker that generates AI insights via existing edge function
 
-### 4. Security Hardening (Continued)
+### 6. Dashboard Quick Actions — Wire Up All Buttons
 
-**Audit log INSERT policy fix:** The current `audit_logs` INSERT policy only allows `service_role`. But the `log_security_event()` function is `SECURITY DEFINER` and inserts correctly. Confirm this is working — no change needed.
+Review `QuickActions.tsx` and ensure every action navigates or triggers real functionality:
+- "New Conversation" → navigate to `/inbox`
+- "Create Campaign" → navigate to `/marketing`  
+- "Schedule Post" → navigate to `/social`
+- "View Reports" → navigate to `/reports`
 
-**Add notification sound file:** Create a simple notification audio file at `/public/notification.mp3` (generate a short beep tone via edge function or embed a base64 data URI in the hook to avoid a missing file 404).
+### 7. Security Logging Enhancement
 
----
+Add client-side security event logging for:
+- Failed login attempts (already rate-limited, now also logged via `log_security_event` RPC)
+- Password changes
+- Profile updates with sensitive fields
 
-### 5. Dashboard Integration
-
-Add a "Wellness Score" mini-card to the Dashboard page showing the user's latest mood and streak count (days of consecutive check-ins).
+Update `AuthForm.tsx` to call `supabase.rpc('log_security_event', ...)` on failed sign-in after rate limit check.
 
 ---
 
 ### Technical Details
 
-**New pages and routes:**
-| Route | Page | Nav Label |
-|-------|------|-----------|
-| `/wellness` | `Wellness.tsx` | Wellness |
-| `/competitors` | `Competitors.tsx` | Competitors |
+**New files:**
+- `supabase/functions/wellness-ai-chat/index.ts` — AI wellness companion endpoint
 
-**New files (8):**
-- `src/pages/Wellness.tsx`
-- `src/pages/Competitors.tsx`
-- `src/components/wellness/MentalHealthWidget.tsx`
-- `src/components/wellness/BreathingExercise.tsx`
-- `src/components/wellness/MoodTracker.tsx`
-- `src/components/competitors/CompetitorTracker.tsx`
-- `src/components/competitors/AddCompetitorDialog.tsx`
-- `src/components/competitors/CompetitorReelsFeed.tsx`
-
-**Modified files (2):**
-- `src/components/layout/DashboardLayout.tsx` — add Wellness + Competitors nav items
-- `src/App.tsx` — add 2 new routes
+**Modified files:**
+- `src/components/wellness/MoodTracker.tsx` — persist to DB, show AI responses
+- `src/components/wellness/MentalHealthWidget.tsx` — persist journal to DB
+- `src/components/competitors/CompetitorReelsFeed.tsx` — save/filter functionality
+- `src/components/competitors/CompetitorTracker.tsx` — AI niche analysis button
+- `src/hooks/useCompetitors.tsx` — IDOR fix (add business_id to mutations)
+- `src/hooks/useNotifications.tsx` — IDOR fix + fix notification sound
+- `src/components/dashboard/QuickActions.tsx` — wire navigation
+- `src/components/auth/AuthForm.tsx` — security event logging
+- `supabase/config.toml` — add wellness-ai-chat function config
 
 **Database migration:**
-- Create `competitors` table with full RLS policies
-- Add `wellness_entries` table for mood/journal persistence (optional — can start with localStorage)
+- Create `wellness_entries` table with strict user-only RLS
+- Add `updated_at` trigger on `competitors`
 
-**No new dependencies needed.** Uses existing Recharts, Lucide icons, Tailwind, and Supabase client.
+**No new dependencies needed.**
 
