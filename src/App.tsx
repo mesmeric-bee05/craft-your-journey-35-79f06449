@@ -29,6 +29,7 @@ import Index from "./pages/Index";
 import ResetPassword from "./pages/ResetPassword";
 import Wellness from "./pages/Wellness";
 import Competitors from "./pages/Competitors";
+import Vision from "./pages/Vision";
 
 const queryClient = new QueryClient({
   defaultOptions: {
