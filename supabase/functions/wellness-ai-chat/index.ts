@@ -15,13 +15,71 @@ function checkRate(key: string, max: number, windowMs: number): boolean {
   return true;
 }
 
+// Crisis keywords detection
+const CRISIS_KEYWORDS = [
+  'suicide', 'kill myself', 'end my life', 'self-harm', 'hurt myself',
+  'want to die', 'no reason to live', 'better off dead', 'can\'t go on',
+  'giving up on life', 'hopeless', 'kujiua', 'kumaliza maisha',
+];
+
+function detectCrisis(text: string): boolean {
+  const lower = text.toLowerCase();
+  return CRISIS_KEYWORDS.some(kw => lower.includes(kw));
+}
+
+const CRISIS_RESOURCES = [
+  { name: 'Befrienders Kenya', phone: '+254 722 178 177', available: '24/7' },
+  { name: 'Kenya Red Cross Psychosocial Support', phone: '1199', available: '24/7' },
+  { name: 'Amani Counselling Centre (Nairobi)', phone: '+254 20 445 2068', available: 'Mon-Sat 8am-6pm' },
+];
+
+const RAFIKI_SYSTEM_PROMPT = `You are Rafiki AI — a warm, culturally-grounded mental wellness companion embedded inside SmartReach AI, built for Kenyan and East African entrepreneurs.
+
+YOUR IDENTITY:
+- Your name "Rafiki" means "friend" in Swahili — embody this completely.
+- You speak English and Swahili fluidly. Switch languages based on the user's preference.
+- You understand the unique pressures of running a small business in Kenya: M-Pesa float management, customer debt, family business expectations, informal market competition, seasonal fluctuations, and the loneliness of entrepreneurship.
+- You reference relevant African proverbs where genuinely helpful: "Haraka haraka haina baraka" (rush rush has no blessing), "Umoja ni nguvu" (unity is strength).
+
+YOUR THERAPEUTIC APPROACH:
+- Use active listening: reflect back what you hear before responding.
+- Use CBT reframing to gently challenge negative automatic thoughts about business failure.
+- Use Solution-Focused Brief Therapy (SFBT) to identify what IS working: "What one thing went well this week?"
+- Use ACT values clarification: "Mbona unafanya biashara?" (Why do you do business?) to reconnect with purpose.
+- Offer mindfulness micro-exercises when users are in acute stress (breathing, grounding).
+- Always end with ONE concrete, doable action for the next 24 hours.
+
+YOUR BOUNDARIES — CRITICAL:
+- You are NOT a therapist. You do NOT diagnose. You do NOT prescribe medication.
+- You ALWAYS recommend professional support when distress is significant.
+- You tell users: "This conversation is private and supportive — not a substitute for professional care."
+
+CULTURAL CALIBRATION:
+- Acknowledge mental health stigma in Kenyan culture. Use relatable language: "feeling tired of it all" rather than "depression symptoms."
+- Respect religious faith frameworks — work with them, never against them.
+- Acknowledge gender dynamics in entrepreneurship sensitively.
+- Celebrate harambee spirit: community, collective resilience, Ubuntu philosophy.
+
+CONVERSATION STYLE:
+- Warm, peer-like, never clinical or robotic. Keep responses to 2-4 sentences.
+- Ask one question at a time. Validate before advising. Always validate first.
+- Sessions should feel like talking to a wise, caring friend who understands both business and human psychology.`;
+
+const CRISIS_RESPONSE = `I hear you, and I want you to know that you are not alone. Your feelings are valid, and there are people who care about you and want to help right now.
+
+Please reach out to one of these free, confidential support lines:
+• Befrienders Kenya: +254 722 178 177 (24/7)
+• Kenya Red Cross Psychosocial Support: 1199 (24/7)
+• Amani Counselling Centre: +254 20 445 2068
+
+You matter. Your life matters. Tafadhali piga simu sasa — please call now. 💛`;
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    // Auth
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -44,37 +102,40 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Rate limit: 10/min per user
     if (!checkRate(`wellness-${user.id}`, 10, 60_000)) {
-      return new Response(JSON.stringify({ error: "Rate limited. Please wait." }), {
+      return new Response(JSON.stringify({ error: "Rate limited. Please wait a moment." }), {
         status: 429,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Parse & validate
     const body = await req.json();
-    const { mood, journalText, history } = body;
+    const { mood, journalText, history, chatMessage } = body;
 
-    if (!mood && !journalText) {
-      return new Response(JSON.stringify({ error: "mood or journalText required" }), {
+    if (!mood && !journalText && !chatMessage) {
+      return new Response(JSON.stringify({ error: "mood, journalText, or chatMessage required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const systemPrompt = `You are a compassionate wellness companion for business owners and entrepreneurs. 
-Your role is to provide empathetic, evidence-based mental health support. 
-- Acknowledge feelings without judgment
-- Offer practical, actionable wellness tips
-- Suggest breathing exercises, breaks, or mindfulness when appropriate  
-- Keep responses concise (2-4 sentences)
-- Never diagnose or replace professional help — gently suggest seeking professional support if someone seems in crisis
-- Be warm, encouraging, and human`;
+    // Crisis detection on input
+    const inputText = [mood, journalText, chatMessage].filter(Boolean).join(' ');
+    if (detectCrisis(inputText)) {
+      return new Response(JSON.stringify({ 
+        response: CRISIS_RESPONSE,
+        crisisDetected: true,
+        crisisResources: CRISIS_RESOURCES,
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     let userMessage = "";
     if (mood) userMessage += `I'm feeling ${mood} today. `;
-    if (journalText) userMessage += `Here's what's on my mind: ${journalText.substring(0, 500)}`;
+    if (journalText) userMessage += `Here's what's on my mind: ${journalText.substring(0, 800)}`;
+    if (chatMessage) userMessage = chatMessage.substring(0, 800);
 
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) {
@@ -93,19 +154,19 @@ Your role is to provide empathetic, evidence-based mental health support.
       body: JSON.stringify({
         model: "google/gemini-2.5-flash-lite",
         messages: [
-          { role: "system", content: systemPrompt },
-          ...(Array.isArray(history) ? history.slice(-4) : []),
+          { role: "system", content: RAFIKI_SYSTEM_PROMPT },
+          ...(Array.isArray(history) ? history.slice(-6) : []),
           { role: "user", content: userMessage.trim() },
         ],
-        max_tokens: 300,
-        temperature: 0.7,
+        max_tokens: 400,
+        temperature: 0.75,
       }),
     });
 
     if (!aiResponse.ok) {
       console.error("AI API error:", aiResponse.status);
       return new Response(JSON.stringify({ 
-        response: "I'm here for you. Take a deep breath — you're doing great just by checking in with yourself." 
+        response: "Rafiki is here for you. Take a deep breath — pole pole ndio mwendo. You're doing great just by checking in. 💛" 
       }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -114,9 +175,12 @@ Your role is to provide empathetic, evidence-based mental health support.
 
     const aiData = await aiResponse.json();
     const message = aiData.choices?.[0]?.message?.content || 
-      "Remember: taking a moment to check in with yourself is already a step towards better wellness.";
+      "Remember: taking a moment to check in with yourself shows wisdom. Haraka haraka haina baraka — slow and steady. 💛";
 
-    return new Response(JSON.stringify({ response: message }), {
+    return new Response(JSON.stringify({ 
+      response: message,
+      crisisDetected: false,
+    }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
