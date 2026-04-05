@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Users, Heart, Fist, Sprout, Handshake } from 'lucide-react';
+import { Users } from 'lucide-react';
 
 type PostType = 'hard_day' | 'success' | 'advice' | 'learned';
 

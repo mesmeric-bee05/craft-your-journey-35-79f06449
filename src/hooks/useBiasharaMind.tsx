@@ -162,12 +162,13 @@ export function useBiasharaMind() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('wellness_tokens' as any)
-        .select('balance_after')
+        .select('*')
         .eq('user_id', user!.id)
         .order('created_at', { ascending: false })
         .limit(1);
       if (error) throw error;
-      return data?.[0]?.balance_after || 0;
+      const row = data?.[0] as any;
+      return row?.balance_after || 0;
     },
     enabled: !!user?.id,
   });
