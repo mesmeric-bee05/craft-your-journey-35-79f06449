@@ -179,6 +179,36 @@ export type Database = {
           },
         ]
       }
+      burnout_risk_scores: {
+        Row: {
+          brs_value: number
+          brs_zone: string
+          calculated_at: string
+          id: string
+          recommended_action: string | null
+          signal_breakdown: Json | null
+          user_id: string
+        }
+        Insert: {
+          brs_value: number
+          brs_zone: string
+          calculated_at?: string
+          id?: string
+          recommended_action?: string | null
+          signal_breakdown?: Json | null
+          user_id: string
+        }
+        Update: {
+          brs_value?: number
+          brs_zone?: string
+          calculated_at?: string
+          id?: string
+          recommended_action?: string | null
+          signal_breakdown?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       business_members: {
         Row: {
           business_id: string
@@ -661,6 +691,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      crisis_events: {
+        Row: {
+          crisis_confidence: number | null
+          follow_up_completed: boolean | null
+          follow_up_scheduled_at: string | null
+          id: string
+          monitoring_active: boolean | null
+          resources_displayed: Json | null
+          trigger_source: string | null
+          trigger_type: string
+          triggered_at: string
+          user_id: string
+        }
+        Insert: {
+          crisis_confidence?: number | null
+          follow_up_completed?: boolean | null
+          follow_up_scheduled_at?: string | null
+          id?: string
+          monitoring_active?: boolean | null
+          resources_displayed?: Json | null
+          trigger_source?: string | null
+          trigger_type: string
+          triggered_at?: string
+          user_id: string
+        }
+        Update: {
+          crisis_confidence?: number | null
+          follow_up_completed?: boolean | null
+          follow_up_scheduled_at?: string | null
+          id?: string
+          monitoring_active?: boolean | null
+          resources_displayed?: Json | null
+          trigger_source?: string | null
+          trigger_type?: string
+          triggered_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       csat_responses: {
         Row: {
@@ -1156,6 +1225,39 @@ export type Database = {
           },
         ]
       }
+      journal_entries: {
+        Row: {
+          content: string
+          created_at: string
+          dominant_emotion: string | null
+          entry_mode: string
+          id: string
+          prompt_text: string
+          sentiment_score: number | null
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          dominant_emotion?: string | null
+          entry_mode: string
+          id?: string
+          prompt_text: string
+          sentiment_score?: number | null
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          dominant_emotion?: string | null
+          entry_mode?: string
+          id?: string
+          prompt_text?: string
+          sentiment_score?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       live_chat_messages: {
         Row: {
           created_at: string | null
@@ -1302,6 +1404,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      mental_health_checkins: {
+        Row: {
+          checked_in_at: string
+          created_at: string
+          free_text_response: string | null
+          id: string
+          language_detected: string | null
+          mood_score: number
+          mood_state: string
+          user_id: string
+          wellness_tokens_earned: number | null
+        }
+        Insert: {
+          checked_in_at?: string
+          created_at?: string
+          free_text_response?: string | null
+          id?: string
+          language_detected?: string | null
+          mood_score: number
+          mood_state: string
+          user_id: string
+          wellness_tokens_earned?: number | null
+        }
+        Update: {
+          checked_in_at?: string
+          created_at?: string
+          free_text_response?: string | null
+          id?: string
+          language_detected?: string | null
+          mood_score?: number
+          mood_state?: string
+          user_id?: string
+          wellness_tokens_earned?: number | null
+        }
+        Relationships: []
       }
       messages: {
         Row: {
@@ -2644,6 +2782,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      wellness_tokens: {
+        Row: {
+          balance_after: number
+          created_at: string
+          id: string
+          reference_id: string | null
+          token_amount: number
+          transaction_type: string
+          user_id: string
+        }
+        Insert: {
+          balance_after?: number
+          created_at?: string
+          id?: string
+          reference_id?: string | null
+          token_amount: number
+          transaction_type: string
+          user_id: string
+        }
+        Update: {
+          balance_after?: number
+          created_at?: string
+          id?: string
+          reference_id?: string | null
+          token_amount?: number
+          transaction_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wins_vault: {
+        Row: {
+          brs_at_time_of_win: number | null
+          created_at: string
+          id: string
+          user_id: string
+          win_text: string
+          win_type: string | null
+        }
+        Insert: {
+          brs_at_time_of_win?: number | null
+          created_at?: string
+          id?: string
+          user_id: string
+          win_text: string
+          win_type?: string | null
+        }
+        Update: {
+          brs_at_time_of_win?: number | null
+          created_at?: string
+          id?: string
+          user_id?: string
+          win_text?: string
+          win_type?: string | null
+        }
+        Relationships: []
       }
       workflow_executions: {
         Row: {

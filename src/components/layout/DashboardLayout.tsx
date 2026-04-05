@@ -71,7 +71,7 @@ const mainNavItems: NavItem[] = [
   { label: 'Reports', icon: FileText, href: '/reports' },
   { label: 'Competitors', icon: Target, href: '/competitors' },
   { label: 'Vision', icon: Camera, href: '/vision' },
-  { label: 'Wellness', icon: Heart, href: '/wellness' },
+  { label: 'Biashara Mind', icon: Brain, href: '/wellness' },
 ];
 
 const bottomNavItems: NavItem[] = [
