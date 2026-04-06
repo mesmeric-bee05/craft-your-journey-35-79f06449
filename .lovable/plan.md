@@ -1,122 +1,123 @@
 
 
-## Plan: Full-Depth Security Hardening, AI Wellness, and Feature Activation
+## Plan: Fix Build Error + Comprehensive Feature Enhancement
 
-### Current State Assessment
+### Immediate Fix
+The build error is caused by `Brain` being used on line 74 of `DashboardLayout.tsx` but not included in the import statement (lines 3-30). `Brain` is a valid lucide-react icon — it just needs to be added to the import list.
 
-The project already has solid security foundations: JWT auth on all edge functions, server-side rate limiting, Zod input validation, CSP headers, client-side rate limiting on auth forms, 30-min session timeout, sanitization utilities, and proper RLS policies. The main gaps are:
-
-1. **Wellness AI** — MoodTracker and journal exist but have no AI-powered responses
-2. **Competitor Reels** — static mock data with no real interaction
-3. **Several non-functional buttons** across pages (Quick Actions on dashboard, etc.)
-4. **IDOR risk** — some hooks don't guard business_id scoping on mutations
-5. **Missing `updated_at` trigger** on `competitors` table
-6. **Notification sound** — still references `/notification.mp3` file in useNotifications (old code) instead of the base64 hook
-7. **Wellness data persistence** — mood/journal only in localStorage, not database
+**File:** `src/components/layout/DashboardLayout.tsx`
+- Add `Brain` to the lucide-react import on line 3-30
 
 ---
 
-### 1. Wellness AI Companion (Edge Function)
+### Phase 1: Biashara Mind Enhancements (per Master Prompt)
 
-Create a new `wellness-ai-chat` edge function that provides empathetic, evidence-based mental health support responses when users log moods or journal entries.
+Based on the uploaded documents, the existing Biashara Mind module needs these upgrades:
 
-- Endpoint accepts `{ mood, journalText, history }` 
-- Uses Lovable AI (`google/gemini-2.5-flash-lite`) with a wellness-focused system prompt
-- Full auth + rate limiting (10/min) + Zod validation
-- Integrate into `MoodTracker.tsx` — after logging a mood, call the function and display a supportive AI message
-- Add a "Talk to AI" mini-chat inside the Wellness page
+**1a. Expand Daily Check-in Prompts Pool**
+- Increase from 6 to 60 culturally-grounded daily questions (Swahili/English mix)
+- Add morning time-awareness greeting: "Habari za asubuhi!" between 7-9 AM EAT
+- File: `src/components/biashara-mind/DailyCheckin.tsx`
 
-### 2. Database: `wellness_entries` Table + Competitors Trigger
+**1b. Enhanced Burnout Risk Score with 4 Zones**
+- Current BRS uses GREEN/AMBER/ORANGE/RED — matches spec. Add Swahili zone descriptions from the master prompt (Unastawi, Angalia, Pumzika, Hatua ya haraka)
+- Add animated pulse on nav icon when BRS is AMBER+ (DashboardLayout sidebar)
+- File: `src/components/biashara-mind/BurnoutGauge.tsx`, `DashboardLayout.tsx`
 
-**Migration SQL:**
-```sql
--- Persist wellness data to database
-CREATE TABLE public.wellness_entries (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  business_id UUID REFERENCES public.businesses(id) ON DELETE SET NULL,
-  entry_type TEXT NOT NULL CHECK (entry_type IN ('mood', 'journal')),
-  mood TEXT,
-  mood_value INTEGER,
-  content TEXT,
-  ai_response TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
+**1c. Upgrade Rafiki AI System Prompt**
+- Update `wellness-ai-chat` edge function with the comprehensive Biashara Mind system prompt from the master doc (4-step RECEIVE/VALIDATE/EXPLORE/RESOURCE protocol, cultural calibration, crisis keywords list)
+- File: `supabase/functions/wellness-ai-chat/index.ts`
 
-ALTER TABLE public.wellness_entries ENABLE ROW LEVEL SECURITY;
+**1d. Enhanced Crisis Protocol**
+- Add the expanded crisis keyword list from the doc: `["sitaki kuishi", "nauawa", "naomba msaada", "suicide", "I want to die", "kill myself", "no point", "end it all", "sina sababu", "naenda", "I give up on everything", "siwezi tena", "nimechoka maisha"]`
+- Update crisis response with the exact Swahili-first empathetic message from the doc
+- Update resource numbers to match doc: Befrienders Kenya 0800 723 253, Kenya Red Cross +254 703 037 000, AMREF 0800 720 021
+- File: `supabase/functions/wellness-ai-chat/index.ts`, `src/components/biashara-mind/CrisisButton.tsx`
 
--- IDOR Protection: Users can only access their own entries
-CREATE POLICY "Users manage own wellness entries"
-  ON public.wellness_entries FOR ALL
-  TO authenticated
-  USING (user_id = auth.uid())
-  WITH CHECK (user_id = auth.uid());
+**1e. Micro-Journal Enhancements**
+- Add 3 journaling modes: BIASHARA_YANGU, MIMI_MWENYEWE, SHUKRANI with mode-specific culturally-grounded prompts
+- Add privacy badge: "Maneno yako yanabaki yako" with padlock icon
+- File: `src/components/biashara-mind/MicroJournal.tsx`
 
--- Add updated_at trigger to competitors
-CREATE TRIGGER update_competitors_updated_at
-  BEFORE UPDATE ON public.competitors
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-```
+**1f. Wellness Streak Milestones**
+- Add milestone labels: 7 days = "Msimamizi", 30 days = "Kiongozi", 90 days = "Mzee"
+- Display in DailyCheckin and Wellness page header
+- File: `src/components/biashara-mind/DailyCheckin.tsx`, `src/pages/Wellness.tsx`
 
-### 3. Security Hardening — IDOR Prevention Audit
+---
 
-Fix mutations across hooks to ensure business_id scoping:
+### Phase 2: CompetEdge Intelligence Upgrades
 
-- **`useCompetitors.tsx`** — `deleteCompetitor` currently only filters by `id`. Add `.eq('business_id', businessId)` to prevent cross-business deletion.
-- **`useCustomers.tsx`** — Verify `deleteCustomer` and `updateCustomer` include `business_id` filter.
-- **`useNotifications.tsx`** — Fix `markAsRead` and `markAsClicked` to include `.eq('user_id', user.id)` filter to prevent unauthorized notification manipulation.
-- **`useMessages.tsx`** — `sendMessage` should verify conversation belongs to user's business (RLS handles this, but add client-side guard).
+**2a. Enhanced Competitor Card with Momentum Score**
+- Add animated progress ring showing momentum (0-100)
+- Add growth status badges: Surging/Growing/Stable/Declining
+- File: `src/components/competitors/CompetitorCard.tsx`
 
-### 4. Fix Notification Sound Duplication
+**2b. Reels Intelligence Grid Upgrade**
+- Add "Viral Alert" badge when engagement > 2x average
+- Add AI content analysis button calling `generate-content` edge function
+- Add "Get Inspired" button that navigates to `/social` with pre-filled brief
+- File: `src/components/competitors/CompetitorReelsFeed.tsx`
 
-`useNotifications.tsx` still creates `new Audio('/notification.mp3')` directly. Replace with the base64 data URI from `useNotificationSound.tsx` or import and use the existing hook. Remove dead code path.
+**2c. Hashtag Intelligence Panel**
+- New component showing extracted hashtags from competitor mock data
+- Hashtag frequency, average engagement, trending indicator
+- "Use Winning Hashtags" one-click copy
+- File: `src/components/competitors/HashtagIntelligence.tsx` (new)
+- Integrate into Competitors page as new tab
 
-### 5. Competitor Reels — Functional Interactions
+---
 
-Make the Reels feed interactive:
-- **Save for Reference** button saves bookmarked competitor content to localStorage with a "Saved" badge
-- **Content Gap Analysis** button calls the existing `generate-content` edge function with competitor context to suggest content ideas
-- Add filter pills by platform (Instagram, TikTok, YouTube) that actually filter the feed
-- Add "Analyze Niche" button on CompetitorTracker that generates AI insights via existing edge function
+### Phase 3: SmartReach Vision + Predict + Customer DNA
 
-### 6. Dashboard Quick Actions — Wire Up All Buttons
+**3a. Vision Page Enhancement**
+- Add batch processing UI (upload multiple products)
+- Add background selection options from spec: White Studio, Market Scene, Outdoor Nairobi, Custom Color
+- File: `src/pages/Vision.tsx`
 
-Review `QuickActions.tsx` and ensure every action navigates or triggers real functionality:
-- "New Conversation" → navigate to `/inbox`
-- "Create Campaign" → navigate to `/marketing`  
-- "Schedule Post" → navigate to `/social`
-- "View Reports" → navigate to `/reports`
+**3b. Demand Forecast Integration**
+- Wire `DemandForecast.tsx` into the Inventory page
+- Add Kenyan market cycle awareness display (M-Pesa salary dates, Eid, holidays)
+- File: `src/pages/Inventory.tsx`
 
-### 7. Security Logging Enhancement
+**3c. Customer DNA Integration**
+- Wire `CustomerDNA.tsx` into the Customers page
+- Add churn risk indicators and segment badges
+- File: `src/pages/Customers.tsx`
 
-Add client-side security event logging for:
-- Failed login attempts (already rate-limited, now also logged via `log_security_event` RPC)
-- Password changes
-- Profile updates with sensitive fields
+---
 
-Update `AuthForm.tsx` to call `supabase.rpc('log_security_event', ...)` on failed sign-in after rate limit check.
+### Phase 4: Security Hardening
+
+**4a. Enhanced Auth Security Logging**
+- Log all failed login attempts with IP metadata via `log_security_event` RPC
+- Already partially done — verify and ensure it fires consistently
+- File: `src/components/auth/AuthForm.tsx`
+
+**4b. IDOR Final Audit**
+- Verify all mutation hooks scope to business_id/user_id (already fixed in prior iteration — confirm no regressions)
 
 ---
 
 ### Technical Details
 
-**New files:**
-- `supabase/functions/wellness-ai-chat/index.ts` — AI wellness companion endpoint
+**Files to modify (12):**
+- `src/components/layout/DashboardLayout.tsx` — fix Brain import + add BRS pulse animation
+- `src/components/biashara-mind/DailyCheckin.tsx` — expand prompts + milestone labels
+- `src/components/biashara-mind/MicroJournal.tsx` — 3 journaling modes + privacy badge
+- `src/components/biashara-mind/CrisisButton.tsx` — updated crisis resources
+- `src/components/biashara-mind/BurnoutGauge.tsx` — Swahili zone descriptions
+- `src/components/competitors/CompetitorReelsFeed.tsx` — viral alerts + "Get Inspired"
+- `src/components/competitors/CompetitorCard.tsx` — momentum ring
+- `src/pages/Wellness.tsx` — streak milestones display
+- `src/pages/Inventory.tsx` — integrate DemandForecast
+- `src/pages/Customers.tsx` — integrate CustomerDNA
+- `src/pages/Competitors.tsx` — add Hashtag tab
+- `supabase/functions/wellness-ai-chat/index.ts` — comprehensive system prompt upgrade
 
-**Modified files:**
-- `src/components/wellness/MoodTracker.tsx` — persist to DB, show AI responses
-- `src/components/wellness/MentalHealthWidget.tsx` — persist journal to DB
-- `src/components/competitors/CompetitorReelsFeed.tsx` — save/filter functionality
-- `src/components/competitors/CompetitorTracker.tsx` — AI niche analysis button
-- `src/hooks/useCompetitors.tsx` — IDOR fix (add business_id to mutations)
-- `src/hooks/useNotifications.tsx` — IDOR fix + fix notification sound
-- `src/components/dashboard/QuickActions.tsx` — wire navigation
-- `src/components/auth/AuthForm.tsx` — security event logging
-- `supabase/config.toml` — add wellness-ai-chat function config
+**Files to create (1):**
+- `src/components/competitors/HashtagIntelligence.tsx`
 
-**Database migration:**
-- Create `wellness_entries` table with strict user-only RLS
-- Add `updated_at` trigger on `competitors`
-
+**No new database migrations needed** — existing tables cover all data requirements.
 **No new dependencies needed.**
 
