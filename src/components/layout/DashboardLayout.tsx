@@ -27,6 +27,7 @@ import {
   Heart,
   Target,
   Camera,
+  Brain,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';

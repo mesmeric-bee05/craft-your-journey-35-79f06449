@@ -8,6 +8,7 @@ import { Plus, Search, Users, RefreshCw } from 'lucide-react';
 import { useCustomers, type Customer } from '@/hooks/useCustomers';
 import { CustomerCard } from '@/components/customers/CustomerCard';
 import { CustomerStats } from '@/components/customers/CustomerStats';
+import { CustomerDNA } from '@/components/customers/CustomerDNA';
 import { AddEditCustomerDialog } from '@/components/customers/AddEditCustomerDialog';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -74,6 +75,9 @@ export default function Customers() {
 
         {/* Stats */}
         <CustomerStats customers={customers} />
+
+        {/* Customer DNA Intelligence */}
+        {customers.length > 0 && <CustomerDNA customers={customers} />}
 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3">

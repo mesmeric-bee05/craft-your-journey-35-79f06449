@@ -6,6 +6,7 @@ import { ProductsTab } from '@/components/inventory/ProductsTab';
 import { LowStockAlerts } from '@/components/inventory/LowStockAlerts';
 import { StockMovementsTab } from '@/components/inventory/StockMovementsTab';
 import { SuppliersTab } from '@/components/inventory/SuppliersTab';
+import { DemandForecast } from '@/components/inventory/DemandForecast';
 import { AddEditProductDialog } from '@/components/inventory/AddEditProductDialog';
 import { AdjustStockDialog } from '@/components/inventory/AdjustStockDialog';
 import { useProducts, Product } from '@/hooks/useProducts';
@@ -66,6 +67,7 @@ export default function Inventory() {
                 </span>
               )}
             </TabsTrigger>
+            <TabsTrigger value="forecast">AI Forecast</TabsTrigger>
             <TabsTrigger value="movements">Movements</TabsTrigger>
             <TabsTrigger value="suppliers">Suppliers</TabsTrigger>
           </TabsList>
@@ -83,6 +85,10 @@ export default function Inventory() {
 
           <TabsContent value="low-stock">
             <LowStockAlerts products={products} suppliers={suppliers} onAdjustStock={setAdjustProduct} />
+          </TabsContent>
+
+          <TabsContent value="forecast">
+            <DemandForecast products={products} />
           </TabsContent>
 
           <TabsContent value="movements">

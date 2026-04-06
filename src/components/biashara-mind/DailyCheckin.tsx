@@ -14,7 +14,77 @@ const DAILY_QUESTIONS = [
   'What small thing are you proud of from yesterday?',
   'Je, umeshukuru mtu yeyote wiki hii?',
   'Unajisikiaje kuhusu biashara yako leo?',
+  'What challenge are you facing in your business right now?',
+  'Nani amekusaidia wiki hii? How did that feel?',
+  'If you could change one thing about your week, nini ingebadilika?',
+  'What is your biggest fear about your business this month?',
+  'Kuna mtu ambaye amekushtua kwa wema wake?',
+  'What is your business dream for the next 3 months?',
+  'How are you taking care of your body this week?',
+  'Umejifunza nini kipya kuhusu biashara yako?',
+  'What would you tell a friend in your situation?',
+  'Je, umepumzika vya kutosha wiki hii?',
+  'What is one thing you are grateful for today?',
+  'Biashara yako inakufanya ujisikie vipi — free or trapped?',
+  'If today was your last day in business, what would you miss?',
+  'What conversation have you been avoiding?',
+  'Unahitaji msaada gani leo? From whom?',
+  'What boundary do you need to set this week?',
+  'How has money stress affected your mood?',
+  'Kuna kitu unachokificha ndani yako?',
+  'What did you do just for yourself this week?',
+  'How is your family handling your entrepreneurship journey?',
+  'What is the best compliment a customer has given you?',
+  'Unajisikiaje kuhusu mustakabali — future?',
+  'What habit is holding your business back?',
+  'Nini inakufanya utabasamu leo?',
+  'Have you compared yourself to other entrepreneurs? How did that feel?',
+  'What would make your customers happier this week?',
+  'Unaomba nini kwa Mungu/universe leo?',
+  'What skill do you wish you had for your business?',
+  'How do you handle rejection from customers?',
+  'Je, unapenda kazi yako? Why or why not?',
+  'What is one thing you need to let go of?',
+  'Mwili wako unasemaje leo — are you listening?',
+  'Who inspires you in business and why?',
+  'What does success look like for you — not society?',
+  'Je, unajisikia mpweke katika safari yako ya biashara?',
+  'How do you recharge when business drains you?',
+  'What is one win from this week — hata ndogo?',
+  'Are you spending enough time with people you love?',
+  'Unahisi pressure kutoka wapi zaidi — family, business, or self?',
+  'What is the bravest thing you did this month?',
+  'How do you feel when you open your M-Pesa statement?',
+  'What would a perfect Saturday look like for you?',
+  'Je, umesema "hapana" kwa mtu yeyote wiki hii?',
+  'What does "balance" mean in your life right now?',
+  'Unafikiri nini kabla ya kulala?',
+  'What makes you different from your competitors — honestly?',
+  'How do you celebrate small wins?',
+  'Kuna jambo unalojutia wiki hii?',
+  'What would you tell your past self before starting business?',
+  'How do you handle days when everything goes wrong?',
+  'Je, una mtu wa kuongea naye — truly?',
+  'What part of your business brings you the most joy?',
+  'Unahisi nini hivi sasa — right this second?',
+  'What advice would a wise elder give you today?',
 ];
+
+function getTimeGreeting(): string {
+  const hour = new Date().getHours();
+  // Adjust for EAT (UTC+3) approximation
+  if (hour >= 4 && hour < 12) return 'Habari za asubuhi! 🌅';
+  if (hour >= 12 && hour < 17) return 'Habari za mchana! ☀️';
+  if (hour >= 17 && hour < 21) return 'Habari za jioni! 🌇';
+  return 'Habari za usiku! 🌙';
+}
+
+function getStreakTitle(streak: number): string {
+  if (streak >= 90) return '🏆 Mzee';
+  if (streak >= 30) return '🌟 Kiongozi';
+  if (streak >= 7) return '💪 Msimamizi';
+  return '';
+}
 
 export function DailyCheckin() {
   const { submitCheckin, todayCheckin, streak } = useBiasharaMind();
@@ -22,7 +92,8 @@ export function DailyCheckin() {
   const [freeText, setFreeText] = useState('');
   const [submitted, setSubmitted] = useState(!!todayCheckin);
 
-  const question = DAILY_QUESTIONS[new Date().getDay() % DAILY_QUESTIONS.length];
+  const question = DAILY_QUESTIONS[Math.floor(Date.now() / 86400000) % DAILY_QUESTIONS.length];
+  const streakTitle = getStreakTitle(streak);
 
   const handleSubmit = async () => {
     if (!selected) return;
@@ -52,7 +123,7 @@ export function DailyCheckin() {
             <Badge variant="secondary" className="gap-1">
               <Flame className="w-3 h-3 text-orange-500" />
               {streak}-day streak!
-              {streak >= 90 ? ' 🏆 Mzee' : streak >= 30 ? ' 🌟 Kiongozi' : streak >= 7 ? ' 💪 Msimamizi' : ''}
+              {streakTitle && ` ${streakTitle}`}
             </Badge>
           )}
         </CardContent>
@@ -65,11 +136,12 @@ export function DailyCheckin() {
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-display">
-            Habari za asubuhi! Unajisikiaje leo? 🌅
+            {getTimeGreeting()} Unajisikiaje leo?
           </CardTitle>
           {streak > 0 && (
             <Badge variant="outline" className="gap-1 text-xs">
               <Flame className="w-3 h-3 text-orange-500" /> {streak}
+              {streakTitle && <span className="ml-1">{streakTitle}</span>}
             </Badge>
           )}
         </div>
