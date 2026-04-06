@@ -15,11 +15,14 @@ function checkRate(key: string, max: number, windowMs: number): boolean {
   return true;
 }
 
-// Crisis keywords detection
+// Expanded crisis keywords (Swahili + English)
 const CRISIS_KEYWORDS = [
-  'suicide', 'kill myself', 'end my life', 'self-harm', 'hurt myself',
-  'want to die', 'no reason to live', 'better off dead', 'can\'t go on',
-  'giving up on life', 'hopeless', 'kujiua', 'kumaliza maisha',
+  'sitaki kuishi', 'nauawa', 'naomba msaada', 'suicide', 'i want to die',
+  'kill myself', 'no point', 'end it all', 'sina sababu', 'naenda',
+  'i give up on everything', 'siwezi tena', 'nimechoka maisha',
+  'kujiua', 'kumaliza maisha', 'self-harm', 'hurt myself', 'want to die',
+  'no reason to live', 'better off dead', "can't go on", 'giving up on life',
+  'hopeless', 'end my life',
 ];
 
 function detectCrisis(text: string): boolean {
@@ -28,51 +31,59 @@ function detectCrisis(text: string): boolean {
 }
 
 const CRISIS_RESOURCES = [
-  { name: 'Befrienders Kenya', phone: '+254 722 178 177', available: '24/7' },
-  { name: 'Kenya Red Cross Psychosocial Support', phone: '1199', available: '24/7' },
-  { name: 'Amani Counselling Centre (Nairobi)', phone: '+254 20 445 2068', available: 'Mon-Sat 8am-6pm' },
+  { name: 'Befrienders Kenya', phone: '0800 723 253', available: '24/7, bure/free' },
+  { name: 'Kenya Red Cross Psychosocial', phone: '+254 703 037 000', available: '24/7' },
+  { name: 'AMREF Health Africa', phone: '0800 720 021', available: '24/7, bure/free' },
 ];
 
 const RAFIKI_SYSTEM_PROMPT = `You are Rafiki AI — a warm, culturally-grounded mental wellness companion embedded inside SmartReach AI, built for Kenyan and East African entrepreneurs.
 
 YOUR IDENTITY:
 - Your name "Rafiki" means "friend" in Swahili — embody this completely.
-- You speak English and Swahili fluidly. Switch languages based on the user's preference.
+- You speak English and Swahili fluidly. Mirror the user's language choice.
 - You understand the unique pressures of running a small business in Kenya: M-Pesa float management, customer debt, family business expectations, informal market competition, seasonal fluctuations, and the loneliness of entrepreneurship.
-- You reference relevant African proverbs where genuinely helpful: "Haraka haraka haina baraka" (rush rush has no blessing), "Umoja ni nguvu" (unity is strength).
+- You reference relevant African proverbs where genuinely helpful: "Haraka haraka haina baraka", "Umoja ni nguvu", "Mwacha mila ni mtumwa".
+
+YOUR 4-STEP PROTOCOL (EVERY response):
+1. RECEIVE — Acknowledge what the user said. Show you heard them.
+2. VALIDATE — Normalize their feelings. "Ni kawaida kujisikia hivyo."
+3. EXPLORE — Ask ONE gentle question to go deeper or reframe.
+4. RESOURCE — End with ONE concrete, doable action for the next 24 hours OR an affirmation.
 
 YOUR THERAPEUTIC APPROACH:
-- Use active listening: reflect back what you hear before responding.
 - Use CBT reframing to gently challenge negative automatic thoughts about business failure.
-- Use Solution-Focused Brief Therapy (SFBT) to identify what IS working: "What one thing went well this week?"
-- Use ACT values clarification: "Mbona unafanya biashara?" (Why do you do business?) to reconnect with purpose.
+- Use Solution-Focused Brief Therapy (SFBT): "What one thing went well this week?"
+- Use ACT values clarification: "Mbona unafanya biashara?" to reconnect with purpose.
 - Offer mindfulness micro-exercises when users are in acute stress (breathing, grounding).
-- Always end with ONE concrete, doable action for the next 24 hours.
 
 YOUR BOUNDARIES — CRITICAL:
 - You are NOT a therapist. You do NOT diagnose. You do NOT prescribe medication.
 - You ALWAYS recommend professional support when distress is significant.
-- You tell users: "This conversation is private and supportive — not a substitute for professional care."
+- You tell users: "Mimi si daktari wa akili — ni rafiki anayesikiliza."
+- If you detect crisis language, respond ONLY with crisis resources. Do not attempt therapy.
 
 CULTURAL CALIBRATION:
-- Acknowledge mental health stigma in Kenyan culture. Use relatable language: "feeling tired of it all" rather than "depression symptoms."
+- Acknowledge mental health stigma in Kenyan culture. Use relatable language: "kuchoka sana" rather than "depression symptoms."
 - Respect religious faith frameworks — work with them, never against them.
 - Acknowledge gender dynamics in entrepreneurship sensitively.
 - Celebrate harambee spirit: community, collective resilience, Ubuntu philosophy.
+- Reference Kenyan business realities: M-Pesa cycles, matatu economy, jua kali sector.
 
 CONVERSATION STYLE:
-- Warm, peer-like, never clinical or robotic. Keep responses to 2-4 sentences.
+- Warm, peer-like, never clinical or robotic. Keep responses to 2-4 sentences max.
 - Ask one question at a time. Validate before advising. Always validate first.
-- Sessions should feel like talking to a wise, caring friend who understands both business and human psychology.`;
+- Sessions should feel like talking to a wise, caring friend at a chai spot.
+- Use emoji sparingly but warmly: 💛 ✨ 🌱`;
 
-const CRISIS_RESPONSE = `I hear you, and I want you to know that you are not alone. Your feelings are valid, and there are people who care about you and want to help right now.
+const CRISIS_RESPONSE = `Nimekusikia, na ninakushukuru kwa ujasiri wa kuniambia. Hukupaswa kubeba hii peke yako. 💛
 
-Please reach out to one of these free, confidential support lines:
-• Befrienders Kenya: +254 722 178 177 (24/7)
-• Kenya Red Cross Psychosocial Support: 1199 (24/7)
-• Amani Counselling Centre: +254 20 445 2068
+Tafadhali wasiliana na mtu anayeweza kukusaidia sasa hivi — ni bure na siri:
 
-You matter. Your life matters. Tafadhali piga simu sasa — please call now. 💛`;
+• Befrienders Kenya: 0800 723 253 (24/7, bure)
+• Kenya Red Cross: +254 703 037 000 (24/7)
+• AMREF Health Africa: 0800 720 021 (24/7, bure)
+
+Uko muhimu. Maisha yako yana thamani kubwa. Tafadhali piga simu sasa — kuna mtu anayengoja kukusaidia. 💛`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -122,7 +133,16 @@ Deno.serve(async (req) => {
     // Crisis detection on input
     const inputText = [mood, journalText, chatMessage].filter(Boolean).join(' ');
     if (detectCrisis(inputText)) {
-      return new Response(JSON.stringify({ 
+      // Log crisis event
+      await supabase.from('crisis_events').insert({
+        user_id: user.id,
+        trigger_type: 'keyword_detection',
+        trigger_source: 'wellness_chat',
+        crisis_confidence: 0.9,
+        resources_displayed: CRISIS_RESOURCES,
+      });
+
+      return new Response(JSON.stringify({
         response: CRISIS_RESPONSE,
         crisisDetected: true,
         crisisResources: CRISIS_RESOURCES,
@@ -145,14 +165,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    const aiResponse = await fetch("https://api.lovable.dev/v1/chat/completions", {
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
+        model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: RAFIKI_SYSTEM_PROMPT },
           ...(Array.isArray(history) ? history.slice(-6) : []),
@@ -164,9 +184,22 @@ Deno.serve(async (req) => {
     });
 
     if (!aiResponse.ok) {
-      console.error("AI API error:", aiResponse.status);
-      return new Response(JSON.stringify({ 
-        response: "Rafiki is here for you. Take a deep breath — pole pole ndio mwendo. You're doing great just by checking in. 💛" 
+      const status = aiResponse.status;
+      if (status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again later." }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (status === 402) {
+        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits." }), {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      console.error("AI API error:", status);
+      return new Response(JSON.stringify({
+        response: "Rafiki yuko hapa. Pumzika kidogo — pole pole ndio mwendo. Umefanya vizuri kuja hapa leo. 💛"
       }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -174,10 +207,10 @@ Deno.serve(async (req) => {
     }
 
     const aiData = await aiResponse.json();
-    const message = aiData.choices?.[0]?.message?.content || 
-      "Remember: taking a moment to check in with yourself shows wisdom. Haraka haraka haina baraka — slow and steady. 💛";
+    const message = aiData.choices?.[0]?.message?.content ||
+      "Umefanya vizuri kuja hapa. Haraka haraka haina baraka — take it one step at a time. 💛";
 
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       response: message,
       crisisDetected: false,
     }), {

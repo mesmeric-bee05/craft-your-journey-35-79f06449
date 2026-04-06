@@ -2,8 +2,9 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CompetitorTracker } from '@/components/competitors/CompetitorTracker';
 import { CompetitorReelsFeed } from '@/components/competitors/CompetitorReelsFeed';
+import { HashtagIntelligence } from '@/components/competitors/HashtagIntelligence';
 import { useCompetitors } from '@/hooks/useCompetitors';
-import { Target, Film, BarChart3 } from 'lucide-react';
+import { Target, Film, BarChart3, Hash } from 'lucide-react';
 
 export default function Competitors() {
   const { competitors } = useCompetitors();
@@ -29,6 +30,9 @@ export default function Competitors() {
             <TabsTrigger value="reels" className="gap-1.5">
               <Film className="w-4 h-4" />Reels Feed
             </TabsTrigger>
+            <TabsTrigger value="hashtags" className="gap-1.5">
+              <Hash className="w-4 h-4" />Hashtags
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">
@@ -37,6 +41,10 @@ export default function Competitors() {
 
           <TabsContent value="reels">
             <CompetitorReelsFeed competitors={competitors.map((c: any) => ({ id: c.id, name: c.name }))} />
+          </TabsContent>
+
+          <TabsContent value="hashtags">
+            <HashtagIntelligence competitors={competitors.map((c: any) => ({ id: c.id, name: c.name }))} />
           </TabsContent>
         </Tabs>
       </div>
