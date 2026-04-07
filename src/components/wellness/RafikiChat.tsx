@@ -16,9 +16,9 @@ interface ChatMessage {
 }
 
 const CRISIS_RESOURCES = [
-  { name: 'Befrienders Kenya', phone: '+254 722 178 177', available: '24/7' },
-  { name: 'Kenya Red Cross', phone: '1199', available: '24/7' },
-  { name: 'Amani Counselling', phone: '+254 20 445 2068', available: 'Mon-Sat' },
+  { name: 'Befrienders Kenya', phone: '0800 723 253', available: '24/7, free' },
+  { name: 'Kenya Red Cross Psychosocial', phone: '+254 703 037 000', available: '24/7' },
+  { name: 'AMREF Health Africa', phone: '0800 720 021', available: '24/7, free' },
 ];
 
 export function RafikiChat() {
@@ -155,7 +155,7 @@ export function RafikiChat() {
         {/* Crisis resources always visible */}
         <div className="px-4 py-1.5 border-t bg-muted/30">
           <p className="text-[10px] text-muted-foreground text-center">
-            Need help now? <a href="tel:+254722178177" className="text-primary font-medium">Befrienders Kenya: +254 722 178 177</a> (24/7)
+            Need help now? <a href="tel:0800723253" className="text-primary font-medium">Befrienders Kenya: 0800 723 253</a> (24/7, free)
           </p>
         </div>
 
