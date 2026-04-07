@@ -14,8 +14,16 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useBiasharaMind } from '@/hooks/useBiasharaMind';
 
+function getStreakMilestone(streak: number): { label: string; emoji: string } | null {
+  if (streak >= 90) return { label: 'Mzee', emoji: '👑' };
+  if (streak >= 30) return { label: 'Kiongozi', emoji: '🌟' };
+  if (streak >= 7) return { label: 'Msimamizi', emoji: '🔥' };
+  return null;
+}
+
 export default function Wellness() {
   const { tokenBalance, streak } = useBiasharaMind();
+  const milestone = getStreakMilestone(streak);
 
   return (
     <DashboardLayout>
@@ -31,9 +39,12 @@ export default function Wellness() {
               Afya yako ya akili ina thamani ya biashara yako. <span className="italic">Your mental health is your business asset.</span>
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             {streak > 0 && (
-              <Badge variant="secondary" className="gap-1">🔥 {streak}-day streak</Badge>
+              <Badge variant="secondary" className="gap-1">
+                🔥 {streak}-day streak
+                {milestone && <span className="ml-1">{milestone.emoji} {milestone.label}</span>}
+              </Badge>
             )}
             <Badge variant="outline" className="gap-1">✨ {tokenBalance} tokens</Badge>
           </div>
@@ -41,7 +52,7 @@ export default function Wellness() {
 
         {/* 4-Tab Architecture */}
         <Tabs defaultValue="how-i-feel" className="space-y-6">
-          <TabsList className="grid grid-cols-4 w-full max-w-2xl">
+          <TabsList className="grid grid-cols-4 w-full max-w-2xl overflow-x-auto">
             <TabsTrigger value="how-i-feel" className="gap-1.5 text-xs sm:text-sm">
               <Heart className="w-4 h-4" /> How I Feel
             </TabsTrigger>
@@ -88,7 +99,10 @@ export default function Wellness() {
               <MoodHeatmap />
               <BurnoutGauge />
             </div>
-            <WinsVault />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <WinsVault />
+              <BreathingExercise />
+            </div>
           </TabsContent>
 
           {/* TAB 4: Community */}
