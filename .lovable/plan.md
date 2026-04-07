@@ -1,123 +1,117 @@
 
 
-## Plan: Fix Build Error + Comprehensive Feature Enhancement
+## Plan: Comprehensive Project Enhancement — UI/UX Polish, Feature Completion, Security Hardening
 
-### Immediate Fix
-The build error is caused by `Brain` being used on line 74 of `DashboardLayout.tsx` but not included in the import statement (lines 3-30). `Brain` is a valid lucide-react icon — it just needs to be added to the import list.
-
-**File:** `src/components/layout/DashboardLayout.tsx`
-- Add `Brain` to the lucide-react import on line 3-30
+### Current State
+The project has strong foundations: auth, onboarding, Biashara Mind wellness module, competitor intelligence, inventory, CRM, and a landing page. Key gaps include inconsistent crisis resource numbers in RafikiChat vs CrisisButton, some non-functional UI elements, landing page missing new features (Biashara Mind, Vision, CompetEdge), and several polish opportunities.
 
 ---
 
-### Phase 1: Biashara Mind Enhancements (per Master Prompt)
+### Phase 1: Fix Inconsistencies and Dead Code
 
-Based on the uploaded documents, the existing Biashara Mind module needs these upgrades:
+**1a. Sync Crisis Resources in RafikiChat.tsx**
+The `RafikiChat.tsx` component has outdated crisis numbers (`+254 722 178 177`, `1199`, `+254 20 445 2068`) that don't match the authoritative list in `CrisisButton.tsx` and the edge function. Update to match: Befrienders Kenya `0800 723 253`, Kenya Red Cross `+254 703 037 000`, AMREF `0800 720 021`.
 
-**1a. Expand Daily Check-in Prompts Pool**
-- Increase from 6 to 60 culturally-grounded daily questions (Swahili/English mix)
-- Add morning time-awareness greeting: "Habari za asubuhi!" between 7-9 AM EAT
-- File: `src/components/biashara-mind/DailyCheckin.tsx`
-
-**1b. Enhanced Burnout Risk Score with 4 Zones**
-- Current BRS uses GREEN/AMBER/ORANGE/RED — matches spec. Add Swahili zone descriptions from the master prompt (Unastawi, Angalia, Pumzika, Hatua ya haraka)
-- Add animated pulse on nav icon when BRS is AMBER+ (DashboardLayout sidebar)
-- File: `src/components/biashara-mind/BurnoutGauge.tsx`, `DashboardLayout.tsx`
-
-**1c. Upgrade Rafiki AI System Prompt**
-- Update `wellness-ai-chat` edge function with the comprehensive Biashara Mind system prompt from the master doc (4-step RECEIVE/VALIDATE/EXPLORE/RESOURCE protocol, cultural calibration, crisis keywords list)
-- File: `supabase/functions/wellness-ai-chat/index.ts`
-
-**1d. Enhanced Crisis Protocol**
-- Add the expanded crisis keyword list from the doc: `["sitaki kuishi", "nauawa", "naomba msaada", "suicide", "I want to die", "kill myself", "no point", "end it all", "sina sababu", "naenda", "I give up on everything", "siwezi tena", "nimechoka maisha"]`
-- Update crisis response with the exact Swahili-first empathetic message from the doc
-- Update resource numbers to match doc: Befrienders Kenya 0800 723 253, Kenya Red Cross +254 703 037 000, AMREF 0800 720 021
-- File: `supabase/functions/wellness-ai-chat/index.ts`, `src/components/biashara-mind/CrisisButton.tsx`
-
-**1e. Micro-Journal Enhancements**
-- Add 3 journaling modes: BIASHARA_YANGU, MIMI_MWENYEWE, SHUKRANI with mode-specific culturally-grounded prompts
-- Add privacy badge: "Maneno yako yanabaki yako" with padlock icon
-- File: `src/components/biashara-mind/MicroJournal.tsx`
-
-**1f. Wellness Streak Milestones**
-- Add milestone labels: 7 days = "Msimamizi", 30 days = "Kiongozi", 90 days = "Mzee"
-- Display in DailyCheckin and Wellness page header
-- File: `src/components/biashara-mind/DailyCheckin.tsx`, `src/pages/Wellness.tsx`
+**1b. Fix `useBiasharaMind.tsx` type casts**
+The hook uses `as any` type casts on Supabase table names (`mental_health_checkins as any`). These should reference the proper types or use validated table names. Clean up for type safety.
 
 ---
 
-### Phase 2: CompetEdge Intelligence Upgrades
+### Phase 2: Landing Page Enhancement
 
-**2a. Enhanced Competitor Card with Momentum Score**
-- Add animated progress ring showing momentum (0-100)
-- Add growth status badges: Surging/Growing/Stable/Declining
-- File: `src/components/competitors/CompetitorCard.tsx`
+**2a. Add Missing Feature Cards**
+The landing page features array only lists 8 features. Add:
+- Biashara Mind (wellness/mental health)
+- SmartReach Vision (AI product photography)
+- CompetEdge Intelligence (competitor monitoring)
+- Automation Workflows
 
-**2b. Reels Intelligence Grid Upgrade**
-- Add "Viral Alert" badge when engagement > 2x average
-- Add AI content analysis button calling `generate-content` edge function
-- Add "Get Inspired" button that navigates to `/social` with pre-filled brief
-- File: `src/components/competitors/CompetitorReelsFeed.tsx`
+**2b. Add a "Trusted By" / Social Proof section**
+Add a partner/integration logos strip between hero and features (M-Pesa, WhatsApp, Instagram, TikTok, Safaricom).
 
-**2c. Hashtag Intelligence Panel**
-- New component showing extracted hashtags from competitor mock data
-- Hashtag frequency, average engagement, trending indicator
-- "Use Winning Hashtags" one-click copy
-- File: `src/components/competitors/HashtagIntelligence.tsx` (new)
-- Integrate into Competitors page as new tab
+**2c. Enhance Hero with Animated Gradient**
+Add a subtle animated mesh gradient background to the hero section for a more premium feel.
 
----
+**2d. Add FAQ Section**
+Add an accordion-based FAQ section before the CTA, addressing common questions about data privacy, M-Pesa integration, Swahili AI, and pricing.
 
-### Phase 3: SmartReach Vision + Predict + Customer DNA
-
-**3a. Vision Page Enhancement**
-- Add batch processing UI (upload multiple products)
-- Add background selection options from spec: White Studio, Market Scene, Outdoor Nairobi, Custom Color
-- File: `src/pages/Vision.tsx`
-
-**3b. Demand Forecast Integration**
-- Wire `DemandForecast.tsx` into the Inventory page
-- Add Kenyan market cycle awareness display (M-Pesa salary dates, Eid, holidays)
-- File: `src/pages/Inventory.tsx`
-
-**3c. Customer DNA Integration**
-- Wire `CustomerDNA.tsx` into the Customers page
-- Add churn risk indicators and segment badges
-- File: `src/pages/Customers.tsx`
+**2e. Mobile Navigation**
+Add a hamburger menu for the landing page nav on mobile (currently hidden on small screens).
 
 ---
 
-### Phase 4: Security Hardening
+### Phase 3: Dashboard Polish
 
-**4a. Enhanced Auth Security Logging**
-- Log all failed login attempts with IP metadata via `log_security_event` RPC
-- Already partially done — verify and ensure it fires consistently
-- File: `src/components/auth/AuthForm.tsx`
+**3a. Add Recent Activity Feed Enhancement**
+Wire `LiveActivityFeed` to show real data from conversations/messages tables rather than static placeholders.
 
-**4b. IDOR Final Audit**
-- Verify all mutation hooks scope to business_id/user_id (already fixed in prior iteration — confirm no regressions)
+**3b. Add WellnessScoreCard Data**
+Ensure `WellnessScoreCard` on the dashboard pulls real BRS data from the `useBiasharaMind` hook.
+
+---
+
+### Phase 4: UI/UX Improvements Across Pages
+
+**4a. Smooth Page Transitions**
+Add `animate-fade-in` class consistently to all page roots (some pages have it, some don't).
+
+**4b. Empty States**
+Add illustrated empty states for Customers, Inventory, and Competitors when there's no data, with clear CTAs.
+
+**4c. Mobile Responsive Audit**
+- Fix Wellness page tabs to scroll horizontally on small screens
+- Ensure Competitor Reels feed cards stack properly on mobile
+- Fix Dashboard stats grid spacing on mobile
+
+---
+
+### Phase 5: Feature Completion
+
+**5a. Wire QuickActions to Use Toast Confirmations**
+Quick Actions already navigate via `Link` (confirmed working). Add toast feedback when arriving at destination pages.
+
+**5b. Breathing Exercise Enhancement**
+Currently the `BreathingExercise` component exists but verify it's integrated into the "My Growth" tab of Wellness. Add guided breathing animations (inhale/hold/exhale visual circle).
+
+**5c. WinsVault Enhancement**
+Ensure WinsVault allows adding wins with tags and displays them in a timeline format.
+
+**5d. Vision Page — Add Before/After Preview**
+Add a split-view UI showing the original upload alongside the AI tips, making the workflow more intuitive.
+
+---
+
+### Phase 6: Security Final Pass
+
+**6a. Ensure all `as any` casts are audited**
+The `useBiasharaMind` hook and some other hooks cast table names with `as any`. While these work at runtime, they bypass type safety. Document these as known type-gap areas.
+
+**6b. Add CSP meta tag to index.html**
+Add a Content Security Policy meta tag to `index.html` to restrict script sources.
+
+**6c. Validate all form inputs have maxLength**
+Audit all `Textarea` and `Input` components to ensure they have `maxLength` props set, preventing oversized payloads.
 
 ---
 
 ### Technical Details
 
-**Files to modify (12):**
-- `src/components/layout/DashboardLayout.tsx` — fix Brain import + add BRS pulse animation
-- `src/components/biashara-mind/DailyCheckin.tsx` — expand prompts + milestone labels
-- `src/components/biashara-mind/MicroJournal.tsx` — 3 journaling modes + privacy badge
-- `src/components/biashara-mind/CrisisButton.tsx` — updated crisis resources
-- `src/components/biashara-mind/BurnoutGauge.tsx` — Swahili zone descriptions
-- `src/components/competitors/CompetitorReelsFeed.tsx` — viral alerts + "Get Inspired"
-- `src/components/competitors/CompetitorCard.tsx` — momentum ring
-- `src/pages/Wellness.tsx` — streak milestones display
-- `src/pages/Inventory.tsx` — integrate DemandForecast
-- `src/pages/Customers.tsx` — integrate CustomerDNA
-- `src/pages/Competitors.tsx` — add Hashtag tab
-- `supabase/functions/wellness-ai-chat/index.ts` — comprehensive system prompt upgrade
+**Files to modify (14):**
+- `src/pages/Index.tsx` — expanded features, FAQ section, mobile nav, social proof strip
+- `src/components/wellness/RafikiChat.tsx` — sync crisis resources
+- `src/pages/Wellness.tsx` — ensure BreathingExercise is in correct tab
+- `src/pages/Dashboard.tsx` — verify data flow for WellnessScoreCard
+- `src/components/dashboard/WellnessScoreCard.tsx` — wire to real BRS data
+- `src/components/dashboard/LiveActivityFeed.tsx` — real data integration
+- `src/pages/Customers.tsx` — empty state
+- `src/pages/Inventory.tsx` — empty state, animation
+- `src/pages/Competitors.tsx` — empty state, animation
+- `src/pages/Vision.tsx` — before/after UI
+- `src/hooks/useBiasharaMind.tsx` — type cleanup
+- `src/components/wellness/BreathingExercise.tsx` — guided animation
+- `src/components/biashara-mind/WinsVault.tsx` — timeline enhancement
+- `index.html` — CSP meta tag
 
-**Files to create (1):**
-- `src/components/competitors/HashtagIntelligence.tsx`
-
-**No new database migrations needed** — existing tables cover all data requirements.
+**No new database migrations needed.**
 **No new dependencies needed.**
 
