@@ -40,7 +40,7 @@ export function MicroJournal() {
             Micro-Journal
           </CardTitle>
           <Badge variant="outline" className="gap-1 text-xs">
-            <Lock className="w-3 h-3" /> Private
+            <Lock className="w-3 h-3" /> Maneno yako yanabaki yako 🔒
           </Badge>
         </div>
       </CardHeader>
@@ -67,16 +67,20 @@ export function MicroJournal() {
             value={content}
             onChange={(e) => setContent(e.target.value)}
             rows={4}
+            maxLength={2000}
             className="resize-none rounded-xl"
           />
           <div className="flex justify-between items-center">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setPrompt(getRandomPrompt(mode))}
-            >
-              New prompt ↻
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setPrompt(getRandomPrompt(mode))}
+              >
+                New prompt ↻
+              </Button>
+              <span className="text-xs text-muted-foreground">{content.length}/2000</span>
+            </div>
             <Button
               onClick={handleSubmit}
               disabled={!content.trim() || submitJournal.isPending}

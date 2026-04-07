@@ -1,12 +1,15 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Zap, MessageSquare, Share2, BarChart3, Wallet, Users, 
   Video, Package, Sparkles, ArrowRight, Check, Star,
-  Shield, Globe, Smartphone, ChevronRight
+  Shield, Globe, Smartphone, ChevronRight, Brain, Camera, Eye, 
+  Workflow, Menu, X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 const features = [
   {
@@ -54,7 +57,7 @@ const features = [
   {
     icon: Package,
     title: 'Inventory Intelligence',
-    description: 'Track products, suppliers, stock movements with low-stock alerts and reorder automation.',
+    description: 'Track products, suppliers, stock movements with low-stock alerts and AI-powered demand forecasting.',
     color: 'text-teal-500',
     bg: 'bg-teal-500/10',
   },
@@ -65,6 +68,34 @@ const features = [
     color: 'text-indigo-500',
     bg: 'bg-indigo-500/10',
   },
+  {
+    icon: Brain,
+    title: 'Biashara Mind™',
+    description: 'Mental wellness companion for entrepreneurs — mood tracking, burnout alerts, journaling, and AI therapy in Swahili.',
+    color: 'text-emerald-500',
+    bg: 'bg-emerald-500/10',
+  },
+  {
+    icon: Camera,
+    title: 'SmartReach Vision',
+    description: 'AI-powered product photography tips — get studio-quality composition advice from your phone camera.',
+    color: 'text-cyan-500',
+    bg: 'bg-cyan-500/10',
+  },
+  {
+    icon: Eye,
+    title: 'CompetEdge Intelligence',
+    description: 'Monitor competitors, track viral content, analyze hashtags, and discover content gaps in your niche.',
+    color: 'text-rose-500',
+    bg: 'bg-rose-500/10',
+  },
+  {
+    icon: Workflow,
+    title: 'Automation Workflows',
+    description: 'Build no-code automations for auto-replies, follow-ups, lead assignment, and team notifications.',
+    color: 'text-violet-500',
+    bg: 'bg-violet-500/10',
+  },
 ];
 
 const stats = [
@@ -72,6 +103,44 @@ const stats = [
   { value: '2M+', label: 'Messages Managed' },
   { value: '99.9%', label: 'Uptime' },
   { value: '4.9★', label: 'User Rating' },
+];
+
+const integrations = [
+  { name: 'M-Pesa', emoji: '💚' },
+  { name: 'WhatsApp', emoji: '💬' },
+  { name: 'Instagram', emoji: '📸' },
+  { name: 'TikTok', emoji: '🎵' },
+  { name: 'Facebook', emoji: '👥' },
+  { name: 'YouTube', emoji: '▶️' },
+  { name: 'Safaricom', emoji: '📱' },
+  { name: 'Gmail', emoji: '📧' },
+];
+
+const faqs = [
+  {
+    q: 'Is my data safe and private?',
+    a: 'Absolutely. SmartReach AI uses enterprise-grade security with row-level data isolation, encrypted storage, MFA support, and full audit logging. We are ODPC (Office of the Data Protection Commissioner) compliant and your data never leaves secured servers.',
+  },
+  {
+    q: 'How does M-Pesa integration work?',
+    a: 'We integrate directly with Safaricom\'s M-Pesa API via STK Push. Your customers can pay via their phone, and you receive instant notifications with automatic reconciliation in your dashboard. No third-party middlemen.',
+  },
+  {
+    q: 'Does the AI really understand Swahili and Sheng?',
+    a: 'Yes! Our AI content engine is trained to generate marketing copy, captions, and customer responses in English, Swahili, and Sheng — with cultural nuances that resonate with East African audiences.',
+  },
+  {
+    q: 'Can I use SmartReach AI on my phone?',
+    a: 'SmartReach AI is mobile-first by design. The entire platform is optimized for mobile browsers with lightweight performance, so you can manage your business from anywhere — even on slow connections.',
+  },
+  {
+    q: 'What is Biashara Mind™?',
+    a: 'Biashara Mind™ is our built-in mental wellness companion designed specifically for entrepreneurs. It includes mood tracking, burnout risk monitoring, AI-powered therapy conversations in Swahili, journaling, and crisis support with local Kenyan helplines.',
+  },
+  {
+    q: 'Is there a free plan?',
+    a: 'Yes! Our Starter plan is completely free and includes 1 team member, 500 messages/month, 3 social channels, and basic AI content generation. Upgrade anytime as your business grows.',
+  },
 ];
 
 const pricingPlans = [
@@ -89,7 +158,7 @@ const pricingPlans = [
     price: 'KES 2,999',
     period: '/mo',
     description: 'For growing businesses scaling their operations',
-    features: ['5 Team Members', 'Unlimited Messages', 'All Social Channels', 'AI Content (Unlimited)', 'Advanced Analytics & SLA', 'M-Pesa Integration', 'Inventory Management', 'Priority Support'],
+    features: ['5 Team Members', 'Unlimited Messages', 'All Social Channels', 'AI Content (Unlimited)', 'Advanced Analytics & SLA', 'M-Pesa Integration', 'Inventory Management', 'Biashara Mind™', 'Priority Support'],
     cta: 'Start 14-Day Trial',
     highlighted: true,
   },
@@ -98,7 +167,7 @@ const pricingPlans = [
     price: 'Custom',
     period: '',
     description: 'For large teams with custom requirements',
-    features: ['Unlimited Team', 'Dedicated Account Manager', 'Custom Integrations', 'White-label Options', 'API Access', 'SLA Guarantee', 'On-premise Option'],
+    features: ['Unlimited Team', 'Dedicated Account Manager', 'Custom Integrations', 'White-label Options', 'API Access', 'SLA Guarantee', 'CompetEdge Intelligence', 'On-premise Option'],
     cta: 'Contact Sales',
     highlighted: false,
   },
@@ -126,7 +195,8 @@ const testimonials = [
 ];
 
 export default function Index() {
-  // JSON-LD structured data for SEO
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
@@ -155,11 +225,11 @@ export default function Index() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* JSON-LD Structured Data */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+
       {/* Navigation */}
       <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -175,24 +245,59 @@ export default function Index() {
               <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Features</a>
               <a href="#pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
               <a href="#testimonials" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Testimonials</a>
+              <a href="#faq" className="text-sm text-muted-foreground hover:text-foreground transition-colors">FAQ</a>
             </div>
             <div className="flex items-center gap-3">
-              <Link to="/auth">
+              <Link to="/auth" className="hidden sm:block">
                 <Button variant="ghost" size="sm">Sign In</Button>
               </Link>
-              <Link to="/auth">
+              <Link to="/auth" className="hidden sm:block">
                 <Button size="sm" className="bg-gradient-primary text-primary-foreground">
                   Get Started
                   <ArrowRight className="w-4 h-4 ml-1" />
                 </Button>
               </Link>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                aria-label="Toggle menu"
+              >
+                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </Button>
             </div>
           </div>
+          {/* Mobile menu */}
+          {mobileMenuOpen && (
+            <div className="md:hidden border-t border-border py-4 space-y-3 animate-fade-in">
+              <a href="#features" className="block text-sm text-muted-foreground hover:text-foreground py-2" onClick={() => setMobileMenuOpen(false)}>Features</a>
+              <a href="#pricing" className="block text-sm text-muted-foreground hover:text-foreground py-2" onClick={() => setMobileMenuOpen(false)}>Pricing</a>
+              <a href="#testimonials" className="block text-sm text-muted-foreground hover:text-foreground py-2" onClick={() => setMobileMenuOpen(false)}>Testimonials</a>
+              <a href="#faq" className="block text-sm text-muted-foreground hover:text-foreground py-2" onClick={() => setMobileMenuOpen(false)}>FAQ</a>
+              <div className="flex gap-2 pt-2">
+                <Link to="/auth" className="flex-1">
+                  <Button variant="outline" className="w-full" size="sm">Sign In</Button>
+                </Link>
+                <Link to="/auth" className="flex-1">
+                  <Button className="w-full bg-gradient-primary text-primary-foreground" size="sm">Get Started</Button>
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
       </nav>
 
       {/* Hero Section */}
       <section className="relative overflow-hidden">
+        {/* Animated mesh gradient */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute -top-1/2 -left-1/2 w-[200%] h-[200%] animate-[spin_30s_linear_infinite] opacity-[0.04]"
+            style={{
+              backgroundImage: 'radial-gradient(circle at 30% 40%, hsl(var(--primary)) 0%, transparent 50%), radial-gradient(circle at 70% 60%, hsl(var(--accent)) 0%, transparent 50%), radial-gradient(circle at 50% 20%, hsl(var(--chart-5)) 0%, transparent 40%)',
+            }}
+          />
+        </div>
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-28 relative">
           <div className="text-center max-w-4xl mx-auto">
@@ -222,11 +327,26 @@ export default function Index() {
                 </Button>
               </a>
             </div>
-            <div className="mt-8 flex items-center justify-center gap-6 text-sm text-muted-foreground">
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-sm text-muted-foreground">
               <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-success" /> No credit card needed</span>
               <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-success" /> M-Pesa ready</span>
               <span className="flex items-center gap-1.5"><Check className="w-4 h-4 text-success" /> Swahili & Sheng AI</span>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Trusted Integrations Strip */}
+      <section className="border-y border-border/50 bg-muted/20 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <p className="text-center text-xs font-medium text-muted-foreground uppercase tracking-widest mb-5">Integrates With Your Favorite Tools</p>
+          <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10">
+            {integrations.map((item) => (
+              <div key={item.name} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+                <span className="text-xl">{item.emoji}</span>
+                <span className="text-sm font-medium">{item.name}</span>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -287,6 +407,7 @@ export default function Index() {
                   { icon: Globe, title: 'Local Market Intelligence', desc: 'AI trained on African business contexts — understands local slang, cultural nuances, and market dynamics.' },
                   { icon: Smartphone, title: 'Mobile-First Design', desc: 'Optimized for the mobile-first African market with M-Pesa integration and lightweight performance.' },
                   { icon: Shield, title: 'Enterprise-Grade Security', desc: 'Row-level security, encrypted data, MFA support, and audit logging — your data stays protected.' },
+                  { icon: Brain, title: 'Entrepreneur Wellness', desc: 'Biashara Mind™ monitors burnout risk, offers AI therapy in Swahili, and celebrates your wins.' },
                 ].map((item) => (
                   <div key={item.title} className="flex gap-4">
                     <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
@@ -404,6 +525,28 @@ export default function Index() {
               </Card>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section id="faq" className="py-24">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <Badge variant="secondary" className="mb-4">FAQ</Badge>
+            <h2 className="text-3xl sm:text-4xl font-display font-bold text-foreground">
+              Frequently Asked Questions
+            </h2>
+          </div>
+          <Accordion type="single" collapsible className="w-full">
+            {faqs.map((faq, i) => (
+              <AccordionItem key={i} value={`faq-${i}`}>
+                <AccordionTrigger className="text-left text-foreground">{faq.q}</AccordionTrigger>
+                <AccordionContent className="text-muted-foreground leading-relaxed">
+                  {faq.a}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
         </div>
       </section>
 
