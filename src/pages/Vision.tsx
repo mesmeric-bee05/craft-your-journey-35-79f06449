@@ -73,6 +73,41 @@ export default function Vision() {
           </p>
         </div>
 
+        {/* Compare toggle */}
+        {preview && (
+          <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
+            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+              <GitCompare className="w-4 h-4 text-primary" />
+              Interactive before / after comparison
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">{compareMode ? 'On' : 'Off'}</span>
+              <Switch checked={compareMode} onCheckedChange={setCompareMode} aria-label="Toggle compare slider" />
+            </div>
+          </div>
+        )}
+
+        {compareMode && preview ? (
+          <BeforeAfterSlider
+            beforeSrc={preview}
+            afterOverlay={
+              enhancedResult ? (
+                <div className="max-w-md text-center space-y-3">
+                  <Sparkles className="w-8 h-8 mx-auto text-accent" />
+                  <p className="text-sm text-foreground whitespace-pre-line">{enhancedResult}</p>
+                </div>
+              ) : (
+                <div className="text-center space-y-2">
+                  <Wand2 className="w-8 h-8 mx-auto text-primary opacity-50" />
+                  <p className="text-sm text-muted-foreground">Run AI Enhance to populate this side</p>
+                </div>
+              )
+            }
+            beforeLabel="Before"
+            afterLabel="After"
+          />
+        ) : null}
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* BEFORE: Upload Section */}
           <Card className="border-primary/10">
