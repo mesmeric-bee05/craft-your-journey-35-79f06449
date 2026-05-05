@@ -4,9 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Camera, Upload, Sparkles, Loader2, Download, Image as ImageIcon, Wand2, Palette } from 'lucide-react';
+import { Camera, Upload, Sparkles, Loader2, Download, Image as ImageIcon, Wand2, Palette, GitCompare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Switch } from '@/components/ui/switch';
+import { BeforeAfterSlider } from '@/components/ui/before-after-slider';
 
 const BACKGROUNDS = [
   { value: 'white-studio', label: 'White Studio', description: 'Clean professional background' },
@@ -24,6 +26,7 @@ export default function Vision() {
   const [enhancing, setEnhancing] = useState(false);
   const [enhancedResult, setEnhancedResult] = useState<string | null>(null);
   const [productName, setProductName] = useState('');
+  const [compareMode, setCompareMode] = useState(false);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
