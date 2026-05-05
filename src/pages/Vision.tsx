@@ -4,9 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Camera, Upload, Sparkles, Loader2, Download, Image as ImageIcon, Wand2, Palette } from 'lucide-react';
+import { Camera, Upload, Sparkles, Loader2, Download, Image as ImageIcon, Wand2, Palette, GitCompare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Switch } from '@/components/ui/switch';
+import { BeforeAfterSlider } from '@/components/ui/before-after-slider';
 
 const BACKGROUNDS = [
   { value: 'white-studio', label: 'White Studio', description: 'Clean professional background' },
@@ -24,6 +26,7 @@ export default function Vision() {
   const [enhancing, setEnhancing] = useState(false);
   const [enhancedResult, setEnhancedResult] = useState<string | null>(null);
   const [productName, setProductName] = useState('');
+  const [compareMode, setCompareMode] = useState(false);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -69,6 +72,41 @@ export default function Vision() {
             AI-powered product photography — studio-quality images from your phone camera.
           </p>
         </div>
+
+        {/* Compare toggle */}
+        {preview && (
+          <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
+            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+              <GitCompare className="w-4 h-4 text-primary" />
+              Interactive before / after comparison
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">{compareMode ? 'On' : 'Off'}</span>
+              <Switch checked={compareMode} onCheckedChange={setCompareMode} aria-label="Toggle compare slider" />
+            </div>
+          </div>
+        )}
+
+        {compareMode && preview ? (
+          <BeforeAfterSlider
+            beforeSrc={preview}
+            afterOverlay={
+              enhancedResult ? (
+                <div className="max-w-md text-center space-y-3">
+                  <Sparkles className="w-8 h-8 mx-auto text-accent" />
+                  <p className="text-sm text-foreground whitespace-pre-line">{enhancedResult}</p>
+                </div>
+              ) : (
+                <div className="text-center space-y-2">
+                  <Wand2 className="w-8 h-8 mx-auto text-primary opacity-50" />
+                  <p className="text-sm text-muted-foreground">Run AI Enhance to populate this side</p>
+                </div>
+              )
+            }
+            beforeLabel="Before"
+            afterLabel="After"
+          />
+        ) : null}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* BEFORE: Upload Section */}
