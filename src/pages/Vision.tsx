@@ -71,13 +71,16 @@ export default function Vision() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Upload Section */}
-          <Card>
+          {/* BEFORE: Upload Section */}
+          <Card className="border-primary/10">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Upload className="w-5 h-5" />
-                Upload Product Photo
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Upload className="w-5 h-5" />
+                  Before — Your Photo
+                </CardTitle>
+                <Badge variant="outline" className="text-xs">Original</Badge>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div
@@ -136,13 +139,16 @@ export default function Vision() {
             </CardContent>
           </Card>
 
-          {/* Result Section */}
-          <Card>
+          {/* AFTER: Result Section */}
+          <Card className="border-accent/20 bg-gradient-to-br from-accent/5 to-transparent">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Sparkles className="w-5 h-5" />
-                AI Photography Tips
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Sparkles className="w-5 h-5 text-accent" />
+                  After — AI Photography Tips
+                </CardTitle>
+                <Badge variant="secondary" className="text-xs">AI Enhanced</Badge>
+              </div>
             </CardHeader>
             <CardContent>
               {enhancedResult ? (
