@@ -64,7 +64,7 @@ export default function Marketing() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-6 animate-fade-in">
         <div>
           <h1 className="text-2xl font-bold">AI Marketing Suite</h1>
           <p className="text-muted-foreground">Generate engaging content with AI assistance</p>
