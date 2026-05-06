@@ -9,11 +9,17 @@ interface BeforeAfterSliderProps {
   beforeLabel?: string;
   afterLabel?: string;
   className?: string;
+  /** Accessible label for the slider region. */
+  ariaLabel?: string;
+  /** Initial reveal position 0-100 (default 50). */
+  initialPosition?: number;
+  /** Notified whenever the reveal position changes. */
+  onPositionChange?: (position: number) => void;
 }
 
 /**
- * Interactive before/after slider. Drag the handle (or use ←/→ keys when
- * focused) to reveal the "after" side underneath the "before" image.
+ * Interactive before/after slider with full keyboard a11y.
+ * Keyboard: ←/→ ±5, Shift+←/→ ±10, PageUp/PageDown ±25, Home/End jump to ends.
  */
 export function BeforeAfterSlider({
   beforeSrc,
@@ -22,17 +28,31 @@ export function BeforeAfterSlider({
   beforeLabel = 'Before',
   afterLabel = 'After',
   className,
+  ariaLabel = 'Before and after comparison slider',
+  initialPosition = 50,
+  onPositionChange,
 }: BeforeAfterSliderProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState(50);
+  const [position, setPositionState] = useState(initialPosition);
   const draggingRef = useRef(false);
 
-  const updateFromClientX = useCallback((clientX: number) => {
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const next = ((clientX - rect.left) / rect.width) * 100;
-    setPosition(Math.max(0, Math.min(100, next)));
-  }, []);
+  const setPosition = useCallback(
+    (next: number) => {
+      const clamped = Math.max(0, Math.min(100, next));
+      setPositionState(clamped);
+      onPositionChange?.(clamped);
+    },
+    [onPositionChange],
+  );
+
+  const updateFromClientX = useCallback(
+    (clientX: number) => {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      setPosition(((clientX - rect.left) / rect.width) * 100);
+    },
+    [setPosition],
+  );
 
   useEffect(() => {
     const onMove = (e: MouseEvent | TouchEvent) => {
@@ -40,7 +60,9 @@ export function BeforeAfterSlider({
       const x = 'touches' in e ? e.touches[0].clientX : e.clientX;
       updateFromClientX(x);
     };
-    const onUp = () => { draggingRef.current = false; };
+    const onUp = () => {
+      draggingRef.current = false;
+    };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
     window.addEventListener('touchmove', onMove);
@@ -54,20 +76,55 @@ export function BeforeAfterSlider({
   }, [updateFromClientX]);
 
   const handleKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowLeft') setPosition((p) => Math.max(0, p - 5));
-    if (e.key === 'ArrowRight') setPosition((p) => Math.min(100, p + 5));
+    let delta = 0;
+    switch (e.key) {
+      case 'ArrowLeft':
+        delta = e.shiftKey ? -10 : -5;
+        break;
+      case 'ArrowRight':
+        delta = e.shiftKey ? 10 : 5;
+        break;
+      case 'PageDown':
+        delta = -25;
+        break;
+      case 'PageUp':
+        delta = 25;
+        break;
+      case 'Home':
+        e.preventDefault();
+        setPosition(0);
+        return;
+      case 'End':
+        e.preventDefault();
+        setPosition(100);
+        return;
+      default:
+        return;
+    }
+    e.preventDefault();
+    setPosition(position + delta);
   };
+
+  const positionRounded = Math.round(position);
 
   return (
     <div
       ref={containerRef}
+      role="group"
+      aria-label={ariaLabel}
       className={cn(
         'relative w-full overflow-hidden rounded-xl border border-border bg-muted select-none',
         'aspect-[4/3]',
         className,
       )}
-      onMouseDown={(e) => { draggingRef.current = true; updateFromClientX(e.clientX); }}
-      onTouchStart={(e) => { draggingRef.current = true; updateFromClientX(e.touches[0].clientX); }}
+      onMouseDown={(e) => {
+        draggingRef.current = true;
+        updateFromClientX(e.clientX);
+      }}
+      onTouchStart={(e) => {
+        draggingRef.current = true;
+        updateFromClientX(e.touches[0].clientX);
+      }}
     >
       {/* AFTER (full layer underneath) */}
       <div className="absolute inset-0">
@@ -89,10 +146,11 @@ export function BeforeAfterSlider({
       <div
         className="absolute inset-0 overflow-hidden"
         style={{ clipPath: `inset(0 ${100 - position}% 0 0)` }}
+        aria-hidden="true"
       >
         <img
           src={beforeSrc}
-          alt={beforeLabel}
+          alt=""
           className="w-full h-full object-contain"
           draggable={false}
         />
@@ -108,24 +166,54 @@ export function BeforeAfterSlider({
 
       {/* Handle */}
       <div
-        className="absolute top-0 bottom-0 w-0.5 bg-primary cursor-ew-resize"
+        className="absolute top-0 bottom-0 w-0.5 bg-primary cursor-ew-resize pointer-events-none"
         style={{ left: `${position}%` }}
       >
-        <button
-          type="button"
+        <div
+          role="slider"
+          tabIndex={0}
+          aria-label={`${ariaLabel}. Use left and right arrow keys to compare.`}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={positionRounded}
+          aria-valuetext={`${positionRounded}% of ${beforeLabel} visible`}
           onKeyDown={handleKey}
-          aria-label="Drag to compare"
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center cursor-ew-resize focus:outline-none focus:ring-2 focus:ring-ring"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center cursor-ew-resize pointer-events-auto focus:outline-none focus-visible:ring-4 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
             <polyline points="15 18 9 12 15 6" />
-            <polyline points="9 18 3 12 9 6" style={{ display: 'none' }} />
           </svg>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="-ml-1">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="-ml-1"
+            aria-hidden="true"
+          >
             <polyline points="9 6 15 12 9 18" />
           </svg>
-        </button>
+        </div>
       </div>
+
+      {/* SR-only live announcement */}
+      <span className="sr-only" aria-live="polite">
+        {positionRounded}% of {beforeLabel} revealed
+      </span>
     </div>
   );
 }
