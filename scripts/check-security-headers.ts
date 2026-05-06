@@ -11,7 +11,9 @@
  */
 import { diagnoseHeaders } from '../src/lib/securityHeaders';
 
-const target = process.argv[2] ?? 'http://localhost:8080';
+const args = process.argv.slice(2);
+const strict = args.includes('--strict');
+const target = args.find((a) => !a.startsWith('--')) ?? 'http://localhost:8080';
 
 async function main() {
   console.log(`🔍 Checking security headers on ${target}`);
