@@ -47,11 +47,24 @@ async function main() {
     if (!r.ok && r.required) failed++;
   }
 
+  if (strict) {
+    const csp = (merged['content-security-policy'] ?? '').toLowerCase();
+    const strictChecks: Array<[boolean, string]> = [
+      [/\bdefault-src\s+[^;]*'self'/.test(csp), "CSP must include default-src 'self'"],
+      [!/\bscript-src\s+[^;]*'unsafe-inline'/.test(csp), "CSP script-src must not allow 'unsafe-inline'"],
+      [/\bframe-ancestors\b/.test(csp), 'CSP must include frame-ancestors'],
+    ];
+    for (const [ok, msg] of strictChecks) {
+      console.log(`${ok ? '✅' : '❌'} strict: ${msg}`);
+      if (!ok) failed++;
+    }
+  }
+
   if (failed > 0) {
     console.error(`\n${failed} required header check(s) failed.`);
     process.exit(1);
   }
-  console.log('\n✅ All required security headers present.');
+  console.log(`\n✅ All required security headers present${strict ? ' (strict)' : ''}.`);
 }
 
 main();
