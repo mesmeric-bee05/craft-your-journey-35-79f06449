@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,7 +27,25 @@ export default function Vision() {
   const [enhancing, setEnhancing] = useState(false);
   const [enhancedResult, setEnhancedResult] = useState<string | null>(null);
   const [productName, setProductName] = useState('');
+  const { user } = useAuth();
+  const prefKey = user?.id ? `vision:compareMode:${user.id}` : null;
   const [compareMode, setCompareMode] = useState(false);
+
+  // Load remembered preference per user
+  useEffect(() => {
+    if (!prefKey) return;
+    try {
+      const saved = localStorage.getItem(prefKey);
+      if (saved !== null) setCompareMode(saved === '1');
+    } catch { /* ignore */ }
+  }, [prefKey]);
+
+  const handleCompareModeChange = (next: boolean) => {
+    setCompareMode(next);
+    if (prefKey) {
+      try { localStorage.setItem(prefKey, next ? '1' : '0'); } catch { /* ignore */ }
+    }
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -82,7 +101,7 @@ export default function Vision() {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">{compareMode ? 'On' : 'Off'}</span>
-              <Switch checked={compareMode} onCheckedChange={setCompareMode} aria-label="Toggle compare slider" />
+              <Switch checked={compareMode} onCheckedChange={handleCompareModeChange} aria-label="Toggle compare slider" />
             </div>
           </div>
         )}
@@ -90,6 +109,7 @@ export default function Vision() {
         {compareMode && preview ? (
           <BeforeAfterSlider
             beforeSrc={preview}
+            ariaLabel="Compare original product photo with AI-enhanced result"
             afterOverlay={
               enhancedResult ? (
                 <div className="max-w-md text-center space-y-3">
@@ -103,8 +123,8 @@ export default function Vision() {
                 </div>
               )
             }
-            beforeLabel="Before"
-            afterLabel="After"
+            beforeLabel="Original"
+            afterLabel="AI Enhanced"
           />
         ) : null}
 

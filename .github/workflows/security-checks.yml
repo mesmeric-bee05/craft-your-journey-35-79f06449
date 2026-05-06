@@ -1,0 +1,66 @@
+name: Security Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * *' # nightly 06:00 UTC
+
+jobs:
+  security-headers:
+    name: Verify staging security headers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Check headers (strict)
+        env:
+          STAGING_URL: ${{ secrets.STAGING_URL }}
+        run: |
+          if [ -z "$STAGING_URL" ]; then
+            echo "::error::STAGING_URL secret is required"
+            exit 1
+          fi
+          bun scripts/check-security-headers.ts "$STAGING_URL" --strict
+
+  security-definer-roles:
+    name: SECURITY DEFINER role tests
+    runs-on: ubuntu-latest
+    if: ${{ secrets.TEST_USER_JWT != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun scripts/test-security-definer-roles.ts
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          TEST_USER_JWT: ${{ secrets.TEST_USER_JWT }}
+          TEST_BUSINESS_ID: ${{ secrets.TEST_BUSINESS_ID }}
+          TEST_OTHER_BUSINESS_ID: ${{ secrets.TEST_OTHER_BUSINESS_ID }}
+
+  storage-access:
+    name: business-assets storage access
+    runs-on: ubuntu-latest
+    if: ${{ secrets.TEST_USER_JWT != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun scripts/test-storage-access.ts
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          TEST_USER_JWT: ${{ secrets.TEST_USER_JWT }}
+          TEST_BUSINESS_ID: ${{ secrets.TEST_BUSINESS_ID }}
+          TEST_OTHER_BUSINESS_ID: ${{ secrets.TEST_OTHER_BUSINESS_ID }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
