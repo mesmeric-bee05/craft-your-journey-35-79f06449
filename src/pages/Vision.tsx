@@ -101,7 +101,7 @@ export default function Vision() {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">{compareMode ? 'On' : 'Off'}</span>
-              <Switch checked={compareMode} onCheckedChange={setCompareMode} aria-label="Toggle compare slider" />
+              <Switch checked={compareMode} onCheckedChange={handleCompareModeChange} aria-label="Toggle compare slider" />
             </div>
           </div>
         )}
@@ -109,6 +109,7 @@ export default function Vision() {
         {compareMode && preview ? (
           <BeforeAfterSlider
             beforeSrc={preview}
+            ariaLabel="Compare original product photo with AI-enhanced result"
             afterOverlay={
               enhancedResult ? (
                 <div className="max-w-md text-center space-y-3">
@@ -122,8 +123,8 @@ export default function Vision() {
                 </div>
               )
             }
-            beforeLabel="Before"
-            afterLabel="After"
+            beforeLabel="Original"
+            afterLabel="AI Enhanced"
           />
         ) : null}
 
