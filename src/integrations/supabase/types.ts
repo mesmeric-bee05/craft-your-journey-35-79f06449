@@ -1899,6 +1899,42 @@ export type Database = {
           },
         ]
       }
+      security_check_runs: {
+        Row: {
+          check_type: string
+          commit_sha: string | null
+          created_at: string
+          environment: string
+          id: string
+          ran_by: string | null
+          results: Json
+          status: string
+          summary: string | null
+        }
+        Insert: {
+          check_type: string
+          commit_sha?: string | null
+          created_at?: string
+          environment?: string
+          id?: string
+          ran_by?: string | null
+          results?: Json
+          status: string
+          summary?: string | null
+        }
+        Update: {
+          check_type?: string
+          commit_sha?: string | null
+          created_at?: string
+          environment?: string
+          id?: string
+          ran_by?: string | null
+          results?: Json
+          status?: string
+          summary?: string | null
+        }
+        Relationships: []
+      }
       segment_customers: {
         Row: {
           added_at: string
@@ -2656,6 +2692,7 @@ export type Database = {
           notify_new_order: boolean | null
           notify_team_activity: boolean | null
           notify_weekly_digest: boolean | null
+          preferences: Json
           push_notifications: boolean | null
           sms_notifications: boolean | null
           theme: string | null
@@ -2673,6 +2710,7 @@ export type Database = {
           notify_new_order?: boolean | null
           notify_team_activity?: boolean | null
           notify_weekly_digest?: boolean | null
+          preferences?: Json
           push_notifications?: boolean | null
           sms_notifications?: boolean | null
           theme?: string | null
@@ -2690,6 +2728,7 @@ export type Database = {
           notify_new_order?: boolean | null
           notify_team_activity?: boolean | null
           notify_weekly_digest?: boolean | null
+          preferences?: Json
           push_notifications?: boolean | null
           sms_notifications?: boolean | null
           theme?: string | null
@@ -3056,6 +3095,16 @@ export type Database = {
           p_metadata?: Json
         }
         Returns: undefined
+      }
+      log_user_action: {
+        Args: {
+          p_action: string
+          p_business_id?: string
+          p_entity_id?: string
+          p_entity_type?: string
+          p_metadata?: Json
+        }
+        Returns: string
       }
     }
     Enums: {
