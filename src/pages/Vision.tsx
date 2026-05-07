@@ -28,22 +28,39 @@ export default function Vision() {
   const [enhancedResult, setEnhancedResult] = useState<string | null>(null);
   const [productName, setProductName] = useState('');
   const { user } = useAuth();
+  const { settings, updateSettings } = useUserSettings();
   const prefKey = user?.id ? `vision:compareMode:${user.id}` : null;
-  const [compareMode, setCompareMode] = useState(false);
+  const remoteDefault = (settings?.preferences as any)?.vision_compare_default;
+  const [compareMode, setCompareMode] = useState<boolean>(false);
+  const [hydrated, setHydrated] = useState(false);
 
-  // Load remembered preference per user
+  // Hydrate: prefer cross-device setting, fall back to localStorage cache.
   useEffect(() => {
-    if (!prefKey) return;
-    try {
-      const saved = localStorage.getItem(prefKey);
-      if (saved !== null) setCompareMode(saved === '1');
-    } catch { /* ignore */ }
-  }, [prefKey]);
+    if (hydrated) return;
+    if (typeof remoteDefault === 'boolean') {
+      setCompareMode(remoteDefault);
+      setHydrated(true);
+      return;
+    }
+    if (prefKey) {
+      try {
+        const saved = localStorage.getItem(prefKey);
+        if (saved !== null) setCompareMode(saved === '1');
+      } catch { /* ignore */ }
+    }
+    if (settings) setHydrated(true);
+  }, [remoteDefault, prefKey, settings, hydrated]);
 
   const handleCompareModeChange = (next: boolean) => {
     setCompareMode(next);
     if (prefKey) {
       try { localStorage.setItem(prefKey, next ? '1' : '0'); } catch { /* ignore */ }
+    }
+    // Persist across devices via user_settings.preferences.
+    if (settings) {
+      updateSettings({
+        preferences: { ...(settings.preferences || {}), vision_compare_default: next },
+      } as any).catch(() => { /* toast handled in hook */ });
     }
   };
 
