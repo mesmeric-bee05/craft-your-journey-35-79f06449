@@ -30,6 +30,7 @@ import ResetPassword from "./pages/ResetPassword";
 import Wellness from "./pages/Wellness";
 import Competitors from "./pages/Competitors";
 import Vision from "./pages/Vision";
+import SecurityDashboard from "./pages/SecurityDashboard";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -81,6 +82,7 @@ const App = () => (
             <Route path="/wellness" element={<ProtectedRoute><Wellness /></ProtectedRoute>} />
             <Route path="/competitors" element={<ProtectedRoute><Competitors /></ProtectedRoute>} />
             <Route path="/vision" element={<ProtectedRoute><Vision /></ProtectedRoute>} />
+            <Route path="/security" element={<ProtectedRoute><SecurityDashboard /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </BrowserRouter>
