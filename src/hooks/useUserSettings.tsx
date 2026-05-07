@@ -18,6 +18,7 @@ export interface UserSettings {
   notify_weekly_digest: boolean;
   theme: string;
   compact_mode: boolean;
+  preferences: Record<string, any>;
 }
 
 const defaultSettings: Omit<UserSettings, 'id' | 'user_id'> = {
