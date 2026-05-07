@@ -54,7 +54,7 @@ export default function SecurityDashboard() {
     try {
       const next: Record<string, SecurityRun | null> = {};
       for (const c of CHECK_TYPES) {
-        const { data } = await supabase
+        const { data } = await (supabase as any)
           .from('security_check_runs')
           .select('*')
           .eq('check_type', c.type)
