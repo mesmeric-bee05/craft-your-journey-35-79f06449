@@ -33,6 +33,7 @@ const defaultSettings: Omit<UserSettings, 'id' | 'user_id'> = {
   notify_weekly_digest: true,
   theme: 'system',
   compact_mode: false,
+  preferences: {},
 };
 
 export function useUserSettings() {
