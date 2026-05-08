@@ -33,12 +33,12 @@ export async function logAuditEvent(
   payload: AuditPayload = {},
 ): Promise<string | null> {
   try {
-    const { data, error } = await (supabase.rpc as any)('log_user_action', {
+    const { data, error } = await supabase.rpc('log_user_action', {
       p_action: action,
       p_entity_type: payload.entityType ?? null,
       p_entity_id: payload.entityId ?? null,
       p_business_id: payload.businessId ?? null,
-      p_metadata: payload.metadata ?? {},
+      p_metadata: (payload.metadata ?? {}) as any,
     });
     if (error) {
       logger.warn('audit log failed', { action, error: error.message });
