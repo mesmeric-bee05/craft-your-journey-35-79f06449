@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.wellness-ai-chat]
 verify_jwt = false
+
+[functions.security-alert]
+verify_jwt = false

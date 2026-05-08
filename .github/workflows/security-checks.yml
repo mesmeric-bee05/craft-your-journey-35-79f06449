@@ -21,6 +21,15 @@ jobs:
       - name: Check headers (strict)
         env:
           STAGING_URL: ${{ secrets.STAGING_URL }}
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SECURITY_ALERT_SHARED_SECRET: ${{ secrets.SECURITY_ALERT_SHARED_SECRET }}
+          SECURITY_CHECK_ENV: ${{ secrets.SECURITY_CHECK_ENV || 'staging' }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_ACTOR: ${{ github.actor }}
         run: |
           if [ -z "$STAGING_URL" ]; then
             echo "::error::STAGING_URL secret is required"
