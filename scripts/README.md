@@ -50,8 +50,23 @@ bun scripts/test-storage-access.ts
 | Secret | Used by |
 |---|---|
 | `STAGING_URL` | headers gate |
-| `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` | both Supabase scripts |
+| `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` | both Supabase scripts + Playwright |
 | `TEST_USER_JWT` | both Supabase scripts (a fresh user access token) |
 | `TEST_BUSINESS_ID` | both Supabase scripts |
 | `TEST_OTHER_BUSINESS_ID` | cross-tenant checks |
-| `SUPABASE_SERVICE_ROLE_KEY` | storage fixture seed (optional) |
+| `SUPABASE_SERVICE_ROLE_KEY` | storage fixture seed + uploading run rows |
+| `SECURITY_ALERT_SHARED_SECRET` | uploading run rows fires the `security-alert` edge function on `fail` |
+| `SECURITY_CHECK_ENV` | optional label, defaults to `staging` |
+
+## Failure alerts (`security-alert` edge function)
+
+When a run is uploaded with `status === 'fail'`, `scripts/lib/uploadCheckRun.ts`
+calls the `security-alert` edge function. Configure these runtime secrets in
+Lovable Cloud:
+
+- `SECURITY_ALERT_SHARED_SECRET` — required, must match the CI secret.
+- `SECURITY_ALERT_EMAILS` — comma-separated admin emails (optional).
+- `SECURITY_ALERT_FROM` — sender address (optional, defaults to `alerts@onresend.dev`).
+- `RESEND_API_KEY` — required for email delivery.
+- `SECURITY_ALERT_WEBHOOK_URL` — optional Slack/Discord-compatible webhook.
+
