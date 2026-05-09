@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { SLAPerformanceChart } from '@/components/analytics/SLAPerformanceChart';
 import { SLABreachTable } from '@/components/analytics/SLABreachTable';
 import { CSATAnalytics } from '@/components/analytics/CSATAnalytics';
+import { CustomerSentimentTab } from '@/components/analytics/CustomerSentimentTab';
 import { TeamPerformance } from '@/components/analytics/TeamPerformance';
 import { ChannelAnalytics } from '@/components/analytics/ChannelAnalytics';
 import { useSLATracking } from '@/hooks/useSLATracking';
@@ -132,6 +133,10 @@ export default function Analytics() {
               <Star className="h-4 w-4" />
               CSAT
             </TabsTrigger>
+            <TabsTrigger value="voc" className="gap-2">
+              <MessageSquare className="h-4 w-4" />
+              Wateja Sauti
+            </TabsTrigger>
             <TabsTrigger value="team" className="gap-2">
               <Users className="h-4 w-4" />
               Team
@@ -181,6 +186,10 @@ export default function Analytics() {
 
           <TabsContent value="csat">
             <CSATAnalytics dateRange={parseInt(dateRange)} />
+          </TabsContent>
+
+          <TabsContent value="voc">
+            <CustomerSentimentTab dateRange={parseInt(dateRange)} />
           </TabsContent>
 
           <TabsContent value="team">

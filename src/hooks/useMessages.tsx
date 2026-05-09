@@ -76,9 +76,32 @@ export function useMessages(conversationId: string | null): UseMessagesReturn {
           table: 'messages',
           filter: `conversation_id=eq.${conversationId}`,
         },
-        (payload) => {
+        async (payload) => {
           const newMessage = payload.new as Message;
           setMessages((prev) => [...prev, newMessage]);
+
+          // Fire-and-forget VoC sentiment analysis for inbound customer messages
+          if (newMessage.sender_type === 'customer' && newMessage.content && newMessage.content.length >= 3) {
+            try {
+              const { data: conv } = await supabase
+                .from('conversations')
+                .select('business_id, customer_id')
+                .eq('id', newMessage.conversation_id)
+                .maybeSingle();
+              if (conv?.business_id) {
+                supabase.functions.invoke('analyze-customer-sentiment', {
+                  body: {
+                    business_id: conv.business_id,
+                    text: newMessage.content,
+                    source: 'inbox',
+                    conversation_id: newMessage.conversation_id,
+                    message_id: newMessage.id,
+                    customer_id: conv.customer_id ?? undefined,
+                  },
+                }).catch(() => {});
+              }
+            } catch { /* swallow */ }
+          }
         }
       )
       .subscribe();

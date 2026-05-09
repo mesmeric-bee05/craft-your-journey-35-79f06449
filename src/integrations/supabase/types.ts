@@ -256,6 +256,50 @@ export type Database = {
           },
         ]
       }
+      business_sentiment_daily: {
+        Row: {
+          avg_score: number | null
+          business_id: string
+          date: string
+          negative: number
+          neutral: number
+          positive: number
+          top_themes: Json
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          avg_score?: number | null
+          business_id: string
+          date: string
+          negative?: number
+          neutral?: number
+          positive?: number
+          top_themes?: Json
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          avg_score?: number | null
+          business_id?: string
+          date?: string
+          negative?: number
+          neutral?: number
+          positive?: number
+          top_themes?: Json
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_sentiment_daily_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       businesses: {
         Row: {
           address: string | null
@@ -908,6 +952,62 @@ export type Database = {
           },
         ]
       }
+      customer_sentiment_log: {
+        Row: {
+          analyzed_at: string
+          business_id: string
+          conversation_id: string | null
+          created_at: string
+          customer_id: string | null
+          id: string
+          language: string
+          message_id: string | null
+          raw_text: string | null
+          score: number
+          sentiment: string
+          source: string
+          themes: string[]
+        }
+        Insert: {
+          analyzed_at?: string
+          business_id: string
+          conversation_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          language?: string
+          message_id?: string | null
+          raw_text?: string | null
+          score: number
+          sentiment: string
+          source?: string
+          themes?: string[]
+        }
+        Update: {
+          analyzed_at?: string
+          business_id?: string
+          conversation_id?: string | null
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          language?: string
+          message_id?: string | null
+          raw_text?: string | null
+          score?: number
+          sentiment?: string
+          source?: string
+          themes?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_sentiment_log_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           avatar_url: string | null
@@ -1016,6 +1116,125 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feedback_forms: {
+        Row: {
+          business_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          require_contact: boolean
+          slug: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          require_contact?: boolean
+          slug: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          require_contact?: boolean
+          slug?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_forms_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feedback_submissions: {
+        Row: {
+          business_id: string
+          created_at: string
+          customer_email: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          form_id: string | null
+          id: string
+          ip_address: unknown
+          message: string
+          moderated_at: string | null
+          moderated_by: string | null
+          rating: number | null
+          source: string
+          status: string
+          submitted_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          form_id?: string | null
+          id?: string
+          ip_address?: unknown
+          message: string
+          moderated_at?: string | null
+          moderated_by?: string | null
+          rating?: number | null
+          source?: string
+          status?: string
+          submitted_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          form_id?: string | null
+          id?: string
+          ip_address?: unknown
+          message?: string
+          moderated_at?: string | null
+          moderated_by?: string | null
+          rating?: number | null
+          source?: string
+          status?: string
+          submitted_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_submissions_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_submissions_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_forms"
             referencedColumns: ["id"]
           },
         ]
@@ -3087,6 +3306,7 @@ export type Database = {
         Args: { p_business_id: string; p_user_id: string }
         Returns: boolean
       }
+      is_feedback_slug_available: { Args: { p_slug: string }; Returns: boolean }
       log_security_event: {
         Args: {
           p_action: string

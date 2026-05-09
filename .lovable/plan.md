@@ -1,6 +1,14 @@
 # Track B Implementation Plan
 
-Five strategic modules, sequenced by leverage and risk. Each is its own build cycle with its own migration, RLS, edge functions, and QA. Do **not** ship them in one PR — order matters because Health Score and StockFund both consume signals produced by the earlier modules.
+**Decisions confirmed (2026-05-09):**
+- Map provider for Phase 2: **Google Maps** (will need `GOOGLE_MAPS_API_KEY` secret).
+- Lender for Phase 5: **Mock lender scaffold**; swap to real partner later.
+- VoC intake (Phase 1): **Inbox + public form + manual entry** — all three sources active.
+- Public profile slug (Phase 4): **Owner-chosen with availability check**.
+
+**Phase 1 status: SHIPPED** — sentiment edge function, public `/feedback/:slug`, moderation queue, manual entry, and `Wateja Sauti` analytics tab are live.
+
+
 
 Recommended order: **VoC → Geo‑Intelligence → Bundling → Health Score → StockFund.**
 

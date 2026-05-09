@@ -31,6 +31,8 @@ import Wellness from "./pages/Wellness";
 import Competitors from "./pages/Competitors";
 import Vision from "./pages/Vision";
 import SecurityDashboard from "./pages/SecurityDashboard";
+import Feedback from "./pages/Feedback";
+import FeedbackPublic from "./pages/FeedbackPublic";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -63,6 +65,8 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/feedback/:slug" element={<FeedbackPublic />} />
+            <Route path="/feedback" element={<ProtectedRoute><Feedback /></ProtectedRoute>} />
             <Route path="/mfa-challenge" element={<RequireAuth><MFAChallenge /></RequireAuth>} />
             <Route path="/onboarding" element={<RequireAuth><Onboarding /></RequireAuth>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
