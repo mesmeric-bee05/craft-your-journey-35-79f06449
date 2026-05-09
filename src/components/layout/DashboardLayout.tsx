@@ -69,6 +69,7 @@ const mainNavItems: NavItem[] = [
   { label: 'Inventory', icon: Package, href: '/inventory' },
   { label: 'Payments', icon: Wallet, href: '/payments' },
   { label: 'Analytics', icon: BarChart3, href: '/analytics' },
+  { label: 'Feedback', icon: Heart, href: '/feedback' },
   { label: 'Reports', icon: FileText, href: '/reports' },
   { label: 'Competitors', icon: Target, href: '/competitors' },
   { label: 'Vision', icon: Camera, href: '/vision' },
