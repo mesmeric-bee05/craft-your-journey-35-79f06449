@@ -188,6 +188,10 @@ export default function Analytics() {
             <CSATAnalytics dateRange={parseInt(dateRange)} />
           </TabsContent>
 
+          <TabsContent value="voc">
+            <CustomerSentimentTab dateRange={parseInt(dateRange)} />
+          </TabsContent>
+
           <TabsContent value="team">
             <TeamPerformance dateRange={parseInt(dateRange)} />
           </TabsContent>
