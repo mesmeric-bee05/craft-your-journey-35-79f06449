@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useBusiness } from "@/hooks/useBusiness";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { logUserAction } from "@/lib/auditLog";
+import { logAuditEvent } from "@/lib/auditLog";
 
 export interface FeedbackSubmission {
   id: string;
@@ -64,11 +64,10 @@ export function useFeedbackSubmissions(status?: string) {
         .eq("id", args.id)
         .eq("business_id", business!.id);
       if (error) throw error;
-      await logUserAction({
-        action: `feedback.${args.status}`,
-        entity_type: "feedback_submission",
-        entity_id: args.id,
-        business_id: business!.id,
+      await logAuditEvent(`feedback.${args.status}`, {
+        entityType: "feedback_submission",
+        entityId: args.id,
+        businessId: business!.id,
       });
     },
     onSuccess: () => {
