@@ -242,7 +242,7 @@ function ManualEntryDialog() {
                 toast.error("Please enter a valid message");
                 return;
               }
-              addManual.mutate(parsed.data, {
+              addManual.mutate(parsed.data as { message: string; customer_name?: string; rating?: number }, {
                 onSuccess: () => {
                   setOpen(false);
                   setMessage(""); setName(""); setRating("");
@@ -326,7 +326,7 @@ function CreateFormDialog() {
                 toast.error("Check the slug and title");
                 return;
               }
-              createForm.mutate(parsed.data, {
+              createForm.mutate(parsed.data as { slug: string; title: string; description?: string; require_contact?: boolean }, {
                 onSuccess: () => {
                   setOpen(false);
                   setSlug(""); setTitle(""); setDescription(""); setRequireContact(false); setAvailable(null);
