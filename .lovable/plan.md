@@ -1,89 +1,175 @@
-## Overview
+# Track B Implementation Plan
 
-This plan covers two tracks. **Track A** is the immediate, scoped work you asked for at the top of the message (CI alerts, secure-download Playwright coverage, /security dashboard filtering/sorting/pagination, approving the pending migration). **Track B** is the much larger strategic roadmap (Geo‑Intelligence, Bundling Engine, VoC, StockFund, Biashara Health Score). Track B is intentionally split into separate phases so we can ship Track A first, prove it, and then sequence the big modules without one giant unreviewable change.
+Five strategic modules, sequenced by leverage and risk. Each is its own build cycle with its own migration, RLS, edge functions, and QA. Do **not** ship them in one PR — order matters because Health Score and StockFund both consume signals produced by the earlier modules.
 
-I recommend we **execute Track A in this next build**, then come back and pick which Track B module to start. Doing all of Track B in one shot would mean ~6 weeks of code in one PR — high risk of regressions, especially around security and M‑Pesa.
+Recommended order: **VoC → Geo‑Intelligence → Bundling → Health Score → StockFund.**
 
----
-
-## Track A — Immediate work (one build cycle)
-
-### A1. Approve pending migration & regenerate types
-- Confirm the existing `security_check_runs` + `log_user_action` migration is applied; once approved, `src/integrations/supabase/types.ts` will refresh automatically.
-- Remove the `(supabase as any)` and `(supabase.rpc as any)` casts in `SecurityDashboard.tsx`, `auditLog.ts`, `useUserSettings.tsx` so they compile against the real generated types.
-
-### A2. CI failure alerts
-- Add a new edge function `security-alert` that accepts `{ check_type, status, summary, commit_sha, environment, run_url }`, validates a shared secret header, and:
-  - Sends an email via the existing `send-email` function (Resend) to admins on `fail`.
-  - Optionally POSTs to a configurable webhook URL (Slack/Discord-compatible JSON).
-- Extend `scripts/lib/uploadCheckRun.ts` so after inserting a row with `status === 'fail'` it also calls `security-alert`.
-- Add new secrets: `SECURITY_ALERT_WEBHOOK_URL` (optional), `SECURITY_ALERT_EMAILS` (comma list), `SECURITY_ALERT_SHARED_SECRET`.
-- Update `.github/workflows/security-checks.yml` to pass `GITHUB_RUN_ID` / commit SHA so alerts link back to the failing run.
-
-### A3. Playwright: secure-download denied state
-- New spec `e2e/secure-download-denied.spec.ts` that:
-  - Logs in as a user from Business A.
-  - Attempts `secureDownload` for an asset belonging to Business B (seeded fixture).
-  - Asserts the denial toast text ("You don't have permission to access this file") and that `audit_logs` received a `file.download.denied` row (verified via a small read-only RPC `get_recent_audit_for_user`, scoped to the caller).
-- Add a second case for an unauthenticated session attempting the same — should redirect to `/auth` and never call the storage API.
-
-### A4. /security dashboard: filtering, sorting, pagination
-- Replace the "latest per type" cards with a richer view:
-  - Keep the 3 status cards at the top (most recent run per `check_type`).
-  - Add a paginated history table below with columns: Time, Check, Environment, Status, Commit, Summary.
-  - Filters: `check_type` (multi), `status` (pass/warn/fail), `environment` (staging/prod), date range (24h / 7d / 30d / custom).
-  - Sorting: by `created_at` (default desc) and by `status` (failing first).
-  - Pagination: 25 per page using Supabase `range()`.
-  - "Failing only" quick toggle that pre-filters `status = 'fail'`.
-- All queries scoped through RLS — admins only (route already gated).
-
-### A5. Security hardening pass on what we touch
-- Verify `log_user_action` and the new `security-alert` function reject anon callers and validate inputs with Zod.
-- Add rate limiting (reuse `supabase/functions/_shared/rate-limiter.ts`) to `security-alert` to prevent alert flooding.
-- Run the Supabase linter after the migration approval and resolve anything new.
+Reasoning: VoC reuses existing chat data (fastest, no new APIs, feeds Health Score). Geo unlocks hyperlocal targeting that Bundling and Health Score both reference. Bundling needs inventory + sales history already in the app. Health Score depends on VoC, Bundling, and Geo signals. StockFund last because it touches money + regulation and needs a healthy Health Score as its underwriting signal.
 
 ---
 
-## Track B — Strategic roadmap (separate, sequenced builds)
+## Phase 1 — Voice of Customer (VoC) — 6–8 days
 
-I will not build these in this cycle. Each is its own multi-day effort and needs its own approval, migrations, and QA. Proposed order (highest leverage first):
+**Goal:** Sentiment + theme analysis on every customer message and CSAT response, surfaced as a "Wateja Sauti" tab under `/analytics`.
 
-1. **Geo‑Intelligence & Hyperlocal Optimizer** — onboarding location step, `geo_insights` table, `generate-local-insights` edge function, `/geo-insights` page with Mapbox/Leaflet. Needs: Mapbox or Google Maps key. Est. 8–12 days.
-2. **Voice‑of‑Customer Analytics** — reuses existing chat data, no new APIs, fastest to value. `analyze-customer-sentiment` edge function, `customer_sentiment_log`, `business_sentiment_daily`, "Wateja Sauti" tab under `/analytics`. Est. 6–8 days.
-3. **Cross‑Sell & Bundling Engine** — `bundles` + `bundle_items` + `bundle_performance` tables, "Bidhaa Bundle" tab in `/inventory`, checkout suggestions, weekly `optimize-bundles` cron. Est. 5–7 days.
-4. **Biashara Health Score** — `biashara_health_scores`, `business_reviews`, weekly `calculate-biashara-health` function, public profile route `/b/:slug`, embeddable SVG badge. Est. 6–8 days.
-5. **StockFund inventory financing** — `stockfund_loans`, `stockfund_repayments`, Daraja B2C standing-mandate flow, hourly repayment cron, dashboard widget. Highest regulatory + financial risk; do last with a real lender partner and ODPC sign-off. Est. 10–14 days.
+### Schema
+- `customer_sentiment_log` — `id`, `business_id`, `conversation_id`, `message_id`, `customer_id`, `sentiment` (`positive|neutral|negative`), `score numeric(3,2)`, `themes text[]`, `language` (`en|sw|sheng`), `analyzed_at`.
+- `business_sentiment_daily` — pre-aggregated rollup: `business_id`, `date`, `total`, `positive`, `neutral`, `negative`, `top_themes jsonb`.
+- RLS: members of `business_id` can read; only edge function (service role) writes.
 
-For each Track B item I'll come back with its own focused plan: schema, RLS, edge functions, UI surface, secrets needed, and rollout/feature-flag strategy.
+### Edge function
+- `analyze-customer-sentiment` — triggered after each new customer message via PG trigger → `pg_net` POST. Uses `google/gemini-2.5-flash` via Lovable AI (no key). Zod-validated body, rate-limited via `_shared/rate-limiter.ts`. Detects Swahili/Sheng and routes to a localized prompt.
+- Nightly cron `rollup-sentiment-daily` writes `business_sentiment_daily`.
 
----
+### UI
+- New tab `Wateja Sauti` in `src/pages/Analytics.tsx`: 30/60/90‑day sentiment trend (recharts), top recurring themes word cloud, drill-down list of negative messages with "View conversation" deep link.
+- Reuse `useDashboardCharts` pattern; new hook `useCustomerSentiment`.
 
-## Technical details (Track A)
-
-**New table usage** — none new; reuses `security_check_runs`, `audit_logs`, `user_roles`.
-
-**New edge function** — `supabase/functions/security-alert/index.ts`
-- Input (Zod): `{ check_type, status, summary?, commit_sha?, environment, run_url? }`.
-- Auth: shared-secret header `x-alert-secret` compared with `SECURITY_ALERT_SHARED_SECRET`.
-- Side effects: email via existing `send-email` function, optional webhook POST.
-- Config: add block in `supabase/config.toml` with `verify_jwt = false` (called from CI, not a user session).
-
-**Files to add/modify**
-- New: `supabase/functions/security-alert/index.ts`, `e2e/secure-download-denied.spec.ts`, `src/components/security/SecurityRunsTable.tsx`, `src/hooks/useSecurityRuns.tsx`.
-- Modified: `src/pages/SecurityDashboard.tsx` (add filters/table/pagination), `scripts/lib/uploadCheckRun.ts` (call alert on fail), `.github/workflows/security-checks.yml` (pass commit + run URL), `src/lib/auditLog.ts` and `src/hooks/useUserSettings.tsx` (drop `as any` casts), `supabase/config.toml` (register new function).
-- Secrets to add: `SECURITY_ALERT_SHARED_SECRET`, `SECURITY_ALERT_EMAILS`, optional `SECURITY_ALERT_WEBHOOK_URL`.
-
-**Verification**
-- After implementing, run Playwright suite locally headless against staging.
-- Trigger a synthetic failure by uploading a `status: 'fail'` row from a script and confirm: row appears at top of dashboard with "Failing only" filter, email arrives, webhook fires.
-- Run `supabase--linter` after migration approval.
+### Verification
+- Seed 50 messages via `seed-inbox-data`, confirm rows appear in `customer_sentiment_log` within 60s.
+- Playwright: `e2e/voc-analytics.spec.ts` — load tab, assert chart renders, filter by negative.
 
 ---
 
-## Decision needed before I start Track A
+## Phase 2 — Geo‑Intelligence & Hyperlocal Optimizer — 8–12 days
 
-Two small choices:
-1. **Alert channels:** email only, webhook only, or both? (Default: both, webhook optional via env.)
-2. **Dashboard history retention shown in UI:** last 30 days, 90 days, or all? (Default: 30 days with a "Load older" action.)
+**Goal:** Map-based onboarding location capture + AI-generated hyperlocal advice (foot traffic, competitors nearby, event calendar) at `/geo-insights`.
 
-If you're happy with the defaults, reply "approved" and I'll execute Track A end‑to‑end. After it ships, tell me which Track B module to plan next.
+### Decision needed before start
+- **Map provider:** Mapbox (recommended, generous free tier, great Africa coverage) vs Google Maps (more accurate POI in Nairobi, paid). Default Mapbox.
+- Add secret: `MAPBOX_PUBLIC_TOKEN` (publishable, OK in code via `.env`).
+
+### Schema
+- `businesses` — add `latitude numeric`, `longitude numeric`, `geo_label text` (e.g. "CBD, Nairobi"), `service_radius_km int default 5`.
+- `geo_insights` — `business_id`, `generated_at`, `summary text`, `recommendations jsonb`, `nearby_competitors jsonb`, `local_events jsonb`, `expires_at`.
+- RLS: business members read own row; service role writes.
+
+### Onboarding update
+- Add step `LocationStep.tsx` after `BusinessDetailsStep` with Mapbox GL JS picker + reverse geocode.
+- Existing onboarded users prompted via banner on Dashboard once.
+
+### Edge function
+- `generate-local-insights` — input `{ business_id }`. Pulls business profile + recent sales + Mapbox `places` API for competitors within `service_radius_km`. Calls `google/gemini-2.5-pro` with localized prompt (KES, Swahili allowed). Caches 7 days.
+- Manual "Refresh insights" button on `/geo-insights` (rate-limited 1/day).
+
+### UI
+- New page `src/pages/GeoInsights.tsx` + route. Map on left (business pin + competitor pins + radius circle), recommendations + events on right. Filters: radius (1/3/5/10 km), competitor category.
+- Add to sidebar nav.
+
+### Verification
+- Seed 3 businesses in Nairobi/Mombasa/Kisumu, generate insights, confirm KES + Swahili phrases present.
+- Playwright: location picker writes lat/lng; refresh button respects rate limit.
+
+---
+
+## Phase 3 — Cross-Sell & Bundling Engine — 5–7 days
+
+**Goal:** "Bidhaa Bundle" tab in `/inventory` plus checkout suggestions, with weekly auto-optimization.
+
+### Schema
+- `bundles` — `id`, `business_id`, `name`, `discount_pct numeric`, `is_active bool`, `auto_generated bool`, `created_at`.
+- `bundle_items` — `bundle_id`, `product_id`, `quantity int default 1`. PK `(bundle_id, product_id)`.
+- `bundle_performance` — `bundle_id`, `date`, `views int`, `purchases int`, `revenue_kes numeric`.
+- RLS: business members CRUD own bundles.
+
+### Edge functions
+- `optimize-bundles` (weekly cron) — runs market-basket analysis on `stock_movements` joined to a future `sales` table (or current order data). Generates up to 10 candidate bundles per business with `auto_generated = true`, owner can promote/edit.
+- `suggest-bundle-at-checkout` — input cart items, returns matching active bundles ranked by `bundle_performance.purchases`.
+
+### UI
+- New tab `BundlesTab.tsx` in `src/pages/Inventory.tsx`: list bundles, create/edit dialog (multi-product picker), performance sparkline per bundle, "Auto-suggest" panel showing AI candidates.
+- Hook `useBundles`.
+
+### Verification
+- Manually create 1 bundle, simulate purchase via SQL, confirm performance row updates.
+- Cron execution logged in `audit_logs` with action `bundle.auto_optimize`.
+
+---
+
+## Phase 4 — Biashara Health Score — 6–8 days
+
+**Goal:** Public, blockchain-anchored reputation badge at `/b/:slug` with transparent factor breakdown.
+
+### Schema
+- `biashara_health_scores` — `business_id`, `score int (0-100)`, `tier text (bronze|silver|gold|platinum)`, `factors jsonb`, `calculated_at`, `valid_until`, `verification_hash text` (SHA-256 of factors+timestamp).
+- `business_reviews` — `id`, `business_id`, `customer_id`, `rating int (1-5)`, `comment text`, `is_anonymous bool default true`, `consent_to_display bool default false`, `created_at`. RLS: public read where `is_anonymous AND consent_to_display`.
+- `businesses` — add `slug text unique`, `public_profile_enabled bool default false`.
+
+### Score formula (transparent, shown on profile)
+- 30% — Response speed (`sla_tracking.first_response_time` last 30d)
+- 25% — CSAT average (`csat_responses.rating`)
+- 20% — Sentiment ratio (`business_sentiment_daily` positive %)
+- 15% — Resolution rate (resolved vs total)
+- 10% — Tenure + review volume
+
+### Edge functions
+- `calculate-biashara-health` (weekly cron + on-demand for owner). Computes factors, stores hash. ODPC-compliant: only aggregates, no raw PII.
+- `serve-public-profile` — public, no JWT, reads `biashara_health_scores` + anonymized testimonials only.
+- `embed-badge-svg` — returns inline SVG with score + tier, cacheable.
+
+### UI
+- Owner dashboard widget `HealthScoreCard.tsx` with factor breakdown bars + "Why?" tooltip per factor.
+- Public route `/b/:slug` (dark navy theme, shield badge, Hongera confetti at 80+, 90+, 100). Uses `framer-motion` + `react-confetti`.
+- Settings → "Public profile" toggle that generates slug.
+
+### Verification
+- Snapshot test of score for known fixture business.
+- Verify public route works without session; private fields never leaked (Playwright as anon).
+- Audit log entry on every recalculation.
+
+---
+
+## Phase 5 — StockFund inventory financing — 10–14 days (highest risk, do last)
+
+**Goal:** Automated inventory micro-loans with M-Pesa B2C disbursement and standing-order repayment.
+
+### Pre-requisites (block start until ready)
+- ODPC compliance review for credit data handling.
+- Real lender partner agreement (Lovable does not lend directly).
+- Daraja **B2C** API access (separate from existing STK push) — needs new initiator credentials and security credential (RSA-encrypted password).
+- New secrets: `MPESA_B2C_INITIATOR_NAME`, `MPESA_B2C_SECURITY_CREDENTIAL`, `MPESA_B2C_SHORTCODE`, `LENDER_API_KEY`, `LENDER_WEBHOOK_SECRET`.
+
+### Schema
+- `stockfund_loans` — `id`, `business_id`, `principal_kes numeric`, `interest_rate_pct numeric`, `term_days int`, `status` (`pending|approved|disbursed|repaying|repaid|defaulted`), `disbursed_at`, `due_at`, `lender_ref text`, `health_score_at_application int`.
+- `stockfund_repayments` — `loan_id`, `amount_kes`, `mpesa_ref text`, `paid_at`, `status`.
+- `stockfund_offers` — auto-generated pre-approved offers based on Health Score ≥ 70 + sales history.
+- RLS: only owner sees own loans. Service role writes via webhook.
+
+### Edge functions
+- `stockfund-apply` — validates eligibility (health score ≥ 70, no active default), forwards to lender API.
+- `stockfund-disburse` — on lender approval webhook, fires Daraja B2C to owner's M-Pesa.
+- `stockfund-repay-cron` (hourly) — checks due loans, initiates STK push for installment.
+- `stockfund-webhook` — receives lender + Daraja callbacks with HMAC verification.
+
+### UI
+- Dashboard widget showing pre-approved offer (if any).
+- New page `/stockfund` with: active loan progress bar, repayment schedule, history, "Apply" wizard with consent checkboxes.
+- Admin: add `/security` style monitoring page for ops to see all loans + statuses (admin-only RLS).
+
+### Verification
+- Sandbox Daraja B2C end-to-end test.
+- Replay webhook with bad HMAC → must reject.
+- Default scenario: simulate missed payment → status flips to `defaulted`, audit log entry, owner notified.
+- Load test: 100 concurrent applications.
+
+---
+
+## Cross-cutting concerns (apply to every phase)
+
+- **Migrations:** one per phase, RLS on every new table, never `auth.users` FKs.
+- **Audit logging:** every sensitive action calls `log_user_action` (`bundle.created`, `loan.disbursed`, `health_score.recalculated`, `geo_insights.refreshed`, etc.).
+- **Rate limiting:** all new edge functions reuse `_shared/rate-limiter.ts`.
+- **Localization:** Swahili/Sheng support per existing patterns; KES formatting via `formatKES` util.
+- **Feature flags:** add `feature_flags` JSONB on `businesses` so we can roll Phase 4 + 5 to a beta cohort first.
+- **Supabase linter:** run after every migration approval.
+
+---
+
+## Decisions needed before I start Phase 1
+
+1. **Map provider** for Phase 2: Mapbox (default) or Google Maps?
+2. **Public profile slug strategy** for Phase 4: auto-generated from business name, or owner-chosen with availability check? (Default: auto, editable once.)
+3. **Phase 5 lender partner**: do you already have one, or should I scaffold the integration against a mock lender API and you swap creds later?
+4. **Order confirmation**: proceed VoC → Geo → Bundling → Health → StockFund, or reorder?
+
+Reply with answers (or "approved, defaults") and I'll start **Phase 1 (VoC)** end-to-end. After it ships I'll come back with the Phase 2 build.
