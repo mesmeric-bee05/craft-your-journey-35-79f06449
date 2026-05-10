@@ -69,7 +69,10 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/feedback/:slug" element={<FeedbackPublic />} />
+            <Route path="/biz/:slug" element={<BusinessPublic />} />
             <Route path="/feedback" element={<ProtectedRoute><Feedback /></ProtectedRoute>} />
+            <Route path="/geo" element={<ProtectedRoute><GeoIntel /></ProtectedRoute>} />
+            <Route path="/public-profile" element={<ProtectedRoute><PublicProfilePage /></ProtectedRoute>} />
             <Route path="/mfa-challenge" element={<RequireAuth><MFAChallenge /></RequireAuth>} />
             <Route path="/onboarding" element={<RequireAuth><Onboarding /></RequireAuth>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
