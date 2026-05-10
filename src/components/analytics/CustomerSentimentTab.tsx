@@ -233,6 +233,28 @@ export function CustomerSentimentTab({ dateRange }: Props) {
           </CardContent>
         </Card>
       </div>
+
+      <Sheet open={!!drill} onOpenChange={(o) => !o && setDrill(null)}>
+        <SheetContent className="w-full sm:max-w-lg overflow-auto">
+          <SheetHeader>
+            <SheetTitle>Theme: {drill}</SheetTitle>
+            <SheetDescription>Recent messages mentioning this theme</SheetDescription>
+          </SheetHeader>
+          <div className="mt-4 space-y-2">
+            {drillQuery.isLoading && <Skeleton className="h-20 w-full" />}
+            {(drillQuery.data ?? []).map((m: any) => (
+              <div key={m.id} className="border rounded-md p-2 text-sm">
+                <div className="flex items-center gap-2 mb-1">
+                  <Badge variant={m.sentiment === "negative" ? "destructive" : m.sentiment === "positive" ? "default" : "secondary"}>{m.sentiment}</Badge>
+                  <span className="text-xs text-muted-foreground">{new Date(m.analyzed_at).toLocaleDateString()}</span>
+                </div>
+                <p className="line-clamp-3">{m.raw_text}</p>
+              </div>
+            ))}
+            {drillQuery.data && drillQuery.data.length === 0 && <p className="text-sm text-muted-foreground">No messages found.</p>}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
