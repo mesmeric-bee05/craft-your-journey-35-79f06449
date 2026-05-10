@@ -179,6 +179,56 @@ export type Database = {
           },
         ]
       }
+      bundles: {
+        Row: {
+          business_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          display_on_profile: boolean
+          id: string
+          is_active: boolean
+          items: Json
+          name: string
+          price_kes: number
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_on_profile?: boolean
+          id?: string
+          is_active?: boolean
+          items?: Json
+          name: string
+          price_kes?: number
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_on_profile?: boolean
+          id?: string
+          is_active?: boolean
+          items?: Json
+          name?: string
+          price_kes?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bundles_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       burnout_risk_scores: {
         Row: {
           brs_value: number
@@ -208,6 +258,103 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      business_health_score: {
+        Row: {
+          business_id: string
+          computed_at: string
+          engagement_component: number
+          factors: Json
+          growth_component: number
+          id: string
+          inventory_component: number
+          overall: number
+          voc_component: number
+        }
+        Insert: {
+          business_id: string
+          computed_at?: string
+          engagement_component?: number
+          factors?: Json
+          growth_component?: number
+          id?: string
+          inventory_component?: number
+          overall?: number
+          voc_component?: number
+        }
+        Update: {
+          business_id?: string
+          computed_at?: string
+          engagement_component?: number
+          factors?: Json
+          growth_component?: number
+          id?: string
+          inventory_component?: number
+          overall?: number
+          voc_component?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_health_score_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      business_locations: {
+        Row: {
+          address: string | null
+          business_id: string
+          created_at: string
+          created_by: string | null
+          geo_label: string | null
+          id: string
+          is_primary: boolean
+          lat: number
+          lng: number
+          name: string
+          service_radius_km: number
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          business_id: string
+          created_at?: string
+          created_by?: string | null
+          geo_label?: string | null
+          id?: string
+          is_primary?: boolean
+          lat: number
+          lng: number
+          name: string
+          service_radius_km?: number
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          business_id?: string
+          created_at?: string
+          created_by?: string | null
+          geo_label?: string | null
+          id?: string
+          is_primary?: boolean
+          lat?: number
+          lng?: number
+          name?: string
+          service_radius_km?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_locations_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       business_members: {
         Row: {
@@ -256,6 +403,59 @@ export type Database = {
           },
         ]
       }
+      business_public_profiles: {
+        Row: {
+          business_id: string
+          created_at: string
+          hero_image_url: string | null
+          id: string
+          is_published: boolean
+          show_bundles: boolean
+          show_health_score: boolean
+          show_voc_highlights: boolean
+          slug: string
+          tagline: string | null
+          updated_at: string
+          view_count: number
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          hero_image_url?: string | null
+          id?: string
+          is_published?: boolean
+          show_bundles?: boolean
+          show_health_score?: boolean
+          show_voc_highlights?: boolean
+          slug: string
+          tagline?: string | null
+          updated_at?: string
+          view_count?: number
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          hero_image_url?: string | null
+          id?: string
+          is_published?: boolean
+          show_bundles?: boolean
+          show_health_score?: boolean
+          show_voc_highlights?: boolean
+          slug?: string
+          tagline?: string | null
+          updated_at?: string
+          view_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_public_profiles_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_sentiment_daily: {
         Row: {
           avg_score: number | null
@@ -264,6 +464,7 @@ export type Database = {
           negative: number
           neutral: number
           positive: number
+          top_keywords: Json
           top_themes: Json
           total: number
           updated_at: string
@@ -275,6 +476,7 @@ export type Database = {
           negative?: number
           neutral?: number
           positive?: number
+          top_keywords?: Json
           top_themes?: Json
           total?: number
           updated_at?: string
@@ -286,6 +488,7 @@ export type Database = {
           negative?: number
           neutral?: number
           positive?: number
+          top_keywords?: Json
           top_themes?: Json
           total?: number
           updated_at?: string
@@ -959,7 +1162,9 @@ export type Database = {
           conversation_id: string | null
           created_at: string
           customer_id: string | null
+          geo_label: string | null
           id: string
+          keywords: string[]
           language: string
           message_id: string | null
           raw_text: string | null
@@ -974,7 +1179,9 @@ export type Database = {
           conversation_id?: string | null
           created_at?: string
           customer_id?: string | null
+          geo_label?: string | null
           id?: string
+          keywords?: string[]
           language?: string
           message_id?: string | null
           raw_text?: string | null
@@ -989,7 +1196,9 @@ export type Database = {
           conversation_id?: string | null
           created_at?: string
           customer_id?: string | null
+          geo_label?: string | null
           id?: string
+          keywords?: string[]
           language?: string
           message_id?: string | null
           raw_text?: string | null
@@ -1167,6 +1376,107 @@ export type Database = {
           },
         ]
       }
+      feedback_moderation_log: {
+        Row: {
+          acted_by: string | null
+          business_id: string
+          created_at: string
+          decision: string
+          details: Json
+          id: string
+          rule_fired: string | null
+          submission_id: string
+        }
+        Insert: {
+          acted_by?: string | null
+          business_id: string
+          created_at?: string
+          decision: string
+          details?: Json
+          id?: string
+          rule_fired?: string | null
+          submission_id: string
+        }
+        Update: {
+          acted_by?: string | null
+          business_id?: string
+          created_at?: string
+          decision?: string
+          details?: Json
+          id?: string
+          rule_fired?: string | null
+          submission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_moderation_log_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_moderation_log_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feedback_moderation_rules: {
+        Row: {
+          auto_approve_above_score: number | null
+          auto_reject_below_score: number | null
+          block_languages: string[]
+          business_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          max_links: number
+          min_message_length: number
+          severity_threshold: string
+          spam_keywords: string[]
+          updated_at: string
+        }
+        Insert: {
+          auto_approve_above_score?: number | null
+          auto_reject_below_score?: number | null
+          block_languages?: string[]
+          business_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          max_links?: number
+          min_message_length?: number
+          severity_threshold?: string
+          spam_keywords?: string[]
+          updated_at?: string
+        }
+        Update: {
+          auto_approve_above_score?: number | null
+          auto_reject_below_score?: number | null
+          block_languages?: string[]
+          business_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          max_links?: number
+          min_message_length?: number
+          severity_threshold?: string
+          spam_keywords?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_moderation_rules_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feedback_submissions: {
         Row: {
           business_id: string
@@ -1312,6 +1622,106 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "freelancer_profiles_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      geo_entities: {
+        Row: {
+          business_id: string
+          created_at: string
+          created_by: string | null
+          entity_type: Database["public"]["Enums"]["geo_entity_type"]
+          geo_label: string | null
+          id: string
+          lat: number
+          lng: number
+          metadata: Json
+          name: string
+          source: Database["public"]["Enums"]["geo_entity_source"]
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          created_by?: string | null
+          entity_type: Database["public"]["Enums"]["geo_entity_type"]
+          geo_label?: string | null
+          id?: string
+          lat: number
+          lng: number
+          metadata?: Json
+          name: string
+          source?: Database["public"]["Enums"]["geo_entity_source"]
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          created_by?: string | null
+          entity_type?: Database["public"]["Enums"]["geo_entity_type"]
+          geo_label?: string | null
+          id?: string
+          lat?: number
+          lng?: number
+          metadata?: Json
+          name?: string
+          source?: Database["public"]["Enums"]["geo_entity_source"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "geo_entities_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      geo_insights_daily: {
+        Row: {
+          avg_sentiment: number | null
+          business_id: string
+          competitor_density: number
+          created_at: string
+          customer_count: number
+          date: string
+          geo_label: string
+          id: string
+          metadata: Json
+          opportunity_score: number
+        }
+        Insert: {
+          avg_sentiment?: number | null
+          business_id: string
+          competitor_density?: number
+          created_at?: string
+          customer_count?: number
+          date: string
+          geo_label: string
+          id?: string
+          metadata?: Json
+          opportunity_score?: number
+        }
+        Update: {
+          avg_sentiment?: number | null
+          business_id?: string
+          competitor_density?: number
+          created_at?: string
+          customer_count?: number
+          date?: string
+          geo_label?: string
+          id?: string
+          metadata?: Json
+          opportunity_score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "geo_insights_daily_business_id_fkey"
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
@@ -3199,6 +3609,10 @@ export type Database = {
     }
     Functions: {
       check_sla_breaches: { Args: never; Returns: number }
+      compute_business_health_score: {
+        Args: { p_business_id: string }
+        Returns: Json
+      }
       get_channel_tokens: { Args: { p_channel_id: string }; Returns: Json }
       get_csat_by_agent: {
         Args: {
@@ -3257,6 +3671,7 @@ export type Database = {
           warning_threshold: number
         }[]
       }
+      get_public_business_profile: { Args: { p_slug: string }; Returns: Json }
       get_safe_channels: {
         Args: { p_business_id: string }
         Returns: {
@@ -3306,6 +3721,7 @@ export type Database = {
         Args: { p_business_id: string; p_user_id: string }
         Returns: boolean
       }
+      is_business_slug_available: { Args: { p_slug: string }; Returns: boolean }
       is_feedback_slug_available: { Args: { p_slug: string }; Returns: boolean }
       log_security_event: {
         Args: {
@@ -3398,6 +3814,13 @@ export type Database = {
         | "cancelled"
         | "disputed"
       conversation_status: "open" | "pending" | "resolved" | "archived"
+      geo_entity_source: "manual" | "google_places" | "csv"
+      geo_entity_type:
+        | "competitor"
+        | "supplier"
+        | "customer_cluster"
+        | "event"
+        | "landmark"
       job_status: "draft" | "open" | "in_progress" | "completed" | "cancelled"
       job_type: "one_time" | "ongoing" | "full_time" | "part_time"
       live_stream_status: "preparing" | "live" | "ended" | "failed"
@@ -3652,6 +4075,14 @@ export const Constants = {
         "disputed",
       ],
       conversation_status: ["open", "pending", "resolved", "archived"],
+      geo_entity_source: ["manual", "google_places", "csv"],
+      geo_entity_type: [
+        "competitor",
+        "supplier",
+        "customer_cluster",
+        "event",
+        "landmark",
+      ],
       job_status: ["draft", "open", "in_progress", "completed", "cancelled"],
       job_type: ["one_time", "ongoing", "full_time", "part_time"],
       live_stream_status: ["preparing", "live", "ended", "failed"],

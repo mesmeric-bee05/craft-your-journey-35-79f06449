@@ -3,8 +3,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useCustomerSentiment } from "@/hooks/useCustomerSentiment";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useBusiness } from "@/hooks/useBusiness";
+import { useQuery } from "@tanstack/react-query";
 import { Smile, Meh, Frown, MessageSquare, TrendingUp } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
@@ -26,6 +30,26 @@ interface Props {
 
 export function CustomerSentimentTab({ dateRange }: Props) {
   const { trends, negatives } = useCustomerSentiment(dateRange);
+  const { business } = useBusiness();
+  const [drill, setDrill] = useState<string | null>(null);
+
+  const drillQuery = useQuery({
+    queryKey: ["voc-drill", business?.id, drill, dateRange],
+    enabled: !!business?.id && !!drill,
+    queryFn: async () => {
+      const since = new Date(Date.now() - dateRange * 86400000).toISOString();
+      const { data, error } = await supabase
+        .from("customer_sentiment_log")
+        .select("id, sentiment, score, themes, language, source, raw_text, analyzed_at")
+        .eq("business_id", business!.id)
+        .gte("analyzed_at", since)
+        .contains("themes", [drill!])
+        .order("analyzed_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 
   const summary = useMemo(() => {
     const rows = trends.data ?? [];
@@ -151,7 +175,7 @@ export function CustomerSentimentTab({ dateRange }: Props) {
                 {summary.themes.map((t) => {
                   const size = Math.min(1.6, 0.85 + t.count * 0.08);
                   return (
-                    <Badge key={t.theme} variant="secondary" style={{ fontSize: `${size}rem` }}>
+                    <Badge key={t.theme} variant="secondary" style={{ fontSize: `${size}rem` }} className="cursor-pointer hover:bg-primary/20" onClick={() => setDrill(t.theme)}>
                       {t.theme} <span className="ml-1 opacity-60">×{t.count}</span>
                     </Badge>
                   );
@@ -209,6 +233,28 @@ export function CustomerSentimentTab({ dateRange }: Props) {
           </CardContent>
         </Card>
       </div>
+
+      <Sheet open={!!drill} onOpenChange={(o) => !o && setDrill(null)}>
+        <SheetContent className="w-full sm:max-w-lg overflow-auto">
+          <SheetHeader>
+            <SheetTitle>Theme: {drill}</SheetTitle>
+            <SheetDescription>Recent messages mentioning this theme</SheetDescription>
+          </SheetHeader>
+          <div className="mt-4 space-y-2">
+            {drillQuery.isLoading && <Skeleton className="h-20 w-full" />}
+            {(drillQuery.data ?? []).map((m: any) => (
+              <div key={m.id} className="border rounded-md p-2 text-sm">
+                <div className="flex items-center gap-2 mb-1">
+                  <Badge variant={m.sentiment === "negative" ? "destructive" : m.sentiment === "positive" ? "default" : "secondary"}>{m.sentiment}</Badge>
+                  <span className="text-xs text-muted-foreground">{new Date(m.analyzed_at).toLocaleDateString()}</span>
+                </div>
+                <p className="line-clamp-3">{m.raw_text}</p>
+              </div>
+            ))}
+            {drillQuery.data && drillQuery.data.length === 0 && <p className="text-sm text-muted-foreground">No messages found.</p>}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

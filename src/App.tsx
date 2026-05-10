@@ -33,6 +33,9 @@ import Vision from "./pages/Vision";
 import SecurityDashboard from "./pages/SecurityDashboard";
 import Feedback from "./pages/Feedback";
 import FeedbackPublic from "./pages/FeedbackPublic";
+import GeoIntel from "./pages/GeoIntel";
+import PublicProfilePage from "./pages/PublicProfilePage";
+import BusinessPublic from "./pages/BusinessPublic";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -66,7 +69,10 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/feedback/:slug" element={<FeedbackPublic />} />
+            <Route path="/biz/:slug" element={<BusinessPublic />} />
             <Route path="/feedback" element={<ProtectedRoute><Feedback /></ProtectedRoute>} />
+            <Route path="/geo" element={<ProtectedRoute><GeoIntel /></ProtectedRoute>} />
+            <Route path="/public-profile" element={<ProtectedRoute><PublicProfilePage /></ProtectedRoute>} />
             <Route path="/mfa-challenge" element={<RequireAuth><MFAChallenge /></RequireAuth>} />
             <Route path="/onboarding" element={<RequireAuth><Onboarding /></RequireAuth>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
