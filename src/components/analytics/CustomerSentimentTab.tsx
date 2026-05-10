@@ -3,8 +3,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useCustomerSentiment } from "@/hooks/useCustomerSentiment";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useBusiness } from "@/hooks/useBusiness";
+import { useQuery } from "@tanstack/react-query";
 import { Smile, Meh, Frown, MessageSquare, TrendingUp } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
