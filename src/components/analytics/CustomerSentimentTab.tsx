@@ -30,6 +30,26 @@ interface Props {
 
 export function CustomerSentimentTab({ dateRange }: Props) {
   const { trends, negatives } = useCustomerSentiment(dateRange);
+  const { business } = useBusiness();
+  const [drill, setDrill] = useState<string | null>(null);
+
+  const drillQuery = useQuery({
+    queryKey: ["voc-drill", business?.id, drill, dateRange],
+    enabled: !!business?.id && !!drill,
+    queryFn: async () => {
+      const since = new Date(Date.now() - dateRange * 86400000).toISOString();
+      const { data, error } = await supabase
+        .from("customer_sentiment_log")
+        .select("id, sentiment, score, themes, language, source, raw_text, analyzed_at")
+        .eq("business_id", business!.id)
+        .gte("analyzed_at", since)
+        .contains("themes", [drill!])
+        .order("analyzed_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 
   const summary = useMemo(() => {
     const rows = trends.data ?? [];
