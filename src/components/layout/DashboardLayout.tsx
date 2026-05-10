@@ -28,6 +28,8 @@ import {
   Target,
   Camera,
   Brain,
+  MapPin,
+  Globe,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
