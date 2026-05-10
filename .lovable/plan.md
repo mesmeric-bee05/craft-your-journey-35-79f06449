@@ -1,183 +1,125 @@
-# Track B Implementation Plan
+# Phase 2 — Geo-Intelligence + Track B Continuation
 
-**Decisions confirmed (2026-05-09):**
-- Map provider for Phase 2: **Google Maps** (will need `GOOGLE_MAPS_API_KEY` secret).
-- Lender for Phase 5: **Mock lender scaffold**; swap to real partner later.
-- VoC intake (Phase 1): **Inbox + public form + manual entry** — all three sources active.
-- Public profile slug (Phase 4): **Owner-chosen with availability check**.
+This plan covers the next big slice end-to-end: Geo-Intelligence (Google Maps), the public business profile (slug), configurable moderation rules for VoC, deeper Wateja Sauti drill-down, and a security/perf hardening pass. It also lines up Phase 3 (Bundling) and Phase 4 (Health Score) so the public profile has real data to show.
 
-**Phase 1 status: SHIPPED** — sentiment edge function, public `/feedback/:slug`, moderation queue, manual entry, and `Wateja Sauti` analytics tab are live.
+## 1. Secrets & prerequisites
 
+- Request `GOOGLE_MAPS_API_KEY` (server, used by edge functions for Geocoding / Places).
+- Request `GOOGLE_MAPS_BROWSER_KEY` (HTTP-referrer-restricted, used by `@vis.gl/react-google-maps` in the dashboard).
+- Both stored as runtime secrets; the browser key is fetched via a tiny `get-maps-config` edge function so we don't bake it into the bundle and can rotate it.
 
+## 2. Database (single migration)
 
-Recommended order: **VoC → Geo‑Intelligence → Bundling → Health Score → StockFund.**
+New tables (all RLS-scoped to `business_id`, members read, owners write):
 
-Reasoning: VoC reuses existing chat data (fastest, no new APIs, feeds Health Score). Geo unlocks hyperlocal targeting that Bundling and Health Score both reference. Bundling needs inventory + sales history already in the app. Health Score depends on VoC, Bundling, and Geo signals. StockFund last because it touches money + regulation and needs a healthy Health Score as its underwriting signal.
+- `business_locations` — owner business outlets: `lat`, `lng`, `address`, `geo_label` (e.g. `nairobi_cbd`, `westlands`), `service_radius_km`, `is_primary`.
+- `geo_entities` — generic ingest table for competitors / suppliers / customer hotspots / events: `entity_type` enum (`competitor|supplier|customer_cluster|event|landmark`), `name`, `lat`, `lng`, `geo_label`, `metadata jsonb`, `source` (`manual|google_places|csv`).
+- `geo_insights_daily` — pre-aggregated daily roll-ups per business + geo_label (customer count, avg sentiment, competitor density, opportunity score 0-100).
+- `business_public_profiles` — `slug` (unique, owner-chosen, validated via existing `is_feedback_slug_available` pattern → new `is_business_slug_available`), `tagline`, `hero_image`, `is_published`, `show_health_score`, `show_voc_highlights`, `show_bundles`.
+- `bundles` (Phase 3 stub used by profile) — `name`, `items jsonb`, `price_kes`, `is_active`, `display_on_profile`.
+- `business_health_score` (Phase 4 stub) — `overall`, `voc_component`, `inventory_component`, `engagement_component`, `growth_component`, `computed_at`. Recomputed nightly + on-demand.
+- `feedback_moderation_rules` — per-business JSONB rules: `spam_keywords[]`, `block_languages[]`, `min_message_length`, `max_links`, `auto_reject_below_score`, `auto_approve_above_score`, `severity_threshold`, `is_active`.
+- `feedback_moderation_log` — every auto/manual decision with rule that fired (audit trail).
 
----
+Extensions to existing tables:
 
-## Phase 1 — Voice of Customer (VoC) — 6–8 days
+- `customer_sentiment_log` → add `keywords text[]` and `geo_label text` (nullable) for drill-down + map overlay.
+- `business_sentiment_daily` → add `top_keywords jsonb` alongside existing `top_themes`.
 
-**Goal:** Sentiment + theme analysis on every customer message and CSAT response, surfaced as a "Wateja Sauti" tab under `/analytics`.
+DB functions:
 
-### Schema
-- `customer_sentiment_log` — `id`, `business_id`, `conversation_id`, `message_id`, `customer_id`, `sentiment` (`positive|neutral|negative`), `score numeric(3,2)`, `themes text[]`, `language` (`en|sw|sheng`), `analyzed_at`.
-- `business_sentiment_daily` — pre-aggregated rollup: `business_id`, `date`, `total`, `positive`, `neutral`, `negative`, `top_themes jsonb`.
-- RLS: members of `business_id` can read; only edge function (service role) writes.
+- `is_business_slug_available(p_slug text)` — mirrors feedback slug RPC.
+- `get_public_business_profile(p_slug text)` — SECURITY DEFINER, returns ONLY published, non-PII fields (profile + latest health score + up to 6 approved VoC highlights + active profile-flagged bundles). No auth required.
+- `compute_business_health_score(p_business_id uuid)` — weighted formula documented in code; called by trigger + nightly cron.
+- `apply_feedback_moderation()` trigger on `feedback_submissions` insert (anonymous path) → consults `feedback_moderation_rules` and may set status to `spam`/`rejected` automatically, logging to `feedback_moderation_log`.
 
-### Edge function
-- `analyze-customer-sentiment` — triggered after each new customer message via PG trigger → `pg_net` POST. Uses `google/gemini-2.5-flash` via Lovable AI (no key). Zod-validated body, rate-limited via `_shared/rate-limiter.ts`. Detects Swahili/Sheng and routes to a localized prompt.
-- Nightly cron `rollup-sentiment-daily` writes `business_sentiment_daily`.
+All new tables: RLS on, business-member read, owner write, public read **only** through the SECURITY DEFINER RPC for the profile.
 
-### UI
-- New tab `Wateja Sauti` in `src/pages/Analytics.tsx`: 30/60/90‑day sentiment trend (recharts), top recurring themes word cloud, drill-down list of negative messages with "View conversation" deep link.
-- Reuse `useDashboardCharts` pattern; new hook `useCustomerSentiment`.
+## 3. Edge functions
 
-### Verification
-- Seed 50 messages via `seed-inbox-data`, confirm rows appear in `customer_sentiment_log` within 60s.
-- Playwright: `e2e/voc-analytics.spec.ts` — load tab, assert chart renders, filter by negative.
+- `supabase/functions/get-maps-config/index.ts` — returns `{ browserKey }` to authenticated users only.
+- `supabase/functions/geo-ingest/index.ts` — owner-only. Accepts `{ query, near }`, calls Google Places Text Search + Geocoding, dedupes, inserts into `geo_entities`. Rate-limited via `_shared/rate-limiter`.
+- `supabase/functions/geo-rollup/index.ts` — recomputes `geo_insights_daily` for the caller's business (also schedulable).
+- `supabase/functions/compute-health-score/index.ts` — wraps the SQL function, returns explainable breakdown.
+- Extend `analyze-customer-sentiment` to also extract `keywords` (top 5) and accept an optional `geo_label`.
 
----
+All functions: zod validation, JWT verification in code, CORS via `_shared/security-headers`, structured error responses.
 
-## Phase 2 — Geo‑Intelligence & Hyperlocal Optimizer — 8–12 days
+## 4. Frontend
 
-**Goal:** Map-based onboarding location capture + AI-generated hyperlocal advice (foot traffic, competitors nearby, event calendar) at `/geo-insights`.
+### 4a. Geo-Intelligence (`/geo`)
 
-### Decision needed before start
-- **Map provider:** Mapbox (recommended, generous free tier, great Africa coverage) vs Google Maps (more accurate POI in Nairobi, paid). Default Mapbox.
-- Add secret: `MAPBOX_PUBLIC_TOKEN` (publishable, OK in code via `.env`).
+- New route + sidebar entry "Geo-Intel" (MapPin icon).
+- `useGeoIntel` hook (locations, entities, daily insights, filters).
+- `GeoOnboarding.tsx` — first-run wizard: pin primary location, set service radius, label key zones.
+- `GeoDashboard.tsx` — split layout:
+  - Left: Google Map (`@vis.gl/react-google-maps`) with business pin, service-radius circle, color-coded entity markers, heatmap overlay for customer clusters.
+  - Right: filter panel + insight cards.
+- **Advanced filters** (the user's specific ask):
+  - Service radius slider (1–50 km) — filters which entities/insights show.
+  - Geo label multi-select (chips from `geo_entities.geo_label` ∪ `business_locations.geo_label`).
+  - Entity type multi-select (competitor, supplier, customer_cluster, event, landmark).
+  - Date range (7/30/90d) — drives `geo_insights_daily` query.
+- **Insight cards** react to filters: Opportunity Score (avg of filtered geo_labels), Competitor Density, Customer Reach, Top Performing Zone, Underserved Zones. Each card shows the contributing geo_labels so the user understands *why*.
 
-### Schema
-- `businesses` — add `latitude numeric`, `longitude numeric`, `geo_label text` (e.g. "CBD, Nairobi"), `service_radius_km int default 5`.
-- `geo_insights` — `business_id`, `generated_at`, `summary text`, `recommendations jsonb`, `nearby_competitors jsonb`, `local_events jsonb`, `expires_at`.
-- RLS: business members read own row; service role writes.
+### 4b. Public business profile (`/biz/:slug`)
 
-### Onboarding update
-- Add step `LocationStep.tsx` after `BusinessDetailsStep` with Mapbox GL JS picker + reverse geocode.
-- Existing onboarded users prompted via banner on Dashboard once.
+- New public route, no auth.
+- Pulls via `get_public_business_profile` RPC → no PII, no internal metrics leakage.
+- Sections: hero (logo, tagline, primary location on mini-map), Health Score card with badge + transparent factor breakdown, Bundles grid (only `display_on_profile=true`), VoC Highlights (latest 6 approved positive/neutral submissions, anonymised), CTA (link to feedback form).
+- Distinguished dark-blue theme (per existing memory) with shield badge and `Hongera` confetti on score milestones (already mentioned in earlier memory — reuse).
+- Settings → new "Public Profile" tab to choose/validate slug, toggle visibility of each section, upload hero image to existing `business-assets` bucket.
 
-### Edge function
-- `generate-local-insights` — input `{ business_id }`. Pulls business profile + recent sales + Mapbox `places` API for competitors within `service_radius_km`. Calls `google/gemini-2.5-pro` with localized prompt (KES, Swahili allowed). Caches 7 days.
-- Manual "Refresh insights" button on `/geo-insights` (rate-limited 1/day).
+### 4c. Feedback moderation rules (`/feedback`)
 
-### UI
-- New page `src/pages/GeoInsights.tsx` + route. Map on left (business pin + competitor pins + radius circle), recommendations + events on right. Filters: radius (1/3/5/10 km), competitor category.
-- Add to sidebar nav.
+- New "Rules" tab on the Feedback page.
+- Form (react-hook-form + zod): spam keyword chips, language block list (en/sw/sheng/other), min length, max links, sentiment thresholds (auto-reject < x, auto-approve > y), severity threshold, master enable.
+- Live preview pane: paste sample message → shows which rule(s) would fire.
+- Moderation queue gets new badges ("auto-flagged: spam_keyword", "auto-rejected: language=other") sourced from `feedback_moderation_log`.
+- Bulk actions: approve all / reject all filtered.
 
-### Verification
-- Seed 3 businesses in Nairobi/Mombasa/Kisumu, generate insights, confirm KES + Swahili phrases present.
-- Playwright: location picker writes lat/lng; refresh button respects rate limit.
+### 4d. Wateja Sauti drill-down (Analytics tab)
 
----
+- Extend `CustomerSentimentTab.tsx`:
+  - Sentiment-over-time chart already exists — add toggle: stacked area vs 100% normalised.
+  - Top themes & **keywords** clouds become clickable. Clicking a theme/keyword opens a side sheet with the matching messages, channel mix, geo_label distribution, and a sparkline of its frequency over the period.
+  - Add a "Compare period" toggle (previous N days vs current) showing delta arrows on summary cards.
+  - Add a CSV export of the filtered dataset (uses existing `lib/exportUtils`).
 
-## Phase 3 — Cross-Sell & Bundling Engine — 5–7 days
+### 4e. Cross-cutting
 
-**Goal:** "Bidhaa Bundle" tab in `/inventory` plus checkout suggestions, with weekly auto-optimization.
+- Sidebar: add Geo-Intel and Public Profile entries.
+- Dashboard: add a small "Public profile views (7d)" tile and a "Health Score" preview linking to the explainer.
 
-### Schema
-- `bundles` — `id`, `business_id`, `name`, `discount_pct numeric`, `is_active bool`, `auto_generated bool`, `created_at`.
-- `bundle_items` — `bundle_id`, `product_id`, `quantity int default 1`. PK `(bundle_id, product_id)`.
-- `bundle_performance` — `bundle_id`, `date`, `views int`, `purchases int`, `revenue_kes numeric`.
-- RLS: business members CRUD own bundles.
+## 5. Security hardening pass
 
-### Edge functions
-- `optimize-bundles` (weekly cron) — runs market-basket analysis on `stock_movements` joined to a future `sales` table (or current order data). Generates up to 10 candidate bundles per business with `auto_generated = true`, owner can promote/edit.
-- `suggest-bundle-at-checkout` — input cart items, returns matching active bundles ranked by `bundle_performance.purchases`.
+- Audit every new RLS policy with `supabase--linter` after migration; fix any ERROR/WARN before moving on.
+- Public profile RPC: explicit allow-list of returned columns, no joins to PII tables.
+- Maps browser key: HTTP-referrer-restricted in Google Cloud Console (documented in README); never inlined.
+- Rate-limit `geo-ingest` (10/min/user) and the public profile RPC (60/min/IP via edge wrapper) to avoid scraping.
+- Add zod validation everywhere new input is accepted (slugs, rules, filters).
+- Add a Playwright spec: anonymous user can view a published profile but cannot read raw `business_locations` or `customer_sentiment_log` via REST (negative test).
+- Run `security--run_security_scan` at the end and address findings; update `@security-memory` for anything intentionally public (the profile RPC).
 
-### UI
-- New tab `BundlesTab.tsx` in `src/pages/Inventory.tsx`: list bundles, create/edit dialog (multi-product picker), performance sparkline per bundle, "Auto-suggest" panel showing AI candidates.
-- Hook `useBundles`.
+## 6. Verification
 
-### Verification
-- Manually create 1 bundle, simulate purchase via SQL, confirm performance row updates.
-- Cron execution logged in `audit_logs` with action `bundle.auto_optimize`.
+- `supabase--linter` clean on new migration.
+- New Playwright specs: geo dashboard filters, public profile rendering, moderation rule auto-reject path, anonymous PII denial.
+- Manual smoke: end-to-end flow from setting moderation rules → submitting public feedback → seeing it auto-handled → analytics drill-down.
+- Update `.lovable/plan.md` to mark Phase 2 done and lock the slug-validation + moderation-rule shapes for Phase 3+.
 
----
+## Technical notes
 
-## Phase 4 — Biashara Health Score — 6–8 days
+- Map library: `@vis.gl/react-google-maps` (lighter, modern). Adds ~80KB gz; lazy-loaded only on `/geo` and `/biz/:slug` via `React.lazy`.
+- Health score formula (initial): `overall = round(0.35*voc + 0.25*engagement + 0.25*inventory + 0.15*growth)` with each component normalised 0–100. Documented in-code and surfaced in the explainer UI.
+- Moderation trigger runs BEFORE INSERT so rejected items still land (status=`spam`/`rejected`) for auditability rather than being silently dropped.
+- All currency stays KES; all user-facing copy supports en/sw/sheng strings already present.
 
-**Goal:** Public, blockchain-anchored reputation badge at `/b/:slug` with transparent factor breakdown.
+## Open decisions (defaults if you say "approved, defaults")
 
-### Schema
-- `biashara_health_scores` — `business_id`, `score int (0-100)`, `tier text (bronze|silver|gold|platinum)`, `factors jsonb`, `calculated_at`, `valid_until`, `verification_hash text` (SHA-256 of factors+timestamp).
-- `business_reviews` — `id`, `business_id`, `customer_id`, `rating int (1-5)`, `comment text`, `is_anonymous bool default true`, `consent_to_display bool default false`, `created_at`. RLS: public read where `is_anonymous AND consent_to_display`.
-- `businesses` — add `slug text unique`, `public_profile_enabled bool default false`.
+1. Public profile route: `/biz/:slug` (default) vs `/b/:slug` vs `/p/:slug`.
+2. Health-score weighting: use the formula above (default) or let me expose weights as business settings.
+3. Moderation default rule set on first run: conservative (only block obvious spam) — default — vs strict (block other-language + low-sentiment).
+4. Confetti milestones: 60, 75, 90 (default) vs 50, 70, 85.
 
-### Score formula (transparent, shown on profile)
-- 30% — Response speed (`sla_tracking.first_response_time` last 30d)
-- 25% — CSAT average (`csat_responses.rating`)
-- 20% — Sentiment ratio (`business_sentiment_daily` positive %)
-- 15% — Resolution rate (resolved vs total)
-- 10% — Tenure + review volume
-
-### Edge functions
-- `calculate-biashara-health` (weekly cron + on-demand for owner). Computes factors, stores hash. ODPC-compliant: only aggregates, no raw PII.
-- `serve-public-profile` — public, no JWT, reads `biashara_health_scores` + anonymized testimonials only.
-- `embed-badge-svg` — returns inline SVG with score + tier, cacheable.
-
-### UI
-- Owner dashboard widget `HealthScoreCard.tsx` with factor breakdown bars + "Why?" tooltip per factor.
-- Public route `/b/:slug` (dark navy theme, shield badge, Hongera confetti at 80+, 90+, 100). Uses `framer-motion` + `react-confetti`.
-- Settings → "Public profile" toggle that generates slug.
-
-### Verification
-- Snapshot test of score for known fixture business.
-- Verify public route works without session; private fields never leaked (Playwright as anon).
-- Audit log entry on every recalculation.
-
----
-
-## Phase 5 — StockFund inventory financing — 10–14 days (highest risk, do last)
-
-**Goal:** Automated inventory micro-loans with M-Pesa B2C disbursement and standing-order repayment.
-
-### Pre-requisites (block start until ready)
-- ODPC compliance review for credit data handling.
-- Real lender partner agreement (Lovable does not lend directly).
-- Daraja **B2C** API access (separate from existing STK push) — needs new initiator credentials and security credential (RSA-encrypted password).
-- New secrets: `MPESA_B2C_INITIATOR_NAME`, `MPESA_B2C_SECURITY_CREDENTIAL`, `MPESA_B2C_SHORTCODE`, `LENDER_API_KEY`, `LENDER_WEBHOOK_SECRET`.
-
-### Schema
-- `stockfund_loans` — `id`, `business_id`, `principal_kes numeric`, `interest_rate_pct numeric`, `term_days int`, `status` (`pending|approved|disbursed|repaying|repaid|defaulted`), `disbursed_at`, `due_at`, `lender_ref text`, `health_score_at_application int`.
-- `stockfund_repayments` — `loan_id`, `amount_kes`, `mpesa_ref text`, `paid_at`, `status`.
-- `stockfund_offers` — auto-generated pre-approved offers based on Health Score ≥ 70 + sales history.
-- RLS: only owner sees own loans. Service role writes via webhook.
-
-### Edge functions
-- `stockfund-apply` — validates eligibility (health score ≥ 70, no active default), forwards to lender API.
-- `stockfund-disburse` — on lender approval webhook, fires Daraja B2C to owner's M-Pesa.
-- `stockfund-repay-cron` (hourly) — checks due loans, initiates STK push for installment.
-- `stockfund-webhook` — receives lender + Daraja callbacks with HMAC verification.
-
-### UI
-- Dashboard widget showing pre-approved offer (if any).
-- New page `/stockfund` with: active loan progress bar, repayment schedule, history, "Apply" wizard with consent checkboxes.
-- Admin: add `/security` style monitoring page for ops to see all loans + statuses (admin-only RLS).
-
-### Verification
-- Sandbox Daraja B2C end-to-end test.
-- Replay webhook with bad HMAC → must reject.
-- Default scenario: simulate missed payment → status flips to `defaulted`, audit log entry, owner notified.
-- Load test: 100 concurrent applications.
-
----
-
-## Cross-cutting concerns (apply to every phase)
-
-- **Migrations:** one per phase, RLS on every new table, never `auth.users` FKs.
-- **Audit logging:** every sensitive action calls `log_user_action` (`bundle.created`, `loan.disbursed`, `health_score.recalculated`, `geo_insights.refreshed`, etc.).
-- **Rate limiting:** all new edge functions reuse `_shared/rate-limiter.ts`.
-- **Localization:** Swahili/Sheng support per existing patterns; KES formatting via `formatKES` util.
-- **Feature flags:** add `feature_flags` JSONB on `businesses` so we can roll Phase 4 + 5 to a beta cohort first.
-- **Supabase linter:** run after every migration approval.
-
----
-
-## Decisions needed before I start Phase 1
-
-1. **Map provider** for Phase 2: Mapbox (default) or Google Maps?
-2. **Public profile slug strategy** for Phase 4: auto-generated from business name, or owner-chosen with availability check? (Default: auto, editable once.)
-3. **Phase 5 lender partner**: do you already have one, or should I scaffold the integration against a mock lender API and you swap creds later?
-4. **Order confirmation**: proceed VoC → Geo → Bundling → Health → StockFund, or reorder?
-
-Reply with answers (or "approved, defaults") and I'll start **Phase 1 (VoC)** end-to-end. After it ships I'll come back with the Phase 2 build.
+Reply "approved, defaults" to start, or tell me which to change and I'll begin Phase 2 immediately after secrets land.
