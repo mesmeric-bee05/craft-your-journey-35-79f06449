@@ -27,6 +27,7 @@ import {
 import { CheckCircle2, XCircle, ShieldAlert, Plus, Link as LinkIcon, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { ModerationRulesPanel } from "@/components/feedback/ModerationRulesPanel";
 
 const manualSchema = z.object({
   message: z.string().trim().min(3).max(2000),
