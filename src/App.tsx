@@ -33,6 +33,9 @@ import Vision from "./pages/Vision";
 import SecurityDashboard from "./pages/SecurityDashboard";
 import Feedback from "./pages/Feedback";
 import FeedbackPublic from "./pages/FeedbackPublic";
+import GeoIntel from "./pages/GeoIntel";
+import PublicProfilePage from "./pages/PublicProfilePage";
+import BusinessPublic from "./pages/BusinessPublic";
 
 const queryClient = new QueryClient({
   defaultOptions: {
