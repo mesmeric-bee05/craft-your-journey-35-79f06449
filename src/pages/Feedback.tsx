@@ -65,12 +65,14 @@ export default function Feedback() {
             <TabsTrigger value="approved">Approved</TabsTrigger>
             <TabsTrigger value="rejected">Rejected</TabsTrigger>
             <TabsTrigger value="forms">Public forms</TabsTrigger>
+            <TabsTrigger value="rules">Moderation rules</TabsTrigger>
           </TabsList>
 
           <TabsContent value="pending"><ModerationList status="pending" /></TabsContent>
           <TabsContent value="approved"><ModerationList status="approved" /></TabsContent>
           <TabsContent value="rejected"><ModerationList status="rejected" /></TabsContent>
           <TabsContent value="forms"><FormsList /></TabsContent>
+          <TabsContent value="rules"><ModerationRulesPanel /></TabsContent>
         </Tabs>
       </div>
     </DashboardLayout>
