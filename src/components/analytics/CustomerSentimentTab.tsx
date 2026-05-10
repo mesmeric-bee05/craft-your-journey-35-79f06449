@@ -175,7 +175,7 @@ export function CustomerSentimentTab({ dateRange }: Props) {
                 {summary.themes.map((t) => {
                   const size = Math.min(1.6, 0.85 + t.count * 0.08);
                   return (
-                    <Badge key={t.theme} variant="secondary" style={{ fontSize: `${size}rem` }}>
+                    <Badge key={t.theme} variant="secondary" style={{ fontSize: `${size}rem` }} className="cursor-pointer hover:bg-primary/20" onClick={() => setDrill(t.theme)}>
                       {t.theme} <span className="ml-1 opacity-60">×{t.count}</span>
                     </Badge>
                   );
