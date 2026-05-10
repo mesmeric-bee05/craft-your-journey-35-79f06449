@@ -75,6 +75,8 @@ const mainNavItems: NavItem[] = [
   { label: 'Reports', icon: FileText, href: '/reports' },
   { label: 'Competitors', icon: Target, href: '/competitors' },
   { label: 'Vision', icon: Camera, href: '/vision' },
+  { label: 'Geo-Intel', icon: MapPin, href: '/geo' },
+  { label: 'Public Profile', icon: Globe, href: '/public-profile' },
   { label: 'Biashara Mind', icon: Brain, href: '/wellness' },
 ];
 
