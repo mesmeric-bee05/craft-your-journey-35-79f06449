@@ -31,7 +31,7 @@ function BundleEditor({ bundleId, onClose }: { bundleId: string; onClose: () => 
   const [qty, setQty] = useState(1);
 
   const total = (items.data ?? []).reduce((s, it) => s + Number(it.unit_price_kes) * it.quantity, 0);
-  const productList = products.data ?? [];
+  const productList = products;
 
   return (
     <div className="space-y-3 p-4 bg-muted/30 rounded-lg">
@@ -158,7 +158,7 @@ function MyBundlesTab() {
 function SuggestionsTab() {
   const { suggestions, recompute, dismiss } = useBundleSuggestions();
   const { products } = useProducts();
-  const nameFor = (id: string) => (products.data ?? []).find((p: any) => p.id === id)?.name ?? "Product";
+  const nameFor = (id: string) => (products).find((p: any) => p.id === id)?.name ?? "Product";
 
   return (
     <div className="space-y-3">
