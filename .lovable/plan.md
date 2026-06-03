@@ -1,125 +1,98 @@
-# Phase 2 — Geo-Intelligence + Track B Continuation
+## Scope
 
-This plan covers the next big slice end-to-end: Geo-Intelligence (Google Maps), the public business profile (slug), configurable moderation rules for VoC, deeper Wateja Sauti drill-down, and a security/perf hardening pass. It also lines up Phase 3 (Bundling) and Phase 4 (Health Score) so the public profile has real data to show.
+Phase 3 (Bundling), Phase 4 (Health Score nightly + dashboard tile), security re-scan & hardening, automated RLS test suite, and an in-app Security Findings page.
 
-## 1. Secrets & prerequisites
+---
 
-- Request `GOOGLE_MAPS_API_KEY` (server, used by edge functions for Geocoding / Places).
-- Request `GOOGLE_MAPS_BROWSER_KEY` (HTTP-referrer-restricted, used by `@vis.gl/react-google-maps` in the dashboard).
-- Both stored as runtime secrets; the browser key is fetched via a tiny `get-maps-config` edge function so we don't bake it into the bundle and can rotate it.
+## 1. Phase 3 — Deeper Bundling Logic
 
-## 2. Database (single migration)
+**Schema additions** (`bundles` table already exists; extend):
+- `bundle_items` table: `bundle_id`, `product_id`, `quantity`, `unit_price_kes`, `is_optional`.
+- `bundle_recommendations` (materialized via nightly job): co-purchase pairs with `support`, `confidence`, `lift`.
+- DB function `suggest_bundles(p_business_id)` — basic market-basket from `transactions` + `transaction_items` (last 90 days).
 
-New tables (all RLS-scoped to `business_id`, members read, owners write):
+**Edge function** `compute-bundle-suggestions` — owner-only, recomputes recommendations and writes to `bundle_recommendations`.
 
-- `business_locations` — owner business outlets: `lat`, `lng`, `address`, `geo_label` (e.g. `nairobi_cbd`, `westlands`), `service_radius_km`, `is_primary`.
-- `geo_entities` — generic ingest table for competitors / suppliers / customer hotspots / events: `entity_type` enum (`competitor|supplier|customer_cluster|event|landmark`), `name`, `lat`, `lng`, `geo_label`, `metadata jsonb`, `source` (`manual|google_places|csv`).
-- `geo_insights_daily` — pre-aggregated daily roll-ups per business + geo_label (customer count, avg sentiment, competitor density, opportunity score 0-100).
-- `business_public_profiles` — `slug` (unique, owner-chosen, validated via existing `is_feedback_slug_available` pattern → new `is_business_slug_available`), `tagline`, `hero_image`, `is_published`, `show_health_score`, `show_voc_highlights`, `show_bundles`.
-- `bundles` (Phase 3 stub used by profile) — `name`, `items jsonb`, `price_kes`, `is_active`, `display_on_profile`.
-- `business_health_score` (Phase 4 stub) — `overall`, `voc_component`, `inventory_component`, `engagement_component`, `growth_component`, `computed_at`. Recomputed nightly + on-demand.
-- `feedback_moderation_rules` — per-business JSONB rules: `spam_keywords[]`, `block_languages[]`, `min_message_length`, `max_links`, `auto_reject_below_score`, `auto_approve_above_score`, `severity_threshold`, `is_active`.
-- `feedback_moderation_log` — every auto/manual decision with rule that fired (audit trail).
+**UI** at `/bundles`:
+- "My Bundles" tab: CRUD with drag-to-reorder products, auto price = sum − discount %, publish-to-profile toggle.
+- "AI Suggestions" tab: ranked co-purchase pairs with "Create bundle" CTA.
+- "Performance" tab: views, conversions (clicks → orders), revenue contribution.
+- Public profile (`/biz/:slug`) already renders bundles; extend to show savings badge and "Add to cart" link.
 
-Extensions to existing tables:
+---
 
-- `customer_sentiment_log` → add `keywords text[]` and `geo_label text` (nullable) for drill-down + map overlay.
-- `business_sentiment_daily` → add `top_keywords jsonb` alongside existing `top_themes`.
+## 2. Phase 4 — Health Score Automation
 
-DB functions:
+- Enable `pg_cron` + `pg_net`. Schedule `compute-health-score-batch` edge function nightly at 02:00 EAT.
+- New SECURITY DEFINER service function `compute_all_health_scores()` that loops every active business (called from edge function with service role).
+- Trend table `business_health_score_history` (snapshots per day) → powers sparklines and delta arrows.
+- **Dashboard tile** `HealthScoreTile.tsx` on `/dashboard`: current score, 7-day trend sparkline, top 2 factors needing attention, "View breakdown" CTA.
 
-- `is_business_slug_available(p_slug text)` — mirrors feedback slug RPC.
-- `get_public_business_profile(p_slug text)` — SECURITY DEFINER, returns ONLY published, non-PII fields (profile + latest health score + up to 6 approved VoC highlights + active profile-flagged bundles). No auth required.
-- `compute_business_health_score(p_business_id uuid)` — weighted formula documented in code; called by trigger + nightly cron.
-- `apply_feedback_moderation()` trigger on `feedback_submissions` insert (anonymous path) → consults `feedback_moderation_rules` and may set status to `spam`/`rejected` automatically, logging to `feedback_moderation_log`.
+---
 
-All new tables: RLS on, business-member read, owner write, public read **only** through the SECURITY DEFINER RPC for the profile.
+## 3. Security Re-scan + Definer Cleanup
 
-## 3. Edge functions
+- Re-run `security--run_security_scan`; capture and address new findings.
+- Convert these helpers from DEFINER → INVOKER where safe (caller already has SELECT via RLS):
+  - `is_business_slug_available`, `is_feedback_slug_available` (querying single-column, no PII): move to a dedicated `slugs` materialized view, anon RPC reads from view.
+  - `get_safe_channels`: replace with a regular view + RLS policy `is_business_member(auth.uid(), business_id)` so no DEFINER needed.
+- Functions that must stay DEFINER (RLS helpers, public profile RPC, secret accessors): keep, document allowlist in `mem://security/scanner-guidance`, and add `REVOKE ALL ... GRANT EXECUTE TO <specific role>` to minimise exposed surface (e.g. `get_channel_tokens` → owner-only via membership check inside body, EXECUTE granted to `authenticated` only, never `anon`).
 
-- `supabase/functions/get-maps-config/index.ts` — returns `{ browserKey }` to authenticated users only.
-- `supabase/functions/geo-ingest/index.ts` — owner-only. Accepts `{ query, near }`, calls Google Places Text Search + Geocoding, dedupes, inserts into `geo_entities`. Rate-limited via `_shared/rate-limiter`.
-- `supabase/functions/geo-rollup/index.ts` — recomputes `geo_insights_daily` for the caller's business (also schedulable).
-- `supabase/functions/compute-health-score/index.ts` — wraps the SQL function, returns explainable breakdown.
-- Extend `analyze-customer-sentiment` to also extract `keywords` (top 5) and accept an optional `geo_label`.
+**Avatar bucket hardening**:
+- Keep `public=true` for direct image rendering (intentional).
+- Replace the broad "Avatars are publicly accessible" SELECT policy with:
+  - `SELECT` on `storage.objects` allowed to `anon`/`authenticated` only when `bucket_id='avatars' AND (storage.foldername(name))[1] ~ '^[0-9a-f-]{36}$'` (no listing of root).
+- Block bucket-level `list()` by removing broad SELECT and providing per-object access via direct URLs only.
+- Add Playwright + bun script tests for anon read of a known avatar (allowed), anon list (denied), authenticated upload to own folder (allowed), authenticated upload to another folder (denied).
 
-All functions: zod validation, JWT verification in code, CORS via `_shared/security-headers`, structured error responses.
+---
 
-## 4. Frontend
+## 4. Automated Security Test Suite
 
-### 4a. Geo-Intelligence (`/geo`)
+Layout:
+```text
+e2e/security/
+  rls-tables.spec.ts        ← parametrised across every public table
+  rpc-roles.spec.ts         ← anon vs auth/own vs auth/other for every SECURITY DEFINER RPC
+  storage-avatars.spec.ts   ← anon read OK, anon list denied, cross-folder write denied
+  storage-business.spec.ts  ← folder-scoped policies (existing extended)
+  realtime-topics.spec.ts   ← anon subscribe denied; cross-business subscribe denied
+  public-profile.spec.ts    ← slug published/unpublished branches; PII never leaked
+```
+- A `TABLES_UNDER_TEST` registry (generated from `src/integrations/supabase/types.ts`) drives table coverage; each table asserts: anon SELECT denied, cross-tenant SELECT denied, own-tenant SELECT allowed (where intended).
+- Wire into `.github/workflows/security-checks.yml` as a new `rls-coverage` job.
+- Local runner: `bunx playwright test e2e/security`.
 
-- New route + sidebar entry "Geo-Intel" (MapPin icon).
-- `useGeoIntel` hook (locations, entities, daily insights, filters).
-- `GeoOnboarding.tsx` — first-run wizard: pin primary location, set service radius, label key zones.
-- `GeoDashboard.tsx` — split layout:
-  - Left: Google Map (`@vis.gl/react-google-maps`) with business pin, service-radius circle, color-coded entity markers, heatmap overlay for customer clusters.
-  - Right: filter panel + insight cards.
-- **Advanced filters** (the user's specific ask):
-  - Service radius slider (1–50 km) — filters which entities/insights show.
-  - Geo label multi-select (chips from `geo_entities.geo_label` ∪ `business_locations.geo_label`).
-  - Entity type multi-select (competitor, supplier, customer_cluster, event, landmark).
-  - Date range (7/30/90d) — drives `geo_insights_daily` query.
-- **Insight cards** react to filters: Opportunity Score (avg of filtered geo_labels), Competitor Density, Customer Reach, Top Performing Zone, Underserved Zones. Each card shows the contributing geo_labels so the user understands *why*.
+---
 
-### 4b. Public business profile (`/biz/:slug`)
+## 5. Security Findings Page (in-app)
 
-- New public route, no auth.
-- Pulls via `get_public_business_profile` RPC → no PII, no internal metrics leakage.
-- Sections: hero (logo, tagline, primary location on mini-map), Health Score card with badge + transparent factor breakdown, Bundles grid (only `display_on_profile=true`), VoC Highlights (latest 6 approved positive/neutral submissions, anonymised), CTA (link to feedback form).
-- Distinguished dark-blue theme (per existing memory) with shield badge and `Hongera` confetti on score milestones (already mentioned in earlier memory — reuse).
-- Settings → new "Public Profile" tab to choose/validate slug, toggle visibility of each section, upload hero image to existing `business-assets` bucket.
+Route `/security` (admins only via `has_role(auth.uid(),'admin')`).
 
-### 4c. Feedback moderation rules (`/feedback`)
+- **Findings table**: from the existing `security_check_runs` + new `security_findings_history` table (id, source, severity, status `open|fixed|ignored`, fixed_at, ignored_reason, commit_sha).
+- Filters: severity, status, source (supabase / supabase_lov / agent / connector), date range.
+- Row drill-down sheet: description, remediation link, applied fix narrative, ignored reason, change history.
+- "Re-run scan" button → invokes `security-rescan` edge function (owner-only) that calls the scanner API and writes a new run row.
+- CSV export of findings for compliance.
+- Audit log entry on every state change (fixed/ignored/un-ignored).
 
-- New "Rules" tab on the Feedback page.
-- Form (react-hook-form + zod): spam keyword chips, language block list (en/sw/sheng/other), min length, max links, sentiment thresholds (auto-reject < x, auto-approve > y), severity threshold, master enable.
-- Live preview pane: paste sample message → shows which rule(s) would fire.
-- Moderation queue gets new badges ("auto-flagged: spam_keyword", "auto-rejected: language=other") sourced from `feedback_moderation_log`.
-- Bulk actions: approve all / reject all filtered.
+---
 
-### 4d. Wateja Sauti drill-down (Analytics tab)
+## 6. Continuous Hardening + SEO + Errors
 
-- Extend `CustomerSentimentTab.tsx`:
-  - Sentiment-over-time chart already exists — add toggle: stacked area vs 100% normalised.
-  - Top themes & **keywords** clouds become clickable. Clicking a theme/keyword opens a side sheet with the matching messages, channel mix, geo_label distribution, and a sparkline of its frequency over the period.
-  - Add a "Compare period" toggle (previous N days vs current) showing delta arrows on summary cards.
-  - Add a CSV export of the filtered dataset (uses existing `lib/exportUtils`).
+- Fix all TypeScript/console errors surfaced by the new pages and tests.
+- Tighten CSP: drop `'unsafe-eval'` in production build (keep for dev only via Vite plugin).
+- SEO: add JSON-LD `LocalBusiness` schema to `/biz/:slug`, sitemap regeneration on slug publish, canonical + OG tags per public page.
+- Add `<noscript>` content on public pages for crawlers.
+- Update `mem://security/scanner-guidance` after every change; update SLA/CSAT memory if affected.
 
-### 4e. Cross-cutting
+---
 
-- Sidebar: add Geo-Intel and Public Profile entries.
-- Dashboard: add a small "Public profile views (7d)" tile and a "Health Score" preview linking to the explainer.
+## Open decisions (defaults if "approved, defaults")
 
-## 5. Security hardening pass
+1. **Bundle discount model** — % off sum-of-items (default) vs fixed bundle price vs both.
+2. **Health-score nightly cadence** — daily 02:00 EAT (default) vs every 6 hours.
+3. **Avatar URL strategy** — keep public bucket + signed-folder regex (default) vs flip private and migrate to short-lived signed URLs (breaks existing avatar `<img>` tags until refactor).
+4. **Security page visibility** — admins only (default) vs admins + business owners (read-only on their own business's scoped findings).
 
-- Audit every new RLS policy with `supabase--linter` after migration; fix any ERROR/WARN before moving on.
-- Public profile RPC: explicit allow-list of returned columns, no joins to PII tables.
-- Maps browser key: HTTP-referrer-restricted in Google Cloud Console (documented in README); never inlined.
-- Rate-limit `geo-ingest` (10/min/user) and the public profile RPC (60/min/IP via edge wrapper) to avoid scraping.
-- Add zod validation everywhere new input is accepted (slugs, rules, filters).
-- Add a Playwright spec: anonymous user can view a published profile but cannot read raw `business_locations` or `customer_sentiment_log` via REST (negative test).
-- Run `security--run_security_scan` at the end and address findings; update `@security-memory` for anything intentionally public (the profile RPC).
-
-## 6. Verification
-
-- `supabase--linter` clean on new migration.
-- New Playwright specs: geo dashboard filters, public profile rendering, moderation rule auto-reject path, anonymous PII denial.
-- Manual smoke: end-to-end flow from setting moderation rules → submitting public feedback → seeing it auto-handled → analytics drill-down.
-- Update `.lovable/plan.md` to mark Phase 2 done and lock the slug-validation + moderation-rule shapes for Phase 3+.
-
-## Technical notes
-
-- Map library: `@vis.gl/react-google-maps` (lighter, modern). Adds ~80KB gz; lazy-loaded only on `/geo` and `/biz/:slug` via `React.lazy`.
-- Health score formula (initial): `overall = round(0.35*voc + 0.25*engagement + 0.25*inventory + 0.15*growth)` with each component normalised 0–100. Documented in-code and surfaced in the explainer UI.
-- Moderation trigger runs BEFORE INSERT so rejected items still land (status=`spam`/`rejected`) for auditability rather than being silently dropped.
-- All currency stays KES; all user-facing copy supports en/sw/sheng strings already present.
-
-## Open decisions (defaults if you say "approved, defaults")
-
-1. Public profile route: `/biz/:slug` (default) vs `/b/:slug` vs `/p/:slug`.
-2. Health-score weighting: use the formula above (default) or let me expose weights as business settings.
-3. Moderation default rule set on first run: conservative (only block obvious spam) — default — vs strict (block other-language + low-sentiment).
-4. Confetti milestones: 60, 75, 90 (default) vs 50, 70, 85.
-
-Reply "approved, defaults" to start, or tell me which to change and I'll begin Phase 2 immediately after secrets land.
+Reply "approved, defaults" to accept all four and begin Phase 3.

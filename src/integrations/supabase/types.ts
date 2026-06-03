@@ -179,6 +179,146 @@ export type Database = {
           },
         ]
       }
+      bundle_events: {
+        Row: {
+          bundle_id: string
+          business_id: string
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json
+          source: string | null
+          user_id: string | null
+        }
+        Insert: {
+          bundle_id: string
+          business_id: string
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json
+          source?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          bundle_id?: string
+          business_id?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json
+          source?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bundle_events_bundle_id_fkey"
+            columns: ["bundle_id"]
+            isOneToOne: false
+            referencedRelation: "bundles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bundle_events_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bundle_items: {
+        Row: {
+          bundle_id: string
+          created_at: string
+          id: string
+          is_optional: boolean
+          product_id: string
+          quantity: number
+          sort_order: number
+          unit_price_kes: number
+          updated_at: string
+        }
+        Insert: {
+          bundle_id: string
+          created_at?: string
+          id?: string
+          is_optional?: boolean
+          product_id: string
+          quantity?: number
+          sort_order?: number
+          unit_price_kes?: number
+          updated_at?: string
+        }
+        Update: {
+          bundle_id?: string
+          created_at?: string
+          id?: string
+          is_optional?: boolean
+          product_id?: string
+          quantity?: number
+          sort_order?: number
+          unit_price_kes?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bundle_items_bundle_id_fkey"
+            columns: ["bundle_id"]
+            isOneToOne: false
+            referencedRelation: "bundles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bundle_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bundle_suggestions: {
+        Row: {
+          business_id: string
+          computed_at: string
+          id: string
+          is_dismissed: boolean
+          product_ids: string[]
+          rationale: string | null
+          score: number
+          source: string
+        }
+        Insert: {
+          business_id: string
+          computed_at?: string
+          id?: string
+          is_dismissed?: boolean
+          product_ids: string[]
+          rationale?: string | null
+          score?: number
+          source?: string
+        }
+        Update: {
+          business_id?: string
+          computed_at?: string
+          id?: string
+          is_dismissed?: boolean
+          product_ids?: string[]
+          rationale?: string | null
+          score?: number
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bundle_suggestions_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bundles: {
         Row: {
           business_id: string
@@ -298,6 +438,53 @@ export type Database = {
             foreignKeyName: "business_health_score_business_id_fkey"
             columns: ["business_id"]
             isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      business_health_score_history: {
+        Row: {
+          business_id: string
+          created_at: string
+          engagement_component: number
+          factors: Json
+          growth_component: number
+          id: string
+          inventory_component: number
+          overall: number
+          snapshot_date: string
+          voc_component: number
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          engagement_component: number
+          factors?: Json
+          growth_component: number
+          id?: string
+          inventory_component: number
+          overall: number
+          snapshot_date?: string
+          voc_component: number
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          engagement_component?: number
+          factors?: Json
+          growth_component?: number
+          id?: string
+          inventory_component?: number
+          overall?: number
+          snapshot_date?: string
+          voc_component?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_health_score_history_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
             referencedRelation: "businesses"
             referencedColumns: ["id"]
           },
@@ -2564,6 +2751,63 @@ export type Database = {
         }
         Relationships: []
       }
+      security_findings: {
+        Row: {
+          commit_sha: string | null
+          created_at: string
+          description: string | null
+          detected_at: string
+          finding_internal_id: string
+          id: string
+          metadata: Json
+          name: string
+          remediation_link: string | null
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          scanner_name: string
+          severity: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          commit_sha?: string | null
+          created_at?: string
+          description?: string | null
+          detected_at?: string
+          finding_internal_id: string
+          id?: string
+          metadata?: Json
+          name: string
+          remediation_link?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          scanner_name: string
+          severity?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          commit_sha?: string | null
+          created_at?: string
+          description?: string | null
+          detected_at?: string
+          finding_internal_id?: string
+          id?: string
+          metadata?: Json
+          name?: string
+          remediation_link?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          scanner_name?: string
+          severity?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       segment_customers: {
         Row: {
           added_at: string
@@ -3742,6 +3986,7 @@ export type Database = {
         }
         Returns: string
       }
+      snapshot_all_health_scores: { Args: never; Returns: number }
     }
     Enums: {
       ai_content_type:
