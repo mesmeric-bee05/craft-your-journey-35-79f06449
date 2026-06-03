@@ -36,6 +36,8 @@ import FeedbackPublic from "./pages/FeedbackPublic";
 import GeoIntel from "./pages/GeoIntel";
 import PublicProfilePage from "./pages/PublicProfilePage";
 import BusinessPublic from "./pages/BusinessPublic";
+import Bundles from "./pages/Bundles";
+import SecurityFindings from "./pages/SecurityFindings";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -93,6 +95,8 @@ const App = () => (
             <Route path="/competitors" element={<ProtectedRoute><Competitors /></ProtectedRoute>} />
             <Route path="/vision" element={<ProtectedRoute><Vision /></ProtectedRoute>} />
             <Route path="/security" element={<ProtectedRoute><SecurityDashboard /></ProtectedRoute>} />
+            <Route path="/security/findings" element={<ProtectedRoute><SecurityFindings /></ProtectedRoute>} />
+            <Route path="/bundles" element={<ProtectedRoute><Bundles /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </BrowserRouter>
