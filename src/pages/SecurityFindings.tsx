@@ -7,12 +7,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { ShieldCheck, ShieldAlert, ShieldX, Download } from "lucide-react";
+import { ShieldCheck, ShieldAlert, ShieldX, Download, RefreshCw } from "lucide-react";
 import { useSecurityFindings, type SecurityFinding } from "@/hooks/useSecurityFindings";
+import { useCronHealth } from "@/hooks/useCronHealth";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect } from "react";
 import { Navigate } from "react-router-dom";
+import { SEO } from "@/components/seo/SEO";
 
 const SEV_TONE: Record<string, string> = {
   error: "text-destructive",
@@ -125,6 +127,7 @@ export default function SecurityFindings() {
 
   return (
     <DashboardLayout>
+      <RescanTile />
       <div className="space-y-6 max-w-5xl mx-auto">
         <div className="flex items-end justify-between">
           <div>
