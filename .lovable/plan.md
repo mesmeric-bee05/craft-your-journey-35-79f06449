@@ -1,98 +1,111 @@
-## Scope
 
-Phase 3 (Bundling), Phase 4 (Health Score nightly + dashboard tile), security re-scan & hardening, automated RLS test suite, and an in-app Security Findings page.
+# Phase 5: Security CI, Cron Health, Avatar E2E, SEO, Auto-Rescan
 
----
+## 1. CI: block merges on RLS/security failures
 
-## 1. Phase 3 — Deeper Bundling Logic
+Update `.github/workflows/security-checks.yml`:
+- Add new job `rls-e2e` that runs `bunx playwright test e2e/security/` against the deployed `E2E_BASE_URL` using `VITE_SUPABASE_URL` + `VITE_SUPABASE_PUBLISHABLE_KEY`.
+- Add `required-checks` aggregator job with `needs: [security-headers, security-definer-roles, storage-access, e2e-deployed, rls-e2e]` and `if: always()` — fails if any upstream job failed/skipped-with-error. This is the single check to mark "Required" in branch protection.
+- Trigger remains `pull_request` + `push: main` + nightly cron.
+- Document required branch-protection setup in `scripts/README.md`.
 
-**Schema additions** (`bundles` table already exists; extend):
-- `bundle_items` table: `bundle_id`, `product_id`, `quantity`, `unit_price_kes`, `is_optional`.
-- `bundle_recommendations` (materialized via nightly job): co-purchase pairs with `support`, `confidence`, `lift`.
-- DB function `suggest_bundles(p_business_id)` — basic market-basket from `transactions` + `transaction_items` (last 90 days).
+## 2. Cron health-check + admin alerting
 
-**Edge function** `compute-bundle-suggestions` — owner-only, recomputes recommendations and writes to `bundle_recommendations`.
+Database (one migration):
+- New table `public.cron_job_runs` (job_name, started_at, finished_at, status `'success'|'failure'`, rows_affected, error_text, duration_ms). RLS: SELECT for admins only via `is_admin(auth.uid())`; INSERT via service role. GRANT to service_role + authenticated.
+- Add view/RPC `get_cron_health(p_job_name text)` returning last run + minutes-since-last-success + expected interval; admin-only.
+- Update `snapshot-health-scores` edge function to write a row to `cron_job_runs` on both success and failure paths, then call `security-alert` when status='failure'.
+- Schedule via `pg_cron` (using `supabase--insert` per docs, since URL/anon key are project-specific): daily 02:00 EAT (23:00 UTC) → `snapshot-health-scores`.
+- Second job: `security-rescan` hourly (see §5).
 
-**UI** at `/bundles`:
-- "My Bundles" tab: CRUD with drag-to-reorder products, auto price = sum − discount %, publish-to-profile toggle.
-- "AI Suggestions" tab: ranked co-purchase pairs with "Create bundle" CTA.
-- "Performance" tab: views, conversions (clicks → orders), revenue contribution.
-- Public profile (`/biz/:slug`) already renders bundles; extend to show savings badge and "Add to cart" link.
+Frontend:
+- New route `/admin/health` (admin-only via `is_admin` check in `RequireAuth`-style guard). Tiles per job: last run timestamp, status badge, duration, "stale" warning if `minutes_since_last_success > expected_interval × 1.5`. "Run now" button (admin) invokes the edge function with shared secret stored client-side? No — call a new admin-only edge function `trigger-cron-job` that gates via `is_admin` and forwards the shared secret server-side.
+- Add to sidebar under Settings → "System health" (admins only).
 
----
+## 3. Avatar bucket e2e — anon vs authed
 
-## 2. Phase 4 — Health Score Automation
+New file `e2e/security/avatars-bucket.spec.ts`:
+- **Anon list root** → expect empty/denied.
+- **Anon list `/<random-uuid>/`** → expect empty/denied.
+- **Anon read** of a seeded UUID-foldered object via public URL → expect 200 (intentional: avatars bucket is public for `<img>` rendering).
+- **Anon read** of a non-UUID-foldered object → expect 403/404 (the tightened SELECT policy from earlier migration restricts to UUID folders).
+- **Anon signed-URL request** for foreign folder → expect 4xx.
+- **Authed upload** to own `auth.uid()` folder → 200.
+- **Authed upload** to another user's folder → denied.
+- **Authed delete** of own object → 200; of foreign object → denied.
+- Seed/cleanup via service-role helper (mirrors `scripts/test-storage-access.ts`).
+- Add a parallel non-Playwright runner `scripts/test-avatar-access.ts` for the existing `storage-access` GH job to pick up.
 
-- Enable `pg_cron` + `pg_net`. Schedule `compute-health-score-batch` edge function nightly at 02:00 EAT.
-- New SECURITY DEFINER service function `compute_all_health_scores()` that loops every active business (called from edge function with service role).
-- Trend table `business_health_score_history` (snapshots per day) → powers sparklines and delta arrows.
-- **Dashboard tile** `HealthScoreTile.tsx` on `/dashboard`: current score, 7-day trend sparkline, top 2 factors needing attention, "View breakdown" CTA.
+## 4. SEO for new routes
 
----
+Install `react-helmet-async`, wrap `<App/>` with `<HelmetProvider>` in `src/main.tsx`, remove canonical from `index.html`.
 
-## 3. Security Re-scan + Definer Cleanup
+Add `<Helmet>` blocks to:
+- `/bundles` (`Bundles.tsx`) — title, description, canonical, og:* (no image).
+- `/biz/:slug` (`BusinessPublic.tsx`) — dynamic title `${business.name} — SmartReach`, description from `tagline`, canonical `/biz/<slug>`, og:title/description/url/type=profile, JSON-LD `LocalBusiness` with name, image (logo_url), aggregateRating from health.overall when present, address from `location.geo_label`.
+- `/p/:slug` (`PublicProfilePage.tsx`) — same pattern.
+- `/security/findings`, `/admin/health` — `noindex` via `<meta name="robots" content="noindex">` (admin pages).
+- `/feedback/:slug` (`FeedbackPublic.tsx`) — title + description + canonical.
 
-- Re-run `security--run_security_scan`; capture and address new findings.
-- Convert these helpers from DEFINER → INVOKER where safe (caller already has SELECT via RLS):
-  - `is_business_slug_available`, `is_feedback_slug_available` (querying single-column, no PII): move to a dedicated `slugs` materialized view, anon RPC reads from view.
-  - `get_safe_channels`: replace with a regular view + RLS policy `is_business_member(auth.uid(), business_id)` so no DEFINER needed.
-- Functions that must stay DEFINER (RLS helpers, public profile RPC, secret accessors): keep, document allowlist in `mem://security/scanner-guidance`, and add `REVOKE ALL ... GRANT EXECUTE TO <specific role>` to minimise exposed surface (e.g. `get_channel_tokens` → owner-only via membership check inside body, EXECUTE granted to `authenticated` only, never `anon`).
+Update `public/sitemap.xml` generator note: leave BASE_URL placeholder; document that `/biz/<slug>` URLs are added when profiles publish (future enhancement, out of scope here).
 
-**Avatar bucket hardening**:
-- Keep `public=true` for direct image rendering (intentional).
-- Replace the broad "Avatars are publicly accessible" SELECT policy with:
-  - `SELECT` on `storage.objects` allowed to `anon`/`authenticated` only when `bucket_id='avatars' AND (storage.foldername(name))[1] ~ '^[0-9a-f-]{36}$'` (no listing of root).
-- Block bucket-level `list()` by removing broad SELECT and providing per-object access via direct URLs only.
-- Add Playwright + bun script tests for anon read of a known avatar (allowed), anon list (denied), authenticated upload to own folder (allowed), authenticated upload to another folder (denied).
+## 5. Automated periodic security re-scan → audit trail
 
----
+New edge function `security-rescan-runner` (service-role, shared-secret guard):
+- Calls Supabase Management API security advisor (or runs internal SQL-based checks mirroring `security--run_security_scan`'s known classes — RLS-missing, public grants, function search_path, etc. We'll start with the SQL checks below since the in-IDE scanner isn't reachable from prod):
+  - Tables in `public` with `rowsecurity=false`.
+  - Tables in `public` with no policies.
+  - Functions in `public` without `search_path` set.
+  - Storage buckets that are public.
+  - GRANTs to `anon` on tables not in an allowlist.
+- For each finding: upsert into existing `public.security_findings` keyed on `(scanner_name='auto_rescan', finding_internal_id)`. New findings created with `status='open'`. Findings that previously existed but no longer detected → flip to `status='fixed'` with `resolution_note='auto-resolved'`.
+- Write a row to `cron_job_runs` (§2). On any net-new `open` finding, POST to `security-alert` with summary `"N new finding(s) detected"`.
 
-## 4. Automated Security Test Suite
+Schedule: every 6 hours via `pg_cron` (using `supabase--insert`).
 
-Layout:
+Frontend (`/security/findings`):
+- Add tab/filter "Auto-detected" (scanner_name='auto_rescan').
+- Show "Last scan: X mins ago" header tile reading from `cron_job_runs`.
+- Add "Run scan now" admin button → calls `trigger-cron-job` edge function.
+
+## Technical details
+
 ```text
-e2e/security/
-  rls-tables.spec.ts        ← parametrised across every public table
-  rpc-roles.spec.ts         ← anon vs auth/own vs auth/other for every SECURITY DEFINER RPC
-  storage-avatars.spec.ts   ← anon read OK, anon list denied, cross-folder write denied
-  storage-business.spec.ts  ← folder-scoped policies (existing extended)
-  realtime-topics.spec.ts   ← anon subscribe denied; cross-business subscribe denied
-  public-profile.spec.ts    ← slug published/unpublished branches; PII never leaked
+.github/workflows/security-checks.yml
+└─ jobs: security-headers, security-definer-roles, storage-access,
+         e2e-deployed, rls-e2e (new), required-checks (new aggregator)
+
+supabase/migrations/<ts>_cron_health_and_rescan.sql
+├─ table cron_job_runs + RLS + GRANTs
+├─ rpc get_cron_health(text) admin-only
+└─ (cron schedules created via supabase--insert, NOT migration)
+
+supabase/functions/
+├─ snapshot-health-scores/  (updated: writes cron_job_runs, alerts on fail)
+├─ security-rescan-runner/  (new)
+└─ trigger-cron-job/        (new, admin-only proxy)
+
+src/
+├─ main.tsx                 (HelmetProvider)
+├─ pages/AdminHealth.tsx    (new, /admin/health)
+├─ pages/Bundles.tsx        (+ Helmet)
+├─ pages/BusinessPublic.tsx (+ Helmet + JSON-LD)
+├─ pages/PublicProfilePage.tsx (+ Helmet)
+├─ pages/FeedbackPublic.tsx (+ Helmet)
+├─ pages/SecurityFindings.tsx (+ tab + last-scan tile + run-now)
+├─ hooks/useCronHealth.tsx  (new)
+└─ App.tsx                  (+ /admin/health route)
+
+e2e/security/avatars-bucket.spec.ts (new)
+scripts/test-avatar-access.ts       (new, mirrors existing storage script)
+index.html                          (remove static canonical)
 ```
-- A `TABLES_UNDER_TEST` registry (generated from `src/integrations/supabase/types.ts`) drives table coverage; each table asserts: anon SELECT denied, cross-tenant SELECT denied, own-tenant SELECT allowed (where intended).
-- Wire into `.github/workflows/security-checks.yml` as a new `rls-coverage` job.
-- Local runner: `bunx playwright test e2e/security`.
 
----
+## Open questions
 
-## 5. Security Findings Page (in-app)
+1. **Cron health alerting threshold**: alert if a job hasn't succeeded in `expected_interval × 1.5` (default), or stricter `× 1.1`? Default: 1.5×.
+2. **`/admin/health` access**: admins only (default), or also business_owner role?
+3. **Auto-rescan cadence**: every 6 hours (default), hourly, or daily?
+4. **JSON-LD on public profile**: include health-score as `aggregateRating` (1–5 mapped from 0–100) so Google can surface it, or omit to avoid implying customer reviews? Default: include only when health based on ≥10 VoC responses.
 
-Route `/security` (admins only via `has_role(auth.uid(),'admin')`).
-
-- **Findings table**: from the existing `security_check_runs` + new `security_findings_history` table (id, source, severity, status `open|fixed|ignored`, fixed_at, ignored_reason, commit_sha).
-- Filters: severity, status, source (supabase / supabase_lov / agent / connector), date range.
-- Row drill-down sheet: description, remediation link, applied fix narrative, ignored reason, change history.
-- "Re-run scan" button → invokes `security-rescan` edge function (owner-only) that calls the scanner API and writes a new run row.
-- CSV export of findings for compliance.
-- Audit log entry on every state change (fixed/ignored/un-ignored).
-
----
-
-## 6. Continuous Hardening + SEO + Errors
-
-- Fix all TypeScript/console errors surfaced by the new pages and tests.
-- Tighten CSP: drop `'unsafe-eval'` in production build (keep for dev only via Vite plugin).
-- SEO: add JSON-LD `LocalBusiness` schema to `/biz/:slug`, sitemap regeneration on slug publish, canonical + OG tags per public page.
-- Add `<noscript>` content on public pages for crawlers.
-- Update `mem://security/scanner-guidance` after every change; update SLA/CSAT memory if affected.
-
----
-
-## Open decisions (defaults if "approved, defaults")
-
-1. **Bundle discount model** — % off sum-of-items (default) vs fixed bundle price vs both.
-2. **Health-score nightly cadence** — daily 02:00 EAT (default) vs every 6 hours.
-3. **Avatar URL strategy** — keep public bucket + signed-folder regex (default) vs flip private and migrate to short-lived signed URLs (breaks existing avatar `<img>` tags until refactor).
-4. **Security page visibility** — admins only (default) vs admins + business owners (read-only on their own business's scoped findings).
-
-Reply "approved, defaults" to accept all four and begin Phase 3.
+Reply "approved, defaults" to proceed, or specify overrides.
