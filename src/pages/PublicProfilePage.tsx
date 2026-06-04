@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { SEO } from "@/components/seo/SEO";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,7 @@ export default function PublicProfilePage() {
 
   return (
     <DashboardLayout>
+      <SEO title="Public profile — SmartReach" description="Customize your shareable public business profile." path="/public-profile" noindex />
       <div className="space-y-6 animate-fade-in">
         <div>
           <h1 className="text-2xl font-bold">Public business profile</h1>

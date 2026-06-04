@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShieldCheck, Star, MapPin, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
+import { SEO } from "@/components/seo/SEO";
 
 export default function BusinessPublic() {
   const { slug } = useParams();
@@ -29,8 +30,39 @@ export default function BusinessPublic() {
   }
 
   const b = data.business;
+  const desc = data.tagline || `${b.name} on SmartReach — trust score, bundles and customer voice.`;
+  const voiceCount = data.voc_highlights?.length ?? 0;
+  const jsonLd: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    name: b.name,
+    description: desc,
+    image: b.logo_url ?? undefined,
+    address: data.location?.geo_label
+      ? { "@type": "PostalAddress", addressLocality: data.location.geo_label, addressCountry: "KE" }
+      : undefined,
+    geo: data.location?.lat
+      ? { "@type": "GeoCoordinates", latitude: data.location.lat, longitude: data.location.lng }
+      : undefined,
+  };
+  if (data.health?.overall && voiceCount >= 10) {
+    jsonLd.aggregateRating = {
+      "@type": "AggregateRating",
+      ratingValue: (data.health.overall / 20).toFixed(1),
+      bestRating: "5",
+      ratingCount: voiceCount,
+    };
+  }
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 text-white">
+      <SEO
+        title={`${b.name} — SmartReach trust profile`}
+        description={desc}
+        path={`/biz/${slug}`}
+        type="profile"
+        image={b.logo_url ?? undefined}
+        jsonLd={jsonLd}
+      />
       {confetti && <ConfettiBurst />}
       <header className="max-w-5xl mx-auto px-6 py-12">
         <div className="flex items-center gap-4">

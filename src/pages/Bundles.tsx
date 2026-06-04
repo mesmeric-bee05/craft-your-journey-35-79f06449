@@ -197,6 +197,11 @@ function SuggestionsTab() {
 export default function Bundles() {
   return (
     <DashboardLayout>
+      <SEO
+        title="Product Bundles — SmartReach"
+        description="Curate AI-suggested product bundles and showcase savings on your public business profile."
+        path="/bundles"
+      />
       <div className="space-y-6 max-w-5xl mx-auto">
         <div>
           <h1 className="text-3xl font-display font-bold">Bundles</h1>
