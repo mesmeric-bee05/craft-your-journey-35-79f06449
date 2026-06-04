@@ -84,6 +84,7 @@ const mainNavItems: NavItem[] = [
 
 const bottomNavItems: NavItem[] = [
   { label: 'Settings', icon: Settings, href: '/settings' },
+  { label: 'System Health', icon: Zap, href: '/admin/health' },
   { label: 'Help Center', icon: HelpCircle, href: '/help' },
 ];
 
