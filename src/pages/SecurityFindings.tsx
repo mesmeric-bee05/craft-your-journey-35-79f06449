@@ -96,6 +96,25 @@ function exportCsv(rows: SecurityFinding[]) {
   URL.revokeObjectURL(url);
 }
 
+function RescanTile() {
+  const { health, trigger } = useCronHealth();
+  const rescan = (health.data ?? []).find((h) => h.job_name === "security-rescan-runner");
+  const minsAgo = rescan?.minutes_since_success;
+  const ago = minsAgo == null ? "never" : minsAgo < 60 ? `${Math.round(minsAgo)}m ago` : `${Math.round(minsAgo / 60)}h ago`;
+  return (
+    <div className="max-w-5xl mx-auto mb-4 flex items-center justify-between p-3 rounded-lg border bg-card/50">
+      <div className="text-sm">
+        <span className="text-muted-foreground">Last automated rescan: </span>
+        <span className={rescan?.is_stale ? "text-amber-500 font-medium" : "font-medium"}>{ago}</span>
+        {rescan?.last_status === "failure" && <Badge variant="destructive" className="ml-2">last run failed</Badge>}
+      </div>
+      <Button size="sm" variant="outline" disabled={trigger.isPending} onClick={() => trigger.mutate("security-rescan-runner")}>
+        <RefreshCw className={`h-3 w-3 mr-2 ${trigger.isPending ? "animate-spin" : ""}`} />Run scan now
+      </Button>
+    </div>
+  );
+}
+
 export default function SecurityFindings() {
   const { user, loading } = useAuth();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
@@ -127,6 +146,7 @@ export default function SecurityFindings() {
 
   return (
     <DashboardLayout>
+      <SEO title="Security findings — SmartReach" description="Scanner findings, applied fixes and ignore reasons." path="/security/findings" noindex />
       <RescanTile />
       <div className="space-y-6 max-w-5xl mx-auto">
         <div className="flex items-end justify-between">
