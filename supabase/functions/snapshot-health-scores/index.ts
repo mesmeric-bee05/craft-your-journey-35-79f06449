@@ -1,48 +1,79 @@
 // Nightly snapshot of every business health score. Service-role only.
+// Logs every run into public.cron_job_runs and alerts security-alert on failure.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+
+const JOB = "snapshot-health-scores";
+
+async function logRun(svc: any, status: "success" | "failure", extra: Record<string, unknown>) {
+  try {
+    await svc.from("cron_job_runs").insert({
+      job_name: JOB,
+      finished_at: new Date().toISOString(),
+      status,
+      ...extra,
+    });
+  } catch (_) { /* ignore */ }
+}
+
+async function alertFailure(message: string) {
+  const base = Deno.env.get("SUPABASE_URL");
+  const secret = Deno.env.get("SECURITY_ALERT_SHARED_SECRET");
+  if (!base || !secret) return;
+  try {
+    await fetch(`${base}/functions/v1/security-alert`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-alert-secret": secret },
+      body: JSON.stringify({
+        check_type: "rpc_roles",
+        status: "fail",
+        environment: Deno.env.get("SECURITY_CHECK_ENV") ?? "production",
+        summary: `${JOB} failed: ${message}`.slice(0, 1900),
+      }),
+    });
+  } catch (_) { /* ignore */ }
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-  // Simple shared-secret guard for manual + cron invocations
+  const start = Date.now();
   const secret = Deno.env.get("SNAPSHOT_HEALTH_SECRET");
   const provided = req.headers.get("x-snapshot-secret");
   if (secret && provided !== secret) {
     return new Response(JSON.stringify({ error: "unauthorized" }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
-  try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
+  const svc = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-    // Recompute scores for every active business, then snapshot.
-    const { data: businesses, error: bErr } = await supabase
-      .from("businesses").select("id");
+  try {
+    const { data: businesses, error: bErr } = await svc.from("businesses").select("id");
     if (bErr) throw bErr;
 
     let recomputed = 0;
     for (const b of businesses ?? []) {
-      const { error } = await supabase.rpc("compute_business_health_score", { p_business_id: b.id });
+      const { error } = await svc.rpc("compute_business_health_score", { p_business_id: b.id });
       if (!error) recomputed++;
     }
-
-    const { data: snapped, error: sErr } = await supabase.rpc("snapshot_all_health_scores");
+    const { data: snapped, error: sErr } = await svc.rpc("snapshot_all_health_scores");
     if (sErr) throw sErr;
 
-    return new Response(
-      JSON.stringify({ ok: true, recomputed, snapshotted: snapped }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
-  } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), {
-      status: 500,
+    await logRun(svc, "success", {
+      rows_affected: snapped ?? 0,
+      duration_ms: Date.now() - start,
+      metadata: { recomputed, businesses_seen: businesses?.length ?? 0 },
+    });
+    return new Response(JSON.stringify({ ok: true, recomputed, snapshotted: snapped }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (e) {
+    const msg = String((e as Error).message ?? e);
+    await logRun(svc, "failure", { duration_ms: Date.now() - start, error_text: msg });
+    await alertFailure(msg);
+    return new Response(JSON.stringify({ error: msg }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
