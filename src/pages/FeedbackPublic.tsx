@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { SEO } from "@/components/seo/SEO";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -132,6 +133,11 @@ export default function FeedbackPublic() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background to-muted/30">
+      <SEO
+        title={`${form.title} — Share feedback`}
+        description={form.description ?? "Share your honest feedback with this business."}
+        path={`/feedback/${slug}`}
+      />
       <Card className="max-w-lg w-full">
         <CardHeader>
           <div className="flex items-center gap-2">

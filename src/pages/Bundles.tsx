@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { SEO } from "@/components/seo/SEO";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -196,6 +197,11 @@ function SuggestionsTab() {
 export default function Bundles() {
   return (
     <DashboardLayout>
+      <SEO
+        title="Product Bundles — SmartReach"
+        description="Curate AI-suggested product bundles and showcase savings on your public business profile."
+        path="/bundles"
+      />
       <div className="space-y-6 max-w-5xl mx-auto">
         <div>
           <h1 className="text-3xl font-display font-bold">Bundles</h1>

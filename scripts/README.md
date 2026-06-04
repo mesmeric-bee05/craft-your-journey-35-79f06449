@@ -70,3 +70,28 @@ Lovable Cloud:
 - `RESEND_API_KEY` — required for email delivery.
 - `SECURITY_ALERT_WEBHOOK_URL` — optional Slack/Discord-compatible webhook.
 
+
+## `test-avatar-access.ts`
+
+Validates the public `avatars` bucket access matrix: anon may read
+UUID-foldered objects via public URL (intentional, for `<img>` rendering)
+but must NOT list, read non-UUID folders, or sign URLs for foreign folders.
+Authed users may only write to their own `auth.uid()` folder.
+
+```bash
+VITE_SUPABASE_URL=... \
+VITE_SUPABASE_PUBLISHABLE_KEY=... \
+TEST_USER_JWT=... \
+TEST_USER_ID=... \
+TEST_OTHER_USER_ID=... \
+SUPABASE_SERVICE_ROLE_KEY=... \
+bun scripts/test-avatar-access.ts
+```
+
+## Branch protection
+
+The `Security Checks` workflow exposes a `required-checks` aggregator job
+that succeeds only when every upstream security job passed (or was
+intentionally skipped). Mark **`required-checks`** as a required status
+check on the default branch — do NOT mark the individual jobs, because
+some run conditionally on optional `TEST_USER_JWT` secrets.

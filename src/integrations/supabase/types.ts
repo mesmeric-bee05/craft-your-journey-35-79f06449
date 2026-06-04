@@ -1165,6 +1165,45 @@ export type Database = {
         }
         Relationships: []
       }
+      cron_job_runs: {
+        Row: {
+          created_at: string
+          duration_ms: number | null
+          error_text: string | null
+          finished_at: string | null
+          id: string
+          job_name: string
+          metadata: Json
+          rows_affected: number | null
+          started_at: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          duration_ms?: number | null
+          error_text?: string | null
+          finished_at?: string | null
+          id?: string
+          job_name: string
+          metadata?: Json
+          rows_affected?: number | null
+          started_at?: string
+          status: string
+        }
+        Update: {
+          created_at?: string
+          duration_ms?: number | null
+          error_text?: string | null
+          finished_at?: string | null
+          id?: string
+          job_name?: string
+          metadata?: Json
+          rows_affected?: number | null
+          started_at?: string
+          status?: string
+        }
+        Relationships: []
+      }
       csat_responses: {
         Row: {
           assigned_agent_id: string | null
@@ -3858,6 +3897,20 @@ export type Database = {
         Returns: Json
       }
       get_channel_tokens: { Args: { p_channel_id: string }; Returns: Json }
+      get_cron_health: {
+        Args: never
+        Returns: {
+          expected_interval_minutes: number
+          is_stale: boolean
+          job_name: string
+          last_duration_ms: number
+          last_error: string
+          last_run_at: string
+          last_status: string
+          last_success_at: string
+          minutes_since_success: number
+        }[]
+      }
       get_csat_by_agent: {
         Args: {
           p_business_id: string

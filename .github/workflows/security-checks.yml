@@ -65,7 +65,7 @@ jobs:
           GITHUB_ACTOR: ${{ github.actor }}
 
   storage-access:
-    name: business-assets storage access
+    name: Storage access (business-assets + avatars)
     runs-on: ubuntu-latest
     if: ${{ secrets.TEST_USER_JWT != '' }}
     steps:
@@ -81,18 +81,38 @@ jobs:
           TEST_USER_JWT: ${{ secrets.TEST_USER_JWT }}
           TEST_BUSINESS_ID: ${{ secrets.TEST_BUSINESS_ID }}
           TEST_OTHER_BUSINESS_ID: ${{ secrets.TEST_OTHER_BUSINESS_ID }}
-          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          SECURITY_ALERT_SHARED_SECRET: ${{ secrets.SECURITY_ALERT_SHARED_SECRET }}
-          SECURITY_CHECK_ENV: ${{ secrets.SECURITY_CHECK_ENV || 'staging' }}
-          GITHUB_SHA: ${{ github.sha }}
-          GITHUB_RUN_ID: ${{ github.run_id }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_SERVER_URL: ${{ github.server_url }}
-          GITHUB_ACTOR: ${{ github.actor }}
+      - run: bun scripts/test-avatar-access.ts
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          TEST_USER_JWT: ${{ secrets.TEST_USER_JWT }}
+          TEST_USER_ID: ${{ secrets.TEST_USER_ID }}
+          TEST_OTHER_USER_ID: ${{ secrets.TEST_OTHER_USER_ID }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+  rls-e2e:
+    name: RLS / security Playwright suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium
+      - run: bunx playwright test e2e/security/
+        env:
+          E2E_BASE_URL: ${{ secrets.STAGING_URL }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          TEST_USER_JWT: ${{ secrets.TEST_USER_JWT }}
+          TEST_USER_ID: ${{ secrets.TEST_USER_ID }}
+          TEST_OTHER_USER_ID: ${{ secrets.TEST_OTHER_USER_ID }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
   e2e-deployed:
-    name: E2E security verification (Playwright)
+    name: E2E security verification (Playwright, full suite)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -107,3 +127,23 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
         run: bunx playwright test
+
+  required-checks:
+    name: Required security checks (branch protection gate)
+    needs: [security-headers, security-definer-roles, storage-access, rls-e2e, e2e-deployed]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all dependencies succeeded or were skipped intentionally
+        run: |
+          results='${{ toJson(needs) }}'
+          echo "$results"
+          fail=0
+          for job in security-headers security-definer-roles storage-access rls-e2e e2e-deployed; do
+            r=$(echo "$results" | jq -r ".\"$job\".result")
+            echo "$job → $r"
+            if [ "$r" != "success" ] && [ "$r" != "skipped" ]; then
+              fail=1
+            fi
+          done
+          exit $fail

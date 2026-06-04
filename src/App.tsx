@@ -38,6 +38,7 @@ import PublicProfilePage from "./pages/PublicProfilePage";
 import BusinessPublic from "./pages/BusinessPublic";
 import Bundles from "./pages/Bundles";
 import SecurityFindings from "./pages/SecurityFindings";
+import AdminHealth from "./pages/AdminHealth";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -97,6 +98,7 @@ const App = () => (
             <Route path="/security" element={<ProtectedRoute><SecurityDashboard /></ProtectedRoute>} />
             <Route path="/security/findings" element={<ProtectedRoute><SecurityFindings /></ProtectedRoute>} />
             <Route path="/bundles" element={<ProtectedRoute><Bundles /></ProtectedRoute>} />
+            <Route path="/admin/health" element={<ProtectedRoute><AdminHealth /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </BrowserRouter>
