@@ -1,7 +1,8 @@
 // Nightly snapshot of every business health score. Service-role only.
-// Logs every run into public.cron_job_runs and alerts security-alert on failure.
+// Logs every run into public.cron_job_runs and alerts admins (Slack + audit) on failure.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { notifyCronFailure } from "../_shared/cron-alerts.ts";
 
 const JOB = "snapshot-health-scores";
 
@@ -16,22 +17,30 @@ async function logRun(svc: any, status: "success" | "failure", extra: Record<str
   } catch (_) { /* ignore */ }
 }
 
-async function alertFailure(message: string) {
+async function alertFailure(svc: any, message: string, startedAt: string, durationMs: number) {
   const base = Deno.env.get("SUPABASE_URL");
   const secret = Deno.env.get("SECURITY_ALERT_SHARED_SECRET");
-  if (!base || !secret) return;
-  try {
-    await fetch(`${base}/functions/v1/security-alert`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-alert-secret": secret },
-      body: JSON.stringify({
-        check_type: "rpc_roles",
-        status: "fail",
-        environment: Deno.env.get("SECURITY_CHECK_ENV") ?? "production",
-        summary: `${JOB} failed: ${message}`.slice(0, 1900),
-      }),
-    });
-  } catch (_) { /* ignore */ }
+  if (base && secret) {
+    try {
+      await fetch(`${base}/functions/v1/security-alert`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-alert-secret": secret },
+        body: JSON.stringify({
+          check_type: "rpc_roles",
+          status: "fail",
+          environment: Deno.env.get("SECURITY_CHECK_ENV") ?? "production",
+          summary: `${JOB} failed: ${message}`.slice(0, 1900),
+        }),
+      });
+    } catch (_) { /* ignore */ }
+  }
+  await notifyCronFailure(svc, {
+    jobName: JOB,
+    status: "failure",
+    errorText: message,
+    startedAt,
+    durationMs,
+  });
 }
 
 Deno.serve(async (req) => {
