@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Activity, AlertTriangle, CheckCircle2, RefreshCw, Clock } from "lucide-react";
 import { useCronHealth, type CronHealth } from "@/hooks/useCronHealth";
+import { CronRunsTimeline } from "@/components/admin/CronRunsTimeline";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -84,25 +85,7 @@ export default function AdminHealth() {
           ))}
         </div>
 
-        <Card>
-          <CardHeader><CardTitle className="text-base">Recent runs</CardTitle></CardHeader>
-          <CardContent>
-            <div className="space-y-1 text-sm">
-              {(runs.data ?? []).map((r: any) => (
-                <div key={r.id} className="flex items-center justify-between py-1 border-b border-border/40">
-                  <div className="flex items-center gap-2">
-                    <Badge variant={r.status === "success" ? "secondary" : "destructive"}>{r.status}</Badge>
-                    <span className="font-mono text-xs">{r.job_name}</span>
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {new Date(r.started_at).toLocaleString()} · {r.duration_ms ?? "?"}ms
-                  </div>
-                </div>
-              ))}
-              {(runs.data ?? []).length === 0 && <div className="text-muted-foreground text-center py-6">No runs recorded yet.</div>}
-            </div>
-          </CardContent>
-        </Card>
+        <CronRunsTimeline />
       </div>
     </DashboardLayout>
   );

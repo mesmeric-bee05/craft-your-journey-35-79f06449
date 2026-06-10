@@ -43,7 +43,18 @@ export function useCronHealth() {
   const trigger = useMutation({
     mutationFn: async (job: "snapshot-health-scores" | "security-rescan-runner") => {
       const { data, error } = await supabase.functions.invoke("trigger-cron-job", { body: { job } });
-      if (error) throw error;
+      if (error) {
+        // Surface 429 body when present
+        const ctx: any = (error as any).context;
+        try {
+          const body = ctx?.body ? JSON.parse(ctx.body) : null;
+          if (body?.error === "rate_limit_exceeded") {
+            const mins = Math.ceil((body.retryAfterSeconds ?? 3600) / 60);
+            throw new Error(`Rate limit hit (${body.maxPerHour}/hr). Try again in ~${mins} min.`);
+          }
+        } catch (_) { /* fall through */ }
+        throw error;
+      }
       return data;
     },
     onSuccess: () => {
@@ -51,6 +62,7 @@ export function useCronHealth() {
       setTimeout(() => {
         qc.invalidateQueries({ queryKey: ["cron-health"] });
         qc.invalidateQueries({ queryKey: ["cron-job-runs"] });
+        qc.invalidateQueries({ queryKey: ["cron-runs-timeline"] });
         qc.invalidateQueries({ queryKey: ["security-findings"] });
       }, 1500);
     },
