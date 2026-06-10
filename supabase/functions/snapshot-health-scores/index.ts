@@ -79,8 +79,10 @@ Deno.serve(async (req) => {
     });
   } catch (e) {
     const msg = String((e as Error).message ?? e);
-    await logRun(svc, "failure", { duration_ms: Date.now() - start, error_text: msg });
-    await alertFailure(msg);
+    const dur = Date.now() - start;
+    const startedAt = new Date(start).toISOString();
+    await logRun(svc, "failure", { duration_ms: dur, error_text: msg });
+    await alertFailure(svc, msg, startedAt, dur);
     return new Response(JSON.stringify({ error: msg }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
