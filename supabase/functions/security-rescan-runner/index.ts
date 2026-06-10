@@ -180,7 +180,10 @@ Deno.serve(async (req) => {
     });
   } catch (e) {
     const msg = String((e as Error).message ?? e);
-    await logRun(svc, "failure", { duration_ms: Date.now() - start, error_text: msg });
+    const dur = Date.now() - start;
+    const startedAt = new Date(start).toISOString();
+    await logRun(svc, "failure", { duration_ms: dur, error_text: msg });
+    await notifyCronFailure(svc, { jobName: JOB, status: "failure", errorText: msg, startedAt, durationMs: dur });
     return new Response(JSON.stringify({ error: msg }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
