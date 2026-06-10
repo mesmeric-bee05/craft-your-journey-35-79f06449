@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_action_rate_limits: {
+        Row: {
+          action_key: string
+          created_at: string
+          id: string
+          invocation_count: number
+          last_invoked_at: string
+          updated_at: string
+          user_id: string
+          window_started_at: string
+        }
+        Insert: {
+          action_key: string
+          created_at?: string
+          id?: string
+          invocation_count?: number
+          last_invoked_at?: string
+          updated_at?: string
+          user_id: string
+          window_started_at?: string
+        }
+        Update: {
+          action_key?: string
+          created_at?: string
+          id?: string
+          invocation_count?: number
+          last_invoked_at?: string
+          updated_at?: string
+          user_id?: string
+          window_started_at?: string
+        }
+        Relationships: []
+      }
       ai_content: {
         Row: {
           business_id: string
@@ -3891,6 +3924,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_and_record_admin_action: {
+        Args: { p_action: string; p_max_per_hour?: number }
+        Returns: Json
+      }
       check_sla_breaches: { Args: never; Returns: number }
       compute_business_health_score: {
         Args: { p_business_id: string }
@@ -3909,6 +3946,28 @@ export type Database = {
           last_status: string
           last_success_at: string
           minutes_since_success: number
+        }[]
+      }
+      get_cron_runs_timeline: {
+        Args: {
+          p_job_name?: string
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_since?: string
+          p_status?: string
+        }
+        Returns: {
+          duration_ms: number
+          error_text: string
+          finished_at: string
+          id: string
+          job_name: string
+          metadata: Json
+          rows_affected: number
+          started_at: string
+          status: string
+          total_count: number
         }[]
       }
       get_csat_by_agent: {
