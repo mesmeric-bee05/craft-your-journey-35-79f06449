@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Activity, AlertTriangle, CheckCircle2, RefreshCw, Clock } from "lucide-react";
 import { useCronHealth, type CronHealth } from "@/hooks/useCronHealth";
+import { CronRunsTimeline } from "@/components/admin/CronRunsTimeline";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
