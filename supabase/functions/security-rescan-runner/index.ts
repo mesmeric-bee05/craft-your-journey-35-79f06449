@@ -9,6 +9,7 @@
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { notifyCronFailure } from "../_shared/cron-alerts.ts";
 
 const JOB = "security-rescan-runner";
 const SCANNER = "auto_rescan";
