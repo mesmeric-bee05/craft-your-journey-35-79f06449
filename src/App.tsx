@@ -39,6 +39,7 @@ import BusinessPublic from "./pages/BusinessPublic";
 import Bundles from "./pages/Bundles";
 import SecurityFindings from "./pages/SecurityFindings";
 import AdminHealth from "./pages/AdminHealth";
+import BestTimesToPostKenya from "./pages/resources/BestTimesToPostKenya";
 
 const queryClient = new QueryClient({
   defaultOptions: {
