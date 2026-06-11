@@ -56,7 +56,7 @@ function TwitterPreview({ content, mediaUrl, profileName = 'Your Business', prof
             </p>
             {mediaUrl && (
               <div className="mt-3 rounded-xl overflow-hidden border">
-                <img src={mediaUrl} alt="Preview" className="w-full h-40 object-cover" />
+                <img src={mediaUrl} alt="Post media preview" className="w-full h-40 object-cover" />
               </div>
             )}
             <div className="flex items-center justify-between mt-3 text-muted-foreground">
@@ -111,7 +111,7 @@ function InstagramPreview({ content, mediaUrl, profileName = 'yourbusiness' }: P
         {/* Image Area */}
         <div className="aspect-square bg-muted flex items-center justify-center">
           {mediaUrl ? (
-            <img src={mediaUrl} alt="Preview" className="w-full h-full object-cover" />
+            <img src={mediaUrl} alt="Post media preview" className="w-full h-full object-cover" />
           ) : (
             <div className="text-center text-muted-foreground">
               <Play className="w-12 h-12 mx-auto mb-2 opacity-50" />
@@ -175,7 +175,7 @@ function FacebookPreview({ content, mediaUrl, profileName = 'Your Business' }: P
 
         {/* Media */}
         {mediaUrl && (
-          <img src={mediaUrl} alt="Preview" className="w-full h-48 object-cover" />
+          <img src={mediaUrl} alt="Post media preview" className="w-full h-48 object-cover" />
         )}
 
         {/* Actions */}
@@ -206,7 +206,7 @@ function TikTokPreview({ content, mediaUrl, profileName = '@yourbusiness' }: Pre
         {/* Background */}
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/80">
           {mediaUrl ? (
-            <img src={mediaUrl} alt="Preview" className="w-full h-full object-cover" />
+            <img src={mediaUrl} alt="Post media preview" className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-cyan-400 via-pink-500 to-red-500">
               <Play className="w-16 h-16 opacity-50" />
@@ -271,7 +271,7 @@ function WhatsAppPreview({ content, mediaUrl, profileName = 'Your Business' }: P
         <div className="mt-4 flex justify-end">
           <div className="max-w-[80%] bg-[#005c4b] rounded-lg p-3">
             {mediaUrl && (
-              <img src={mediaUrl} alt="Preview" className="w-full h-32 object-cover rounded-lg mb-2" />
+              <img src={mediaUrl} alt="Post media preview" className="w-full h-32 object-cover rounded-lg mb-2" />
             )}
             <p className="text-white text-sm whitespace-pre-wrap">
               {content || <span className="opacity-50 italic">Type a message...</span>}
@@ -314,7 +314,7 @@ function TelegramPreview({ content, mediaUrl, profileName = 'Your Channel' }: Pr
         {/* Message */}
         <div className="mt-4">
           {mediaUrl && (
-            <img src={mediaUrl} alt="Preview" className="w-full h-40 object-cover rounded-lg mb-3" />
+            <img src={mediaUrl} alt="Post media preview" className="w-full h-40 object-cover rounded-lg mb-3" />
           )}
           <p className="text-white text-sm whitespace-pre-wrap">
             {content || <span className="opacity-50 italic">Write a message...</span>}
