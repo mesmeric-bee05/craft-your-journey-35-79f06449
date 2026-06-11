@@ -10,6 +10,7 @@ import { LiveActivityFeed } from '@/components/dashboard/LiveActivityFeed';
 import { SmartReachScore } from '@/components/dashboard/SmartReachScore';
 import { WellnessScoreCard } from '@/components/dashboard/WellnessScoreCard';
 import { HealthScoreTile } from '@/components/dashboard/HealthScoreTile';
+import { SEO } from '@/components/seo/SEO';
 import { useAuth } from '@/hooks/useAuth';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
 import { useDashboardCharts } from '@/hooks/useDashboardCharts';
