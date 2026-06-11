@@ -124,7 +124,7 @@ export function BrandingStep({
                 <>
                   <img
                     src={details.coverImageUrl}
-                    alt="Cover"
+                    alt="Your business cover image preview"
                     className="w-full h-full object-cover"
                   />
                   <Button
