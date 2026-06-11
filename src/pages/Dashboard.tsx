@@ -67,6 +67,7 @@ export default function Dashboard() {
 
   return (
     <DashboardLayout>
+      <SEO title="Dashboard — SmartReach AI" description="Your business at a glance: conversations, revenue, channels, SmartReach Score and wellness." path="/dashboard" noindex />
       <div className="space-y-8 animate-fade-in">
         {/* Welcome Header */}
         <div className="flex items-center justify-between">
