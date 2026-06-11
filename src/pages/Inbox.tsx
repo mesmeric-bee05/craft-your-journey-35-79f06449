@@ -11,6 +11,7 @@ import { useInboxKeyboardShortcuts } from '@/hooks/useInboxKeyboardShortcuts';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { SEO } from '@/components/seo/SEO';
 
 export default function Inbox() {
   const {
