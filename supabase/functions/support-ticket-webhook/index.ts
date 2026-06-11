@@ -59,8 +59,9 @@ async function verifyWebhookSignature(
   signature: string | null,
   secret: string | null
 ): Promise<boolean> {
+  // Fail-closed: require both a configured secret AND a signature header.
   if (!secret || !signature) {
-    return true; // Skip verification if not configured
+    return false;
   }
 
   try {
@@ -72,17 +73,17 @@ async function verifyWebhookSignature(
       false,
       ['sign']
     );
-    
+
     const signatureBuffer = await crypto.subtle.sign(
       'HMAC',
       key,
       encoder.encode(payload)
     );
-    
+
     const expectedSignature = Array.from(new Uint8Array(signatureBuffer))
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
-    
+
     return signature === expectedSignature || signature === `sha256=${expectedSignature}`;
   } catch {
     return false;
