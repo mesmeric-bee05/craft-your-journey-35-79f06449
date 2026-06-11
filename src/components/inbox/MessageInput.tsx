@@ -205,7 +205,7 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({ on
           <div className="absolute bottom-2 right-2 flex items-center gap-1">
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7">
+                <Button variant="ghost" size="icon" aria-label="Insert emoji" className="h-7 w-7">
                   <Smile className="w-4 h-4 text-muted-foreground" />
                 </Button>
               </TooltipTrigger>
@@ -214,7 +214,7 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({ on
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-7 w-7">
+                <Button variant="ghost" size="icon" aria-label="Attach file" className="h-7 w-7">
                   <Paperclip className="w-4 h-4 text-muted-foreground" />
                 </Button>
               </TooltipTrigger>
