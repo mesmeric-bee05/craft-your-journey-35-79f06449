@@ -75,7 +75,7 @@ export function BrandingStep({
                 {details.logoUrl ? (
                   <img
                     src={details.logoUrl}
-                    alt="Logo"
+                    alt="Your business logo preview"
                     className="w-full h-full object-cover rounded-xl"
                   />
                 ) : uploading === 'logo' ? (
@@ -124,7 +124,7 @@ export function BrandingStep({
                 <>
                   <img
                     src={details.coverImageUrl}
-                    alt="Cover"
+                    alt="Your business cover image preview"
                     className="w-full h-full object-cover"
                   />
                   <Button

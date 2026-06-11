@@ -11,6 +11,7 @@ import { useInboxKeyboardShortcuts } from '@/hooks/useInboxKeyboardShortcuts';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { SEO } from '@/components/seo/SEO';
 
 export default function Inbox() {
   const {
@@ -75,6 +76,7 @@ export default function Inbox() {
 
   return (
     <DashboardLayout>
+      <SEO title="Inbox — SmartReach AI" description="Unified inbox for WhatsApp, SMS, Email, Instagram & Facebook DMs with AI replies." path="/inbox" noindex />
       <div className="h-[calc(100vh-8rem)] flex rounded-xl overflow-hidden border border-border bg-card relative">
         {/* Keyboard shortcuts help button */}
         <Tooltip>

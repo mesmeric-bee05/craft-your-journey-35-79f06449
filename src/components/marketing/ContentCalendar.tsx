@@ -111,9 +111,9 @@ export function ContentCalendar() {
           <CalendarIcon className="h-5 w-5" />Content Calendar
         </CardTitle>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={() => setCurrentDate(subMonths(currentDate, 1))}><ChevronLeft className="h-4 w-4" /></Button>
+          <Button variant="outline" size="icon" aria-label="Previous month" onClick={() => setCurrentDate(subMonths(currentDate, 1))}><ChevronLeft className="h-4 w-4" /></Button>
           <span className="font-medium min-w-[140px] text-center">{format(currentDate, 'MMMM yyyy')}</span>
-          <Button variant="outline" size="icon" onClick={() => setCurrentDate(addMonths(currentDate, 1))}><ChevronRight className="h-4 w-4" /></Button>
+          <Button variant="outline" size="icon" aria-label="Next month" onClick={() => setCurrentDate(addMonths(currentDate, 1))}><ChevronRight className="h-4 w-4" /></Button>
           <Button onClick={() => { setSelectedDate(new Date()); setEditingEvent(null); setShowEventModal(true); }}>
             <Plus className="h-4 w-4 mr-2" />Add Event
           </Button>

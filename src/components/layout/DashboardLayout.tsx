@@ -101,7 +101,7 @@ function ThemeToggle() {
   };
   const icon = theme === 'dark' ? <Moon className="w-5 h-5" /> : theme === 'light' ? <Sun className="w-5 h-5" /> : <Monitor className="w-5 h-5" />;
   return (
-    <Button variant="ghost" size="icon" onClick={cycleTheme} title={`Theme: ${theme}`}>
+    <Button variant="ghost" size="icon" onClick={cycleTheme} title={`Theme: ${theme}`} aria-label={`Switch theme (current: ${theme})`}>
       {icon}
     </Button>
   );

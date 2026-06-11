@@ -12,3 +12,9 @@ Allow: /
 
 User-agent: *
 Allow: /
+Disallow: /admin/
+Disallow: /onboarding
+Disallow: /mfa-challenge
+Disallow: /reset-password
+
+Sitemap: https://craft-your-journey-35.lovable.app/sitemap.xml

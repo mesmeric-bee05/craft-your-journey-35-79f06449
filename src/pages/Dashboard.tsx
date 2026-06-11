@@ -10,6 +10,7 @@ import { LiveActivityFeed } from '@/components/dashboard/LiveActivityFeed';
 import { SmartReachScore } from '@/components/dashboard/SmartReachScore';
 import { WellnessScoreCard } from '@/components/dashboard/WellnessScoreCard';
 import { HealthScoreTile } from '@/components/dashboard/HealthScoreTile';
+import { SEO } from '@/components/seo/SEO';
 import { useAuth } from '@/hooks/useAuth';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
 import { useDashboardCharts } from '@/hooks/useDashboardCharts';
@@ -67,6 +68,7 @@ export default function Dashboard() {
 
   return (
     <DashboardLayout>
+      <SEO title="Dashboard — SmartReach AI" description="Your business at a glance: conversations, revenue, channels, SmartReach Score and wellness." path="/dashboard" noindex />
       <div className="space-y-8 animate-fade-in">
         {/* Welcome Header */}
         <div className="flex items-center justify-between">

@@ -164,7 +164,7 @@ export default function Vision() {
                 onClick={() => document.getElementById('photo-upload')?.click()}
               >
                 {preview ? (
-                  <img src={preview} alt="Preview" className="max-h-48 mx-auto rounded-lg object-contain" />
+                  <img src={preview} alt="Selected product photo preview" className="max-h-48 mx-auto rounded-lg object-contain" />
                 ) : (
                   <div className="space-y-2">
                     <ImageIcon className="w-12 h-12 mx-auto text-muted-foreground/30" />
