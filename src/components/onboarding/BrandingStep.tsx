@@ -75,7 +75,7 @@ export function BrandingStep({
                 {details.logoUrl ? (
                   <img
                     src={details.logoUrl}
-                    alt="Logo"
+                    alt="Your business logo preview"
                     className="w-full h-full object-cover rounded-xl"
                   />
                 ) : uploading === 'logo' ? (
