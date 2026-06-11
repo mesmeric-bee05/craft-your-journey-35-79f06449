@@ -76,6 +76,7 @@ export default function Inbox() {
 
   return (
     <DashboardLayout>
+      <SEO title="Inbox — SmartReach AI" description="Unified inbox for WhatsApp, SMS, Email, Instagram & Facebook DMs with AI replies." path="/inbox" noindex />
       <div className="h-[calc(100vh-8rem)] flex rounded-xl overflow-hidden border border-border bg-card relative">
         {/* Keyboard shortcuts help button */}
         <Tooltip>
