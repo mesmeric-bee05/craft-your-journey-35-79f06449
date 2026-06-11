@@ -1,0 +1,25 @@
+# SmartReach AI
+
+> SME Growth Operating System for African businesses — unified social inbox,
+> M-Pesa payments, inventory intelligence, and Swahili-aware AI marketing
+> built for Kenyan and East African entrepreneurs.
+
+SmartReach AI helps small and medium businesses in Kenya and East Africa
+run their entire customer-facing operation from one mobile-first platform:
+WhatsApp/SMS/Instagram/Facebook DMs in a single inbox, M-Pesa STK Push
+payments, inventory tracking with demand forecasting, AI content generation
+in English, Swahili and Sheng, and a wellness companion for founders.
+
+## Pages
+
+- [Home](/): Product overview, features, pricing, FAQ
+- [Sign in / Sign up](/auth): Create or log into a business account
+- [Help Center](/help): Onboarding videos, FAQ, support contact
+
+## Resources
+
+- [Best times to post on social media in Kenya](/resources/best-times-to-post-kenya): Data-driven posting times for Instagram, TikTok and WhatsApp targeting East African audiences
+
+## Optional
+
+- [Public business profile example](/biz/example): What a published SmartReach business profile looks like
