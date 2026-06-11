@@ -97,12 +97,13 @@ async function alertNewFindings(count: number) {
 }
 
 async function authorize(req: Request, svc: any): Promise<boolean> {
+  // Fail-closed: must present a valid shared-secret OR a valid admin JWT.
   const wantSecret = Deno.env.get("SECURITY_RESCAN_SECRET");
   if (wantSecret && req.headers.get("x-rescan-secret") === wantSecret) return true;
 
   const auth = req.headers.get("Authorization") ?? "";
   const jwt = auth.startsWith("Bearer ") ? auth.slice(7) : null;
-  if (!jwt) return !wantSecret; // if no secret configured, allow cron
+  if (!jwt) return false;
 
   const userClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
     global: { headers: { Authorization: `Bearer ${jwt}` } },

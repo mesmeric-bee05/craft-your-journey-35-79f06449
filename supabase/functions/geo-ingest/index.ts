@@ -30,6 +30,16 @@ Deno.serve(async (req) => {
     if (!parsed.success) return json({ error: parsed.error.flatten() }, 400);
     const { business_id, query, near, entity_type, geo_label } = parsed.data;
 
+    // Authorization: caller must be a member of the business BEFORE we burn
+    // any Google Maps API quota for them.
+    const { data: isMember, error: memberErr } = await supa.rpc("is_business_member", {
+      _user_id: user.id,
+      _business_id: business_id,
+    });
+    if (memberErr || !isMember) {
+      return json({ error: "Forbidden: not a member of this business" }, 403);
+    }
+
     const apiKey = Deno.env.get("GOOGLE_MAPS_API_KEY");
     if (!apiKey) return json({ error: "Maps key not configured" }, 500);
 

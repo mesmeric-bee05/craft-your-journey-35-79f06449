@@ -4027,6 +4027,13 @@ export type Database = {
           warning_threshold: number
         }[]
       }
+      get_my_kyc: {
+        Args: never
+        Returns: {
+          kyc_document_url: string
+          kyc_status: string
+        }[]
+      }
       get_public_business_profile: { Args: { p_slug: string }; Returns: Json }
       get_safe_channels: {
         Args: { p_business_id: string }
