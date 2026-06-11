@@ -47,9 +47,10 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   const start = Date.now();
+  // Fail-closed: SNAPSHOT_HEALTH_SECRET must be configured and the caller must present it.
   const secret = Deno.env.get("SNAPSHOT_HEALTH_SECRET");
   const provided = req.headers.get("x-snapshot-secret");
-  if (secret && provided !== secret) {
+  if (!secret || provided !== secret) {
     return new Response(JSON.stringify({ error: "unauthorized" }), {
       status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
