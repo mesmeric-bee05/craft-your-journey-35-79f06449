@@ -92,6 +92,32 @@ Deno.serve(async (req) => {
     }
 
     if (ResultCode === 0) {
+      // Defense-in-depth: only complete transactions that are still pending,
+      // and verify the callback amount matches the original STK push amount.
+      if (transaction.status !== 'pending') {
+        logSecurityEvent('mpesa_callback_ignored_non_pending', {
+          transactionId: transaction.id, currentStatus: transaction.status,
+        });
+        return secureResponse(
+          JSON.stringify({ ResultCode: 0, ResultDesc: 'Already processed' }),
+          200, corsHeaders
+        );
+      }
+
+      const amountItem = CallbackMetadata?.Item?.find((i) => i.Name === 'Amount');
+      const callbackAmount = amountItem ? Number(amountItem.Value) : null;
+      if (callbackAmount !== null && Number(transaction.amount) !== callbackAmount) {
+        logSecurityEvent('mpesa_callback_amount_mismatch', {
+          transactionId: transaction.id,
+          expected: Number(transaction.amount),
+          received: callbackAmount,
+        });
+        return secureResponse(
+          JSON.stringify({ ResultCode: 1, ResultDesc: 'Amount mismatch' }),
+          400, corsHeaders
+        );
+      }
+
       // Payment successful
       const metadata: Record<string, unknown> = {
         ...(transaction.metadata as Record<string, unknown> || {}),
@@ -114,7 +140,8 @@ Deno.serve(async (req) => {
       const { error: updateError } = await supabase
         .from('transactions')
         .update({ status: 'completed', completed_at: new Date().toISOString(), metadata })
-        .eq('id', transaction.id);
+        .eq('id', transaction.id)
+        .eq('status', 'pending');
 
       if (updateError) {
         logError('mpesa-callback', updateError, { step: 'update_completed', transactionId: transaction.id });
