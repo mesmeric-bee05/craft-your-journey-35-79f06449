@@ -123,6 +123,19 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { mood, journalText, history, chatMessage } = body;
 
+    // Validate & sanitize chat history: only user/assistant roles, capped length.
+    // Prevents system-prompt injection (e.g. attacker sending {role:'system',...} to override Rafiki).
+    const safeHistory: { role: 'user' | 'assistant'; content: string }[] = Array.isArray(history)
+      ? history
+          .filter((m: any) =>
+            m && typeof m === 'object' &&
+            (m.role === 'user' || m.role === 'assistant') &&
+            typeof m.content === 'string'
+          )
+          .slice(-6)
+          .map((m: any) => ({ role: m.role, content: m.content.slice(0, 2000) }))
+      : [];
+
     if (!mood && !journalText && !chatMessage) {
       return new Response(JSON.stringify({ error: "mood, journalText, or chatMessage required" }), {
         status: 400,
