@@ -188,7 +188,7 @@ Deno.serve(async (req) => {
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: RAFIKI_SYSTEM_PROMPT },
-          ...(Array.isArray(history) ? history.slice(-6) : []),
+          ...safeHistory,
           { role: "user", content: userMessage.trim() },
         ],
         max_tokens: 400,
