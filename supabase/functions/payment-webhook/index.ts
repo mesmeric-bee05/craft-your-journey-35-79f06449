@@ -148,16 +148,17 @@ serve(async (req: Request) => {
       }
 
       case 'stripe': {
-        // Verify Stripe signature
+        // Fail-closed: require STRIPE_WEBHOOK_SECRET and a valid stripe-signature header.
         const stripeSignature = req.headers.get('stripe-signature');
         const stripeSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
-        
-        if (stripeSecret && stripeSignature) {
-          const isValid = await verifySignature(rawBody, stripeSignature.split('=')[1] || '', stripeSecret);
-          if (!isValid) {
-            logSecurityEvent('STRIPE_SIGNATURE_INVALID', { signature: stripeSignature });
-            return badRequest('Invalid signature', corsHeaders);
-          }
+        if (!stripeSecret || !stripeSignature) {
+          logSecurityEvent('STRIPE_SIGNATURE_MISSING', { hasSecret: !!stripeSecret, hasSig: !!stripeSignature });
+          return badRequest('Stripe signature required', corsHeaders);
+        }
+        const isValid = await verifySignature(rawBody, stripeSignature.split('=')[1] || '', stripeSecret);
+        if (!isValid) {
+          logSecurityEvent('STRIPE_SIGNATURE_INVALID', { signature: stripeSignature });
+          return badRequest('Invalid signature', corsHeaders);
         }
 
         const stripeValidation = StripeWebhookSchema.safeParse(body);
