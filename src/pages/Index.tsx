@@ -198,7 +198,7 @@ const testimonials = [
 export default function Index() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const jsonLd = {
+  const softwareLd = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     "name": "SmartReach AI",
@@ -220,16 +220,29 @@ export default function Index() {
     "author": {
       "@type": "Organization",
       "name": "SmartReach AI",
-      "url": "https://smartreach.ai"
+      "url": "https://craft-your-journey-35.lovable.app"
     }
+  };
+
+  const faqLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": faqs.map(f => ({
+      "@type": "Question",
+      "name": f.q,
+      "acceptedAnswer": { "@type": "Answer", "text": f.a }
+    }))
   };
 
   return (
     <div className="min-h-screen bg-background">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      <SEO
+        title="SmartReach AI — SME Growth OS for Africa"
+        description="Unify social inbox, M-Pesa payments, inventory and AI marketing for Kenyan SMEs. Swahili-aware AI, offline-first, mobile-ready."
+        path="/"
+        jsonLd={[softwareLd, faqLd]}
       />
+
 
       {/* Navigation */}
       <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
