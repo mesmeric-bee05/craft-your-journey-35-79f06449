@@ -227,7 +227,7 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(({ on
           <QuickRepliesPopover onSelect={handleQuickReplySelect}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" className="h-11 w-11">
+                <Button variant="outline" size="icon" aria-label="Quick replies" className="h-11 w-11">
                   <Zap className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
