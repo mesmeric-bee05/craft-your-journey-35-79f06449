@@ -197,6 +197,9 @@ serve(async (req: Request) => {
         });
         return badRequest('Unsupported webhook source', corsHeaders);
       }
+    }
+
+
 
     if (!transactionReference) {
       return badRequest('Transaction reference not found', corsHeaders);
