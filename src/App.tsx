@@ -74,6 +74,7 @@ const App = () => (
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/feedback/:slug" element={<FeedbackPublic />} />
             <Route path="/biz/:slug" element={<BusinessPublic />} />
+            <Route path="/resources/best-times-to-post-kenya" element={<BestTimesToPostKenya />} />
             <Route path="/feedback" element={<ProtectedRoute><Feedback /></ProtectedRoute>} />
             <Route path="/geo" element={<ProtectedRoute><GeoIntel /></ProtectedRoute>} />
             <Route path="/public-profile" element={<ProtectedRoute><PublicProfilePage /></ProtectedRoute>} />
