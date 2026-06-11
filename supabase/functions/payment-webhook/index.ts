@@ -189,19 +189,14 @@ serve(async (req: Request) => {
       }
 
       default: {
-        // Generic webhook format
-        const genericValidation = GenericWebhookSchema.safeParse(body);
-        if (!genericValidation.success) {
-          return badRequest('Invalid webhook format', corsHeaders);
-        }
-
-        const data = genericValidation.data;
-        transactionReference = data.reference;
-        newStatus = data.status === 'success' ? 'completed' : data.status;
-        amount = data.amount || null;
-        break;
+        // Generic / unauthenticated webhook path removed for security.
+        // Only signed Stripe events or M-Pesa STK callbacks are accepted.
+        logSecurityEvent('UNKNOWN_WEBHOOK_SOURCE_REJECTED', {
+          source: webhookSource,
+          hasStripeSig: !!req.headers.get('stripe-signature'),
+        });
+        return badRequest('Unsupported webhook source', corsHeaders);
       }
-    }
 
     if (!transactionReference) {
       return badRequest('Transaction reference not found', corsHeaders);
