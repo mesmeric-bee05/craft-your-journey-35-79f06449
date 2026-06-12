@@ -1,89 +1,102 @@
-## Goal
-Add failure alerting (Slack + email), an admin runs-timeline with CSV export, and harden the "Run scan now" action with rate limiting, audit logs, and strict admin checks.
 
-## 1. Failure alerting for cron jobs
+## Status of your seven items
 
-**Channels**
-- Email via existing app-emails infra (`send-transactional-email`) to all users with `admin` role.
-- Slack via the Lovable Slack connector gateway. If no connection is linked, skip Slack silently and log a warning (no hard failure). Prompt user to link the Slack connector during build.
+Three items are already live from the previous phases — I'll skip re-implementing them and just verify:
 
-**Template**
-- New transactional template `cron-failure-alert.tsx` (subject: "⚠️ Scheduled job failed: {job_name}"). Body shows job name, started_at, duration, truncated error, and CTA buttons linking to `{APP_URL}/admin/health` and `{APP_URL}/security/findings`.
-- Registered in `_shared/transactional-email-templates/registry.ts`.
+1. ✅ **Slack + email alerts on cron failure** — `supabase/functions/_shared/cron-alerts.ts` posts to Slack (connector gateway) and tries `send-transactional-email`, with deep links to `/admin/health` and `/security/findings`. Wired into `snapshot-health-scores` and `security-rescan-runner`.
+2. ✅ **Searchable cron/security runs timeline with CSV export** — `CronRunsTimeline.tsx` + `get_cron_runs_timeline` RPC, mounted on `/admin/health`.
+3. ✅ **Hardened "Run scan now"** — `trigger-cron-job` enforces JWT + `has_role('admin')`, rate-limited via `check_and_record_admin_action` (5/hr), audit-logged with IP/UA.
 
-**Trigger points**
-- `supabase/functions/snapshot-health-scores/index.ts` — on catch, write `cron_job_runs` row with `status='failure'`, then call new shared helper `notifyCronFailure(job_name, error, started_at, duration_ms)`.
-- `supabase/functions/security-rescan-runner/index.ts` — same.
-- New shared module `supabase/functions/_shared/cron-alerts.ts` exporting `notifyCronFailure`. It:
-  1. Queries `auth.users` joined with `user_roles` where `role='admin'` for recipient emails.
-  2. Loops one-recipient-per-send (respects app-email "no bulk" rule — each admin is a distinct recipient of a per-event notice) using `idempotencyKey = ${job_name}-${started_at}`.
-  3. Posts to Slack via `https://connector-gateway.lovable.dev/slack/api/chat.postMessage` with `SLACK_API_KEY` + `LOVABLE_API_KEY` when both are present. Channel id read from new secret `SLACK_ALERTS_CHANNEL_ID`.
+If you want me to extend any of those (e.g. add an email template, change the rate-limit window), say the word — otherwise I'll focus on the four new items below.
 
-**Dedup**
-- Use `idempotencyKey` so retries within the same run don't double-send.
-- Track last alert per job in `cron_job_runs.metadata->alert_sent_at` to avoid re-alerting on transient retries within 10 min.
+---
 
-## 2. Admin runs timeline + CSV export
+## What I'll build
 
-**Backend**
-- New RPC `get_cron_runs_timeline(p_limit int, p_offset int, p_job_name text, p_status text, p_since timestamptz)` (SECURITY DEFINER, admin-only) returning `cron_job_runs` with computed `duration_ms`, paged + filtered. Sorted `started_at DESC`.
-- Reuse existing `cron_job_runs` table; `security-rescan-runner` already writes here. Confirm both jobs populate `job_name`, `started_at`, `finished_at`, `status`, `duration_ms`, `error_text`, `rows_affected`, `metadata`.
+### 1. Connect Google Search Console + verify the published site
 
-**Frontend — extend `/admin/health`**
-- New `CronRunsTimeline` section under existing health tiles.
-- Controls: search box (matches `error_text`/`job_name`), job filter (`snapshot-health-scores`, `security-rescan-runner`, `all`), status filter (`success`/`failure`/`running`/`all`), date range (last 24h / 7d / 30d).
-- Table columns: Started, Job, Status (badge), Duration, Rows, Error preview, Actions (expand row for full error JSON).
-- "Export CSV" button: client-side conversion of currently filtered results to CSV, downloaded as `cron-runs-{date}.csv`.
-- React Query with 30s staleTime, pagination 50 rows/page.
+- Trigger `standard_connectors--connect` for `google_search_console` so you can pick/authorize the workspace connection. This makes `GOOGLE_SEARCH_CONSOLE_API_KEY` available to edge functions.
+- Add a `<meta name="google-site-verification">` tag to `index.html`, with the token value read from a build-time inlined env var (`VITE_GSC_VERIFICATION_TOKEN`) so we can rotate without code changes. Fallback: hardcode the token after the first successful token mint.
+- New edge function `gsc-verify-site` (admin-only): requests a META token from `siteVerification/v1/token`, returns it for the user to paste / for us to write into `index.html`, then calls `siteVerification/v1/webResource?verificationMethod=META` and `PUT /webmasters/v3/sites/{encoded}` to register and verify `https://craft-your-journey-35.lovable.app/`.
+- Submit sitemap immediately: `PUT /webmasters/v3/sites/{site}/sitemaps/{sitemap}`.
 
-## 3. Harden "Run scan now"
+### 2. Automated SEO health-check on every route
 
-**Authorization**
-- `trigger-cron-job` edge function: continue to validate JWT in code (verify_jwt=false default), then call `has_role(uid, 'admin')` via service-role client. Reject with 403 otherwise.
+- New edge function `seo-route-audit` that:
+  - Reads a curated route list (static + dynamic public pages: `/`, `/auth`, `/help`, `/bundles`, `/resources/best-times-to-post-kenya`, plus published `business_public_profiles` slugs and `feedback_forms`).
+  - For each URL, fetches the HTML, then validates: presence + length of `<title>` (≤60), `<meta name="description">` (≤160), single `<link rel="canonical">` pointing to self, OG tags (`og:title`, `og:description`, `og:url`, `og:type`), and at least one valid `application/ld+json` block (JSON-parseable).
+  - Writes results to a new `seo_audit_runs` + `seo_audit_findings` table (RLS: admin read, service_role write) and logs into `cron_job_runs` so it shows on the timeline.
+- Scheduled nightly via pg_cron (02:00 UTC) and manually triggerable through the existing hardened `trigger-cron-job` proxy (whitelist the new job name).
+- Failures route through the same `notifyCronFailure` Slack/email path.
 
-**Rate limiting**
-- New table `admin_action_rate_limits` (user_id, action_key, last_invoked_at, invocation_count, window_started_at). RLS: admin/service_role only.
-- Helper RPC `check_and_record_admin_action(p_action text, p_max_per_hour int)` — atomic upsert that raises `rate_limit_exceeded` (custom SQLSTATE `P0001`) when over quota. Defaults: 5 invocations/hour per admin per action.
-- Edge function calls RPC before kicking off the job; returns 429 with `retryAfterSeconds` on breach.
+### 3. Automated sitemap & robots resubmission after releases
 
-**Audit logging**
-- Always log via `log_user_action('admin.trigger_cron_job', 'cron_job', null, business_id, {job_name, ip, user_agent, success})` — success and failure paths.
-- Add IP + user-agent to metadata.
+- New edge function `gsc-submit-sitemap` that:
+  - HEADs `/sitemap.xml` and `/robots.txt` to confirm 200 + last-modified.
+  - Calls `PUT /webmasters/v3/sites/{site}/sitemaps/{encoded-sitemap-url}` to (re)submit.
+  - Records a row in `cron_job_runs` with metadata (`{status, warnings, errors}` from the GSC sitemap detail response).
+- Trigger options:
+  - pg_cron daily at 03:00 UTC (catches deploys without a webhook).
+  - On-demand via `trigger-cron-job` from the new SEO admin page.
+- Documented note that a true "after release" hook would require a deploy webhook from Lovable, which we don't have — daily cadence + manual button is the practical substitute.
 
-**Frontend**
-- Disable "Run scan now" button while in-flight; show toast with rate-limit countdown on 429.
+### 4. Admin SEO monitoring page `/admin/seo`
 
-## Files to add/edit (technical)
+- New route, admin-only (mirrors `/admin/health` guard).
+- Sections:
+  - **Verification & sitemap status** — current site verification state, last sitemap submission outcome, "Resubmit sitemap now" button (rate-limited via existing admin-action limiter).
+  - **Indexing status** — pulls `searchanalytics/query` (last 28 days clicks/impressions) and `urlInspection/index:inspect` for a handful of priority URLs.
+  - **Sitemap fetch errors** — surfaces `warnings` + `errors` from the latest `webmasters/v3/sites/{site}/sitemaps/{sm}` response.
+  - **Route audit results** — table of failing SEO checks from `seo_audit_findings` with search + CSV export (reuses the CronRunsTimeline pattern).
+  - **Recent crawl/verification events** — filtered view of `cron_job_runs` where `job_name in ('seo-route-audit','gsc-submit-sitemap','gsc-verify-site')`.
+- Add `/admin/seo` link to the admin nav in `DashboardLayout`.
 
-```text
-supabase/migrations/<ts>_cron_alerts_and_rate_limit.sql
-  - admin_action_rate_limits table + GRANT + RLS + policies
-  - check_and_record_admin_action(text,int) RPC
-  - get_cron_runs_timeline(...) RPC
+---
 
-supabase/functions/_shared/cron-alerts.ts          (new)
-supabase/functions/_shared/transactional-email-templates/cron-failure-alert.tsx  (new)
-supabase/functions/_shared/transactional-email-templates/registry.ts             (edit)
-supabase/functions/snapshot-health-scores/index.ts (edit — try/catch + alert)
-supabase/functions/security-rescan-runner/index.ts (edit — try/catch + alert)
-supabase/functions/trigger-cron-job/index.ts       (edit — rate limit + audit + admin check)
+## Technical details
 
-src/hooks/useCronRunsTimeline.tsx                  (new)
-src/components/admin/CronRunsTimeline.tsx          (new)
-src/pages/AdminHealth.tsx                          (edit — mount timeline)
-src/pages/SecurityFindings.tsx                     (edit — surface 429 toast)
+**New edge functions** (all `verify_jwt = false` in code, but enforce JWT + admin in body):
+- `gsc-verify-site` — token mint + verify + site registration.
+- `gsc-submit-sitemap` — sitemap (re)submission + status fetch.
+- `seo-route-audit` — HTML fetch + parse, writes findings.
+- All share a new `supabase/functions/_shared/gsc.ts` helper for gateway auth + URL encoding.
+
+**Migration** (`..._seo_monitoring.sql`):
+- `seo_audit_runs(id, started_at, finished_at, status, total_routes, failing_routes, metadata jsonb)`
+- `seo_audit_findings(id, run_id fk, route, check_name, severity, message, evidence jsonb, created_at)`
+- GRANTs (service_role full, authenticated none — read via admin RPC).
+- `get_seo_audit_summary(p_limit int)` and `get_seo_audit_findings(p_run_id uuid)` SECURITY DEFINER RPCs guarded by `has_role(auth.uid(),'admin')`.
+- Extend `check_and_record_admin_action` allowlist with `gsc.resubmit_sitemap` and `seo.run_audit`.
+- pg_cron schedules:
+  - `seo-route-audit` daily 02:00 UTC
+  - `gsc-submit-sitemap` daily 03:00 UTC
+
+**Frontend**:
+- `src/pages/AdminSEO.tsx`, `src/hooks/useSEOAudit.tsx`, `src/hooks/useGSCStatus.tsx`, `src/components/admin/SEOFindingsTable.tsx`.
+- SEO meta on the new page set to `noindex`.
+
+**Files touched/created**:
+```
++ supabase/functions/gsc-verify-site/index.ts
++ supabase/functions/gsc-submit-sitemap/index.ts
++ supabase/functions/seo-route-audit/index.ts
++ supabase/functions/_shared/gsc.ts
++ supabase/migrations/..._seo_monitoring.sql
++ src/pages/AdminSEO.tsx
++ src/hooks/useSEOAudit.tsx
++ src/hooks/useGSCStatus.tsx
++ src/components/admin/SEOFindingsTable.tsx
+~ index.html                       (add google-site-verification meta)
+~ src/App.tsx                      (new route)
+~ src/components/layout/DashboardLayout.tsx (admin nav link)
+~ supabase/functions/trigger-cron-job/index.ts (whitelist new jobs)
+~ public/sitemap.xml               (refresh lastmod dates)
 ```
 
-## Secrets / connectors needed
+---
 
-- Link the **Slack** connector (bot) so `SLACK_API_KEY` is available.
-- Add secret `SLACK_ALERTS_CHANNEL_ID` (target channel for failure pings).
-- App URL constant: reuse existing `APP_PUBLIC_URL` if set, otherwise read `SUPABASE_URL`-derived fallback and let you set `APP_PUBLIC_URL` later.
+## Open questions before I start
 
-## Open questions
-1. Slack target — single shared `#alerts` channel via `SLACK_ALERTS_CHANNEL_ID`, or DM each admin? **Default: shared channel.**
-2. Rate-limit quota for `Run scan now` — **default 5/hour/admin**; OK or stricter (e.g. 2/hour)?
-3. Should the email alert go to every `admin` role user, or only `business_owner` of the affected business? **Default: all admins (jobs are global).**
-4. CSV export scope — **current filtered page set** (default) vs full filtered result (extra round-trip)?
-
-Reply "approved, defaults" to proceed, or note any changes.
+1. **GSC connection** — do you want me to call the connect tool now so you can authorize, or are you connecting it yourself from Connectors?
+2. **Verification token placement** — OK to commit the `google-site-verification` token into `index.html` (standard practice), or do you want it in a build secret?
+3. **Audit scope** — should the route audit hit the **published** domain (`craft-your-journey-35.lovable.app`) or the preview? Published is the right answer for GSC parity; confirming.
