@@ -40,6 +40,7 @@ import Bundles from "./pages/Bundles";
 import SecurityFindings from "./pages/SecurityFindings";
 import AdminHealth from "./pages/AdminHealth";
 import BestTimesToPostKenya from "./pages/resources/BestTimesToPostKenya";
+import AdminSEO from "./pages/AdminSEO";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -101,6 +102,7 @@ const App = () => (
             <Route path="/security/findings" element={<ProtectedRoute><SecurityFindings /></ProtectedRoute>} />
             <Route path="/bundles" element={<ProtectedRoute><Bundles /></ProtectedRoute>} />
             <Route path="/admin/health" element={<ProtectedRoute><AdminHealth /></ProtectedRoute>} />
+            <Route path="/admin/seo" element={<ProtectedRoute><AdminSEO /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </BrowserRouter>

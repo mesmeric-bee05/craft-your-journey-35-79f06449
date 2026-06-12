@@ -2916,6 +2916,83 @@ export type Database = {
           },
         ]
       }
+      seo_audit_findings: {
+        Row: {
+          check_name: string
+          created_at: string
+          evidence: Json
+          id: string
+          message: string
+          route: string
+          run_id: string
+          severity: string
+        }
+        Insert: {
+          check_name: string
+          created_at?: string
+          evidence?: Json
+          id?: string
+          message: string
+          route: string
+          run_id: string
+          severity: string
+        }
+        Update: {
+          check_name?: string
+          created_at?: string
+          evidence?: Json
+          id?: string
+          message?: string
+          route?: string
+          run_id?: string
+          severity?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seo_audit_findings_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "seo_audit_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      seo_audit_runs: {
+        Row: {
+          created_at: string
+          failing_routes: number
+          finished_at: string | null
+          id: string
+          metadata: Json
+          started_at: string
+          status: string
+          total_findings: number
+          total_routes: number
+        }
+        Insert: {
+          created_at?: string
+          failing_routes?: number
+          finished_at?: string | null
+          id?: string
+          metadata?: Json
+          started_at?: string
+          status: string
+          total_findings?: number
+          total_routes?: number
+        }
+        Update: {
+          created_at?: string
+          failing_routes?: number
+          finished_at?: string | null
+          id?: string
+          metadata?: Json
+          started_at?: string
+          status?: string
+          total_findings?: number
+          total_routes?: number
+        }
+        Relationships: []
+      }
       sla_breach_logs: {
         Row: {
           actual_minutes: number
@@ -4049,6 +4126,31 @@ export type Database = {
           metadata: Json
           settings: Json
           updated_at: string
+        }[]
+      }
+      get_seo_audit_findings: {
+        Args: { p_run_id: string }
+        Returns: {
+          check_name: string
+          created_at: string
+          evidence: Json
+          id: string
+          message: string
+          route: string
+          severity: string
+        }[]
+      }
+      get_seo_audit_summary: {
+        Args: { p_limit?: number }
+        Returns: {
+          failing_routes: number
+          finished_at: string
+          id: string
+          metadata: Json
+          started_at: string
+          status: string
+          total_findings: number
+          total_routes: number
         }[]
       }
       get_sla_metrics: {

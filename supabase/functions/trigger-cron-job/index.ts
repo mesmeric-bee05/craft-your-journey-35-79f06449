@@ -14,9 +14,11 @@ import { z } from "https://esm.sh/zod@3.23.8";
 const JOBS: Record<string, { fn: string; secretEnv?: string; secretHeader?: string }> = {
   "snapshot-health-scores": { fn: "snapshot-health-scores", secretEnv: "SNAPSHOT_HEALTH_SECRET", secretHeader: "x-snapshot-secret" },
   "security-rescan-runner": { fn: "security-rescan-runner", secretEnv: "SECURITY_RESCAN_SECRET", secretHeader: "x-rescan-secret" },
+  "seo-route-audit": { fn: "seo-route-audit" },
+  "gsc-submit-sitemap": { fn: "gsc-submit-sitemap" },
 };
 
-const Body = z.object({ job: z.enum(["snapshot-health-scores", "security-rescan-runner"]) });
+const Body = z.object({ job: z.enum(["snapshot-health-scores", "security-rescan-runner", "seo-route-audit", "gsc-submit-sitemap"]) });
 
 const MAX_PER_HOUR = 5;
 
