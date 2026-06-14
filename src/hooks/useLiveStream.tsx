@@ -16,6 +16,10 @@ interface StreamState {
   error: string | null;
 }
 
+// stream_key and rtmp_url are revoked from authenticated; fetch via get_stream_credentials RPC.
+const SAFE_STREAM_COLS =
+  'id,business_id,user_id,title,description,status,started_at,ended_at,viewer_count,peak_viewers,platforms,metadata,created_at,updated_at';
+
 export function useLiveStream() {
   const { user } = useAuth();
   const { business } = useBusiness();
