@@ -174,7 +174,7 @@ export function useLiveStream() {
           stream_key: streamKey,
           status: 'preparing' as LiveStreamStatus,
         })
-        .select()
+        .select(SAFE_STREAM_COLS)
         .single();
 
       if (error) throw error;
