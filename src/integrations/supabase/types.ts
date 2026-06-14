@@ -4112,6 +4112,17 @@ export type Database = {
         }[]
       }
       get_public_business_profile: { Args: { p_slug: string }; Returns: Json }
+      get_public_feedback_form: {
+        Args: { p_slug: string }
+        Returns: {
+          business_id: string
+          description: string
+          id: string
+          is_active: boolean
+          require_contact: boolean
+          title: string
+        }[]
+      }
       get_safe_channels: {
         Args: { p_business_id: string }
         Returns: {
