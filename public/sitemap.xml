@@ -11,6 +11,11 @@
     <priority>0.6</priority>
   </url>
   <url>
+    <loc>https://craft-your-journey-35.lovable.app/reset-password</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
     <loc>https://craft-your-journey-35.lovable.app/help</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -20,4 +25,11 @@
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
+  <!--
+    Dynamic public routes (/biz/:slug, /feedback/:slug) are added per published
+    row by the SEO route audit when business_public_profiles or feedback_forms
+    publish entries exist. None are currently published.
+    Protected app routes (/feedback, /geo, /dashboard, ...) are intentionally
+    excluded — they require authentication and should not be indexed.
+  -->
 </urlset>

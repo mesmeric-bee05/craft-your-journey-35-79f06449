@@ -311,6 +311,7 @@ export default function Social() {
                                   <Button 
                                     variant="ghost" 
                                     size="icon" 
+                                    aria-label={`Template options for ${template.name ?? 'template'}`}
                                     className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
                                   >
                                     <MoreVertical className="w-4 h-4" />
