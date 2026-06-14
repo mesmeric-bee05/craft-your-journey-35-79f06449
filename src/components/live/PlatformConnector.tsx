@@ -125,7 +125,7 @@ export function PlatformConnector({ streamId, isStreaming }: PlatformConnectorPr
                         <div>
                           <p className="font-medium">{config.name}</p>
                           <p className="text-xs text-muted-foreground truncate max-w-[200px]">
-                            {dest.rtmp_url}
+                            RTMP credentials hidden
                           </p>
                         </div>
                       </div>
