@@ -157,7 +157,7 @@ export function useStreamDestinations(streamId?: string) {
 
   const updateDestination = async (
     destinationId: string,
-    updates: Partial<Pick<StreamDestination, 'rtmp_url' | 'stream_key' | 'status'>>
+    updates: Partial<Pick<StreamDestinationRow, 'rtmp_url' | 'stream_key' | 'status'>>
   ) => {
     try {
       const { data, error } = await supabase
