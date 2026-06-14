@@ -92,7 +92,7 @@ export function useStreamDestinations(streamId?: string) {
     try {
       const { data, error } = await supabase
         .from('live_stream_destinations')
-        .select('*')
+        .select(SAFE_DEST_COLS)
         .eq('stream_id', streamId);
 
       if (error) throw error;
