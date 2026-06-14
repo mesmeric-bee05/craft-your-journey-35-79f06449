@@ -3,7 +3,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Database } from '@/integrations/supabase/types';
 
-type StreamDestination = Database['public']['Tables']['live_stream_destinations']['Row'];
+type StreamDestinationRow = Database['public']['Tables']['live_stream_destinations']['Row'];
+type StreamDestination = Omit<StreamDestinationRow, 'stream_key' | 'rtmp_url'> & {
+  stream_key?: string | null;
+  rtmp_url?: string | null;
+};
+
+const SAFE_DEST_COLS = 'id,stream_id,platform,status,created_at,updated_at';
 
 interface PlatformConfig {
   id: string;
