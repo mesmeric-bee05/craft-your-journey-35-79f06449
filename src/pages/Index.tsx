@@ -245,7 +245,7 @@ export default function Index() {
 
 
       {/* Navigation */}
-      <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
+      <nav className="sticky top-0 z-50 bg-background/95 supports-[backdrop-filter]:bg-background/80 supports-[backdrop-filter]:backdrop-blur-md border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
@@ -304,15 +304,16 @@ export default function Index() {
 
       {/* Hero Section */}
       <section className="relative overflow-hidden">
-        {/* Animated mesh gradient */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-1/2 -left-1/2 w-[200%] h-[200%] animate-[spin_30s_linear_infinite] opacity-[0.04]"
-            style={{
-              backgroundImage: 'radial-gradient(circle at 30% 40%, hsl(var(--primary)) 0%, transparent 50%), radial-gradient(circle at 70% 60%, hsl(var(--accent)) 0%, transparent 50%), radial-gradient(circle at 50% 20%, hsl(var(--chart-5)) 0%, transparent 40%)',
-            }}
-          />
-        </div>
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
+        {/* Static mesh gradient (no continuous animation to keep LCP fast) */}
+        <div
+          className="absolute inset-0 opacity-[0.06] pointer-events-none motion-safe:animate-[spin_60s_linear_infinite]"
+          aria-hidden="true"
+          style={{
+            backgroundImage:
+              'radial-gradient(circle at 30% 40%, hsl(var(--primary)) 0%, transparent 50%), radial-gradient(circle at 70% 60%, hsl(var(--accent)) 0%, transparent 50%), radial-gradient(circle at 50% 20%, hsl(var(--chart-5)) 0%, transparent 40%)',
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-28 relative">
           <div className="text-center max-w-4xl mx-auto">
             <Badge variant="secondary" className="mb-6 px-4 py-1.5 text-sm">
@@ -372,7 +373,7 @@ export default function Index() {
             {stats.map((stat) => (
               <div key={stat.label} className="text-center">
                 <p className="text-3xl sm:text-4xl font-display font-bold text-white">{stat.value}</p>
-                <p className="text-sm text-white/60 mt-1">{stat.label}</p>
+                <p className="text-sm text-white/85 mt-1">{stat.label}</p>
               </div>
             ))}
           </div>
@@ -573,7 +574,7 @@ export default function Index() {
               <h2 className="text-3xl sm:text-4xl font-display font-bold text-white mb-4">
                 Ready to Transform Your Business?
               </h2>
-              <p className="text-lg text-white/70 mb-8 max-w-xl mx-auto">
+              <p className="text-lg text-white/90 mb-8 max-w-xl mx-auto">
                 Join thousands of African SMEs already using SmartReach AI to grow their businesses.
               </p>
               <Link to="/auth">

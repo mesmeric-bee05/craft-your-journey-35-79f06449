@@ -47,26 +47,26 @@ export default function Auth() {
             <span className="text-gradient-accent">AI-Powered</span> Growth
           </h1>
           
-          <p className="text-lg text-gray-300 mb-8 max-w-lg">
+          <p className="text-lg text-gray-100 mb-8 max-w-lg">
             Unified social commerce, intelligent marketing, talent marketplace, and embedded finance - all in one platform.
           </p>
           
           <div className="grid grid-cols-2 gap-4 max-w-md">
             <div className="glass-dark rounded-xl p-4">
               <div className="text-2xl font-bold text-accent">50K+</div>
-              <div className="text-sm text-gray-400">Active SMEs</div>
+              <div className="text-sm text-gray-200">Active SMEs</div>
             </div>
             <div className="glass-dark rounded-xl p-4">
               <div className="text-2xl font-bold text-success">$2M+</div>
-              <div className="text-sm text-gray-400">Transactions</div>
+              <div className="text-sm text-gray-200">Transactions</div>
             </div>
             <div className="glass-dark rounded-xl p-4">
               <div className="text-2xl font-bold text-primary">6</div>
-              <div className="text-sm text-gray-400">Social Channels</div>
+              <div className="text-sm text-gray-200">Social Channels</div>
             </div>
             <div className="glass-dark rounded-xl p-4">
               <div className="text-2xl font-bold text-warning">10K+</div>
-              <div className="text-sm text-gray-400">Freelancers</div>
+              <div className="text-sm text-gray-200">Freelancers</div>
             </div>
           </div>
         </div>
