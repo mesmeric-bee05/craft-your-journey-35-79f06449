@@ -69,6 +69,7 @@ export default function Wellness() {
 
           {/* TAB 1: How I Feel */}
           <TabsContent value="how-i-feel" className="space-y-6">
+            <h2 className="sr-only">How I feel today</h2>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 space-y-6">
                 <DailyCheckin />
@@ -84,6 +85,7 @@ export default function Wellness() {
 
           {/* TAB 2: AI Companion */}
           <TabsContent value="ai-companion" className="space-y-4">
+            <h2 className="sr-only">Rafiki AI companion</h2>
             <Card className="border-primary/10 bg-primary/5 dark:bg-primary/5">
               <CardContent className="py-3 px-4 text-sm text-muted-foreground">
                 🔒 This conversation is private. It is not stored in your business profile and is not visible to anyone else. <span className="italic">Mimi si daktari wa akili — ni rafiki anayesikiliza.</span>
@@ -95,6 +97,7 @@ export default function Wellness() {
 
           {/* TAB 3: My Growth */}
           <TabsContent value="my-growth" className="space-y-6">
+            <h2 className="sr-only">My growth and history</h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <MoodHeatmap />
               <BurnoutGauge />
@@ -107,6 +110,7 @@ export default function Wellness() {
 
           {/* TAB 4: Community */}
           <TabsContent value="community">
+            <h2 className="sr-only">Community</h2>
             <CommunityTab />
           </TabsContent>
         </Tabs>
