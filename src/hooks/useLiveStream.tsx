@@ -5,7 +5,11 @@ import { useBusiness } from '@/hooks/useBusiness';
 import { useToast } from '@/hooks/use-toast';
 import { Database } from '@/integrations/supabase/types';
 
-type LiveStream = Database['public']['Tables']['live_streams']['Row'];
+type LiveStreamRow = Database['public']['Tables']['live_streams']['Row'];
+type LiveStream = Omit<LiveStreamRow, 'stream_key' | 'rtmp_url'> & {
+  stream_key?: string | null;
+  rtmp_url?: string | null;
+};
 type LiveStreamStatus = Database['public']['Enums']['live_stream_status'];
 
 interface StreamState {
