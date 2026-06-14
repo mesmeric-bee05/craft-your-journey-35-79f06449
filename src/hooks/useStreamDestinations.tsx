@@ -132,7 +132,7 @@ export function useStreamDestinations(streamId?: string) {
           stream_key: streamKey,
           status: 'pending',
         })
-        .select()
+        .select(SAFE_DEST_COLS)
         .single();
 
       if (error) throw error;
