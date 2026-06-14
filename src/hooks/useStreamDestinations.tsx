@@ -3,7 +3,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Database } from '@/integrations/supabase/types';
 
-type StreamDestination = Database['public']['Tables']['live_stream_destinations']['Row'];
+type StreamDestinationRow = Database['public']['Tables']['live_stream_destinations']['Row'];
+type StreamDestination = Omit<StreamDestinationRow, 'stream_key' | 'rtmp_url'> & {
+  stream_key?: string | null;
+  rtmp_url?: string | null;
+};
+
+const SAFE_DEST_COLS = 'id,stream_id,platform,status,error_message,created_at';
 
 interface PlatformConfig {
   id: string;
@@ -86,7 +92,7 @@ export function useStreamDestinations(streamId?: string) {
     try {
       const { data, error } = await supabase
         .from('live_stream_destinations')
-        .select('*')
+        .select(SAFE_DEST_COLS)
         .eq('stream_id', streamId);
 
       if (error) throw error;
@@ -126,7 +132,7 @@ export function useStreamDestinations(streamId?: string) {
           stream_key: streamKey,
           status: 'pending',
         })
-        .select()
+        .select(SAFE_DEST_COLS)
         .single();
 
       if (error) throw error;
@@ -151,14 +157,14 @@ export function useStreamDestinations(streamId?: string) {
 
   const updateDestination = async (
     destinationId: string,
-    updates: Partial<Pick<StreamDestination, 'rtmp_url' | 'stream_key' | 'status'>>
+    updates: Partial<Pick<StreamDestinationRow, 'rtmp_url' | 'stream_key' | 'status'>>
   ) => {
     try {
       const { data, error } = await supabase
         .from('live_stream_destinations')
         .update(updates)
         .eq('id', destinationId)
-        .select()
+        .select(SAFE_DEST_COLS)
         .single();
 
       if (error) throw error;

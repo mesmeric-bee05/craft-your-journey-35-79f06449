@@ -23,7 +23,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Database } from '@/integrations/supabase/types';
 
-type LiveStream = Database['public']['Tables']['live_streams']['Row'];
+type LiveStream = Omit<Database['public']['Tables']['live_streams']['Row'], 'stream_key' | 'rtmp_url'> & {
+  stream_key?: string | null;
+  rtmp_url?: string | null;
+};
 
 interface StreamSettings {
   chatEnabled: boolean;

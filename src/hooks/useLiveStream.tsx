@@ -5,7 +5,11 @@ import { useBusiness } from '@/hooks/useBusiness';
 import { useToast } from '@/hooks/use-toast';
 import { Database } from '@/integrations/supabase/types';
 
-type LiveStream = Database['public']['Tables']['live_streams']['Row'];
+type LiveStreamRow = Database['public']['Tables']['live_streams']['Row'];
+type LiveStream = Omit<LiveStreamRow, 'stream_key' | 'rtmp_url'> & {
+  stream_key?: string | null;
+  rtmp_url?: string | null;
+};
 type LiveStreamStatus = Database['public']['Enums']['live_stream_status'];
 
 interface StreamState {
@@ -15,6 +19,10 @@ interface StreamState {
   isPreparing: boolean;
   error: string | null;
 }
+
+// stream_key and rtmp_url are revoked from authenticated; fetch via get_stream_credentials RPC.
+const SAFE_STREAM_COLS =
+  'id,business_id,user_id,title,description,status,started_at,ended_at,viewer_count,peak_viewers,platforms,metadata,created_at,updated_at';
 
 export function useLiveStream() {
   const { user } = useAuth();
@@ -41,7 +49,7 @@ export function useLiveStream() {
     try {
       const { data, error } = await supabase
         .from('live_streams')
-        .select('*')
+        .select(SAFE_STREAM_COLS)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -166,7 +174,7 @@ export function useLiveStream() {
           stream_key: streamKey,
           status: 'preparing' as LiveStreamStatus,
         })
-        .select()
+        .select(SAFE_STREAM_COLS)
         .single();
 
       if (error) throw error;
