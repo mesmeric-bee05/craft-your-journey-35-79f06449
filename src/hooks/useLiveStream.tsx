@@ -45,7 +45,7 @@ export function useLiveStream() {
     try {
       const { data, error } = await supabase
         .from('live_streams')
-        .select('*')
+        .select(SAFE_STREAM_COLS)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
