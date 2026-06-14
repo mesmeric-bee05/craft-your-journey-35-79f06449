@@ -373,7 +373,7 @@ export default function Index() {
             {stats.map((stat) => (
               <div key={stat.label} className="text-center">
                 <p className="text-3xl sm:text-4xl font-display font-bold text-white">{stat.value}</p>
-                <p className="text-sm text-white/60 mt-1">{stat.label}</p>
+                <p className="text-sm text-white/85 mt-1">{stat.label}</p>
               </div>
             ))}
           </div>
