@@ -46,12 +46,9 @@ export default function FeedbackPublic() {
     (async () => {
       if (!slug) return;
       const { data } = await supabase
-        .from("feedback_forms")
-        .select("id, business_id, title, description, is_active, require_contact")
-        .eq("slug", slug.toLowerCase())
-        .eq("is_active", true)
-        .maybeSingle();
-      setForm((data as any) ?? null);
+        .rpc("get_public_feedback_form", { p_slug: slug.toLowerCase() });
+      const row = Array.isArray(data) ? data[0] : data;
+      setForm((row as any) ?? null);
       setLoading(false);
     })();
   }, [slug]);
