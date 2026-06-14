@@ -574,7 +574,7 @@ export default function Index() {
               <h2 className="text-3xl sm:text-4xl font-display font-bold text-white mb-4">
                 Ready to Transform Your Business?
               </h2>
-              <p className="text-lg text-white/70 mb-8 max-w-xl mx-auto">
+              <p className="text-lg text-white/90 mb-8 max-w-xl mx-auto">
                 Join thousands of African SMEs already using SmartReach AI to grow their businesses.
               </p>
               <Link to="/auth">
