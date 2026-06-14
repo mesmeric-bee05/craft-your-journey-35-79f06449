@@ -164,7 +164,7 @@ export function useStreamDestinations(streamId?: string) {
         .from('live_stream_destinations')
         .update(updates)
         .eq('id', destinationId)
-        .select()
+        .select(SAFE_DEST_COLS)
         .single();
 
       if (error) throw error;
