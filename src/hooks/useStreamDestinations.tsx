@@ -9,7 +9,7 @@ type StreamDestination = Omit<StreamDestinationRow, 'stream_key' | 'rtmp_url'> &
   rtmp_url?: string | null;
 };
 
-const SAFE_DEST_COLS = 'id,stream_id,platform,status,created_at,updated_at';
+const SAFE_DEST_COLS = 'id,stream_id,platform,status,error_message,created_at';
 
 interface PlatformConfig {
   id: string;
