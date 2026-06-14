@@ -4170,6 +4170,29 @@ export type Database = {
         }[]
       }
       get_stream_credentials: { Args: { p_stream_id: string }; Returns: Json }
+      get_transactions_masked: {
+        Args: { p_business_id: string; p_limit?: number; p_offset?: number }
+        Returns: {
+          amount: number
+          business_id: string
+          completed_at: string
+          created_at: string
+          currency: string
+          description: string
+          external_reference: string
+          id: string
+          metadata: Json
+          payment_method: string
+          recipient_email: string
+          recipient_phone: string
+          reference: string
+          status: Database["public"]["Enums"]["transaction_status"]
+          type: Database["public"]["Enums"]["transaction_type"]
+          updated_at: string
+          user_id: string
+          wallet_id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
