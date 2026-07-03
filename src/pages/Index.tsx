@@ -493,9 +493,11 @@ export default function Index() {
             <h2 className="text-3xl sm:text-4xl font-display font-bold text-foreground">
               Simple, Transparent Pricing
             </h2>
-            <p className="mt-4 text-lg text-muted-foreground">No hidden fees. Start free and scale as you grow.</p>
+            <p className="mt-4 text-lg text-muted-foreground">Five tiers built for African SMEs. No hidden fees — start free and scale as you grow.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Usage add-ons: M-Pesa facilitation 0.5–1.5% GMV · Talent commissions 5–15% · AI credit packs KES 500 / 100 posts</p>
           </div>
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-6 max-w-7xl mx-auto">
+
             {pricingPlans.map((plan) => (
               <Card key={plan.name} className={`relative ${plan.highlighted ? 'border-primary shadow-glow-primary scale-105' : 'border-border/50'}`}>
                 {plan.highlighted && (
