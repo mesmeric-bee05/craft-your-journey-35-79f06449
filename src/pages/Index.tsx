@@ -146,29 +146,47 @@ const faqs = [
 
 const pricingPlans = [
   {
-    name: 'Starter',
-    price: 'Free',
+    name: 'Sokoni',
+    price: 'KES 0',
     period: '',
-    description: 'Perfect for solo entrepreneurs getting started',
-    features: ['1 Team Member', '500 Messages/mo', '3 Social Channels', 'AI Content (10/mo)', 'Basic Analytics'],
-    cta: 'Get Started Free',
+    description: 'Micro-entrepreneurs & trials',
+    features: ['1 channel', '5 AI credits', 'Basic analytics', 'Community access'],
+    cta: 'Start Free',
     highlighted: false,
   },
   {
-    name: 'Growth',
-    price: 'KES 2,999',
+    name: 'Anza',
+    price: 'KES 1,699',
     period: '/mo',
-    description: 'For growing businesses scaling their operations',
-    features: ['5 Team Members', 'Unlimited Messages', 'All Social Channels', 'AI Content (Unlimited)', 'Advanced Analytics & SLA', 'M-Pesa Integration', 'Inventory Management', 'Biashara Mind™', 'Priority Support'],
+    description: '1–3 person businesses',
+    features: ['2 channels', 'Unified inbox', '50 AI posts', 'M-Pesa payment links'],
+    cta: 'Start 14-Day Trial',
+    highlighted: false,
+  },
+  {
+    name: 'Kua',
+    price: 'KES 3,499',
+    period: '/mo',
+    description: '4–10 person businesses',
+    features: ['5 channels', '200 AI posts', 'M-Pesa automation', '5-user collaboration', 'Biashara Mind™'],
     cta: 'Start 14-Day Trial',
     highlighted: true,
   },
   {
+    name: 'Fanikisha',
+    price: 'KES 6,999',
+    period: '/mo',
+    description: '10–50 person businesses',
+    features: ['Unlimited channels', 'Agentic AI', 'Dedicated account manager', '4hr SLA', 'Advanced analytics'],
+    cta: 'Start 14-Day Trial',
+    highlighted: false,
+  },
+  {
     name: 'Enterprise',
-    price: 'Custom',
-    period: '',
-    description: 'For large teams with custom requirements',
-    features: ['Unlimited Team', 'Dedicated Account Manager', 'Custom Integrations', 'White-label Options', 'API Access', 'SLA Guarantee', 'CompetEdge Intelligence', 'On-premise Option'],
+    price: 'KES 15,000+',
+    period: '/mo',
+    description: 'Agencies & corporates',
+    features: ['Custom infrastructure', 'Custom AI training', 'White-labelling', 'SLA guarantees', 'API access'],
     cta: 'Contact Sales',
     highlighted: false,
   },
@@ -318,7 +336,7 @@ export default function Index() {
           <div className="text-center max-w-4xl mx-auto">
             <Badge variant="secondary" className="mb-6 px-4 py-1.5 text-sm">
               <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-              Intelligent Marketing for African SMEs
+              Africa's First SME Growth Operating System
             </Badge>
             <h1 className="text-4xl sm:text-5xl lg:text-7xl font-display font-bold text-foreground leading-tight tracking-tight">
               One Platform to{' '}
@@ -326,8 +344,8 @@ export default function Index() {
               <span className="text-gradient-accent">Business</span>
             </h1>
             <p className="mt-6 text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-              Unify your social media, customer inbox, payments, inventory, and marketing 
-              — powered by AI that understands African markets.
+              AI, M-Pesa, social commerce, talent, and embedded finance — in one
+              culturally-intelligent platform built for Africa's 20M+ SMEs.
             </p>
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link to="/auth">
@@ -475,9 +493,11 @@ export default function Index() {
             <h2 className="text-3xl sm:text-4xl font-display font-bold text-foreground">
               Simple, Transparent Pricing
             </h2>
-            <p className="mt-4 text-lg text-muted-foreground">No hidden fees. Start free and scale as you grow.</p>
+            <p className="mt-4 text-lg text-muted-foreground">Five tiers built for African SMEs. No hidden fees — start free and scale as you grow.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Usage add-ons: M-Pesa facilitation 0.5–1.5% GMV · Talent commissions 5–15% · AI credit packs KES 500 / 100 posts</p>
           </div>
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-6 max-w-7xl mx-auto">
+
             {pricingPlans.map((plan) => (
               <Card key={plan.name} className={`relative ${plan.highlighted ? 'border-primary shadow-glow-primary scale-105' : 'border-border/50'}`}>
                 {plan.highlighted && (

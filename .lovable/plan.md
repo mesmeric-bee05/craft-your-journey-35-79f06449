@@ -1,102 +1,54 @@
+## Goal
 
-## Status of your seven items
+Use the SmartReach AI Master Document (v5.0, April 2026) as the source of truth. Audit what's built vs. what the doc promises, update the public landing page to match the doc's positioning and pricing, and persist the canonical facts to project memory so every future turn stays on-brand.
 
-Three items are already live from the previous phases — I'll skip re-implementing them and just verify:
+## 1. Gap audit (delivered as a short report in chat)
 
-1. ✅ **Slack + email alerts on cron failure** — `supabase/functions/_shared/cron-alerts.ts` posts to Slack (connector gateway) and tries `send-transactional-email`, with deep links to `/admin/health` and `/security/findings`. Wired into `snapshot-health-scores` and `security-rescan-runner`.
-2. ✅ **Searchable cron/security runs timeline with CSV export** — `CronRunsTimeline.tsx` + `get_cron_runs_timeline` RPC, mounted on `/admin/health`.
-3. ✅ **Hardened "Run scan now"** — `trigger-cron-job` enforces JWT + `has_role('admin')`, rate-limited via `check_and_record_admin_action` (5/hr), audit-logged with IP/UA.
+Compare doc modules to shipped surfaces:
 
-If you want me to extend any of those (e.g. add an email template, change the rate-limit window), say the word — otherwise I'll focus on the four new items below.
+| Doc pillar | Status |
+|---|---|
+| Unified inbox, social, live streaming, marketing suite, wellness, wallet/M-Pesa, talent hub, CRM, inventory, competitors, VoC, Geo-Intel, bundling, health score, agentic AI, help center, analytics | already built (per memory index) |
+| Sokoni/Anza/Kua/Fanikisha/Enterprise 5-tier pricing | landing shows only 3 tiers with wrong names/prices — **fix** |
+| SmartReach Capital (revenue-based financing via SmartReach Score) | not built — flag as Phase 5 roadmap |
+| SACCO integration (14k+ SACCOs, 5M members) | not built — flag as roadmap |
+| Voice commerce, AR product visualization, multi-currency pan-African | not built — flag as Series A/B roadmap |
+| Offline-first PWA | verify service worker; flag if missing |
+| ODPC compliance & security posture | already hardened (per memory) |
 
----
+Deliver as a compact table in the response, no separate file.
 
-## What I'll build
+## 2. Landing page refresh (`src/pages/Index.tsx`)
 
-### 1. Connect Google Search Console + verify the published site
+- Replace `pricingPlans` with the doc's five tiers:
+  - **Sokoni** — KES 0 — Micro-entrepreneurs — 1 channel, 5 AI credits, basic analytics, community
+  - **Anza** — KES 1,699/mo — 1–3 person — 2 channels, unified inbox, 50 AI posts, M-Pesa payment links
+  - **Kua** — KES 3,499/mo — 4–10 person — 5 channels, 200 AI posts, M-Pesa automation, 5-user collab (**highlighted / most popular**)
+  - **Fanikisha** — KES 6,999/mo — 10–50 person — unlimited channels, Agentic AI, dedicated AM, 4hr SLA
+  - **Enterprise** — KES 15,000+/mo — Agencies & Corporates — custom infra, custom AI training, white-label
+- Update tier grid to render 5 cards (responsive: 1 col mobile, 2 md, 5 lg) with the Kua card visually promoted.
+- Add a short line under the pricing header referencing usage-based add-ons: "M-Pesa facilitation 0.5–1.5% GMV · Talent commissions 5–15% · AI credit packs KES 500 / 100 posts".
+- Tighten the hero sub-copy to the doc's positioning: "Africa's first SME Growth Operating System — AI, M-Pesa, social commerce, talent, and embedded finance in one culturally-intelligent platform."
+- Keep existing design tokens, animations, and structure — no visual overhaul.
 
-- Trigger `standard_connectors--connect` for `google_search_console` so you can pick/authorize the workspace connection. This makes `GOOGLE_SEARCH_CONSOLE_API_KEY` available to edge functions.
-- Add a `<meta name="google-site-verification">` tag to `index.html`, with the token value read from a build-time inlined env var (`VITE_GSC_VERIFICATION_TOKEN`) so we can rotate without code changes. Fallback: hardcode the token after the first successful token mint.
-- New edge function `gsc-verify-site` (admin-only): requests a META token from `siteVerification/v1/token`, returns it for the user to paste / for us to write into `index.html`, then calls `siteVerification/v1/webResource?verificationMethod=META` and `PUT /webmasters/v3/sites/{encoded}` to register and verify `https://craft-your-journey-35.lovable.app/`.
-- Submit sitemap immediately: `PUT /webmasters/v3/sites/{site}/sitemaps/{sitemap}`.
+## 3. Project memory updates
 
-### 2. Automated SEO health-check on every route
+Save canonical facts so future sessions apply them automatically:
 
-- New edge function `seo-route-audit` that:
-  - Reads a curated route list (static + dynamic public pages: `/`, `/auth`, `/help`, `/bundles`, `/resources/best-times-to-post-kenya`, plus published `business_public_profiles` slugs and `feedback_forms`).
-  - For each URL, fetches the HTML, then validates: presence + length of `<title>` (≤60), `<meta name="description">` (≤160), single `<link rel="canonical">` pointing to self, OG tags (`og:title`, `og:description`, `og:url`, `og:type`), and at least one valid `application/ld+json` block (JSON-parseable).
-  - Writes results to a new `seo_audit_runs` + `seo_audit_findings` table (RLS: admin read, service_role write) and logs into `cron_job_runs` so it shows on the timeline.
-- Scheduled nightly via pg_cron (02:00 UTC) and manually triggerable through the existing hardened `trigger-cron-job` proxy (whitelist the new job name).
-- Failures route through the same `notifyCronFailure` Slack/email path.
+- **New file `mem://project/pricing-tiers`** — the 5-tier structure, transactional rates, add-on pricing. Type: `feature`.
+- **New file `mem://project/positioning`** — tagline, TAM (20M+ East African SMEs), founding team names + roles, contact (`smartreachai.co.ke`, `alvo4breezy@gmail.com`, `+254 720 117 438`), version tag (v5.0 April 2026). Type: `reference`.
+- **New file `mem://project/roadmap`** — what's in Seed vs. Series A vs. Series B (SmartReach Capital, SACCO integration, voice commerce, AR, pan-African multi-currency, live commerce). Type: `feature`.
+- **Update `mem://index.md`** — add the three new entries under Memories; add one Core line: "Pricing tiers are Sokoni / Anza / Kua / Fanikisha / Enterprise — never invent new names or prices."
 
-### 3. Automated sitemap & robots resubmission after releases
+## 4. Out of scope this turn
 
-- New edge function `gsc-submit-sitemap` that:
-  - HEADs `/sitemap.xml` and `/robots.txt` to confirm 200 + last-modified.
-  - Calls `PUT /webmasters/v3/sites/{site}/sitemaps/{encoded-sitemap-url}` to (re)submit.
-  - Records a row in `cron_job_runs` with metadata (`{status, warnings, errors}` from the GSC sitemap detail response).
-- Trigger options:
-  - pg_cron daily at 03:00 UTC (catches deploys without a webhook).
-  - On-demand via `trigger-cron-job` from the new SEO admin page.
-- Documented note that a true "after release" hook would require a deploy webhook from Lovable, which we don't have — daily cadence + manual button is the practical substitute.
+- No new features (SmartReach Capital, SACCO portal, voice commerce) — those need their own scoped plans.
+- No design-system overhaul.
+- No backend / migration changes.
+- No republishing — user triggers publish when ready.
 
-### 4. Admin SEO monitoring page `/admin/seo`
+## Verification
 
-- New route, admin-only (mirrors `/admin/health` guard).
-- Sections:
-  - **Verification & sitemap status** — current site verification state, last sitemap submission outcome, "Resubmit sitemap now" button (rate-limited via existing admin-action limiter).
-  - **Indexing status** — pulls `searchanalytics/query` (last 28 days clicks/impressions) and `urlInspection/index:inspect` for a handful of priority URLs.
-  - **Sitemap fetch errors** — surfaces `warnings` + `errors` from the latest `webmasters/v3/sites/{site}/sitemaps/{sm}` response.
-  - **Route audit results** — table of failing SEO checks from `seo_audit_findings` with search + CSV export (reuses the CronRunsTimeline pattern).
-  - **Recent crawl/verification events** — filtered view of `cron_job_runs` where `job_name in ('seo-route-audit','gsc-submit-sitemap','gsc-verify-site')`.
-- Add `/admin/seo` link to the admin nav in `DashboardLayout`.
-
----
-
-## Technical details
-
-**New edge functions** (all `verify_jwt = false` in code, but enforce JWT + admin in body):
-- `gsc-verify-site` — token mint + verify + site registration.
-- `gsc-submit-sitemap` — sitemap (re)submission + status fetch.
-- `seo-route-audit` — HTML fetch + parse, writes findings.
-- All share a new `supabase/functions/_shared/gsc.ts` helper for gateway auth + URL encoding.
-
-**Migration** (`..._seo_monitoring.sql`):
-- `seo_audit_runs(id, started_at, finished_at, status, total_routes, failing_routes, metadata jsonb)`
-- `seo_audit_findings(id, run_id fk, route, check_name, severity, message, evidence jsonb, created_at)`
-- GRANTs (service_role full, authenticated none — read via admin RPC).
-- `get_seo_audit_summary(p_limit int)` and `get_seo_audit_findings(p_run_id uuid)` SECURITY DEFINER RPCs guarded by `has_role(auth.uid(),'admin')`.
-- Extend `check_and_record_admin_action` allowlist with `gsc.resubmit_sitemap` and `seo.run_audit`.
-- pg_cron schedules:
-  - `seo-route-audit` daily 02:00 UTC
-  - `gsc-submit-sitemap` daily 03:00 UTC
-
-**Frontend**:
-- `src/pages/AdminSEO.tsx`, `src/hooks/useSEOAudit.tsx`, `src/hooks/useGSCStatus.tsx`, `src/components/admin/SEOFindingsTable.tsx`.
-- SEO meta on the new page set to `noindex`.
-
-**Files touched/created**:
-```
-+ supabase/functions/gsc-verify-site/index.ts
-+ supabase/functions/gsc-submit-sitemap/index.ts
-+ supabase/functions/seo-route-audit/index.ts
-+ supabase/functions/_shared/gsc.ts
-+ supabase/migrations/..._seo_monitoring.sql
-+ src/pages/AdminSEO.tsx
-+ src/hooks/useSEOAudit.tsx
-+ src/hooks/useGSCStatus.tsx
-+ src/components/admin/SEOFindingsTable.tsx
-~ index.html                       (add google-site-verification meta)
-~ src/App.tsx                      (new route)
-~ src/components/layout/DashboardLayout.tsx (admin nav link)
-~ supabase/functions/trigger-cron-job/index.ts (whitelist new jobs)
-~ public/sitemap.xml               (refresh lastmod dates)
-```
-
----
-
-## Open questions before I start
-
-1. **GSC connection** — do you want me to call the connect tool now so you can authorize, or are you connecting it yourself from Connectors?
-2. **Verification token placement** — OK to commit the `google-site-verification` token into `index.html` (standard practice), or do you want it in a build secret?
-3. **Audit scope** — should the route audit hit the **published** domain (`craft-your-journey-35.lovable.app`) or the preview? Published is the right answer for GSC parity; confirming.
+- Read `src/pages/Index.tsx` post-edit to confirm 5 tiers render.
+- Confirm memory files exist and index references them.
+- Build check runs automatically.
