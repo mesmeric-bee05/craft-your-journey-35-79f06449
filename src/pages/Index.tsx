@@ -336,7 +336,7 @@ export default function Index() {
           <div className="text-center max-w-4xl mx-auto">
             <Badge variant="secondary" className="mb-6 px-4 py-1.5 text-sm">
               <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-              Intelligent Marketing for African SMEs
+              Africa's First SME Growth Operating System
             </Badge>
             <h1 className="text-4xl sm:text-5xl lg:text-7xl font-display font-bold text-foreground leading-tight tracking-tight">
               One Platform to{' '}
@@ -344,8 +344,8 @@ export default function Index() {
               <span className="text-gradient-accent">Business</span>
             </h1>
             <p className="mt-6 text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-              Unify your social media, customer inbox, payments, inventory, and marketing 
-              — powered by AI that understands African markets.
+              AI, M-Pesa, social commerce, talent, and embedded finance — in one
+              culturally-intelligent platform built for Africa's 20M+ SMEs.
             </p>
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link to="/auth">
