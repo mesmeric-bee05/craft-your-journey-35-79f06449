@@ -41,6 +41,7 @@ import SecurityFindings from "./pages/SecurityFindings";
 import AdminHealth from "./pages/AdminHealth";
 import BestTimesToPostKenya from "./pages/resources/BestTimesToPostKenya";
 import AdminSEO from "./pages/AdminSEO";
+import { OfflineIndicator } from "@/pwa/OfflineIndicator";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -68,6 +69,7 @@ const App = () => (
         <AuthProvider>
           <Toaster />
           <Sonner />
+          <OfflineIndicator />
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
