@@ -32,12 +32,12 @@ export default function CapitalAdmin() {
           <Card className="p-8 text-center text-muted-foreground">No pending applications.</Card>
         )}
 
-        {queue.map((a: {
+        {(queue as Array<Record<string, unknown> & {
           id: string; requested_amount_kes: number; revenue_share_pct: number; factor: number;
           total_repayment_kes: number; created_at: string; esign_name: string | null;
-          offer_snapshot: { score?: number; monthly_gmv_kes?: number; business_age_days?: number };
+          offer_snapshot: { score?: number; monthly_gmv_kes?: number; business_age_days?: number } | null;
           businesses: { name: string } | null;
-        }) => (
+        }>).map((a) => (
           <Card key={a.id} className="p-6 space-y-4">
             <div className="flex items-start justify-between gap-3 flex-wrap">
               <div>

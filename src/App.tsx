@@ -44,6 +44,8 @@ import AdminSEO from "./pages/AdminSEO";
 import SaccoAdmin from "./pages/admin/SaccoAdmin";
 import SaccoDetail from "./pages/admin/SaccoDetail";
 import SaccosPublic from "./pages/partners/SaccosPublic";
+import Capital from "./pages/Capital";
+import CapitalAdmin from "./pages/admin/CapitalAdmin";
 import { OfflineIndicator } from "@/pwa/OfflineIndicator";
 
 const queryClient = new QueryClient({
@@ -111,6 +113,8 @@ const App = () => (
             <Route path="/admin/seo" element={<ProtectedRoute><AdminSEO /></ProtectedRoute>} />
             <Route path="/admin/saccos" element={<ProtectedRoute><SaccoAdmin /></ProtectedRoute>} />
             <Route path="/admin/saccos/:id" element={<ProtectedRoute><SaccoDetail /></ProtectedRoute>} />
+            <Route path="/capital" element={<ProtectedRoute><Capital /></ProtectedRoute>} />
+            <Route path="/admin/capital" element={<ProtectedRoute><CapitalAdmin /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </BrowserRouter>
