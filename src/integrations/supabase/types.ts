@@ -2696,6 +2696,285 @@ export type Database = {
           },
         ]
       }
+      sacco_api_rate_limits: {
+        Row: {
+          created_at: string
+          invocation_count: number
+          last_invoked_at: string | null
+          sacco_id: string
+          updated_at: string
+          window_started_at: string
+        }
+        Insert: {
+          created_at?: string
+          invocation_count?: number
+          last_invoked_at?: string | null
+          sacco_id: string
+          updated_at?: string
+          window_started_at?: string
+        }
+        Update: {
+          created_at?: string
+          invocation_count?: number
+          last_invoked_at?: string | null
+          sacco_id?: string
+          updated_at?: string
+          window_started_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sacco_api_rate_limits_sacco_id_fkey"
+            columns: ["sacco_id"]
+            isOneToOne: true
+            referencedRelation: "saccos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sacco_applications: {
+        Row: {
+          contact_email: string
+          contact_name: string
+          contact_phone: string | null
+          county: string | null
+          created_at: string
+          id: string
+          ip_address: unknown
+          linked_sacco_id: string | null
+          member_count_estimate: number | null
+          message: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          sacco_name: string
+          status: Database["public"]["Enums"]["sacco_application_status"]
+          updated_at: string
+        }
+        Insert: {
+          contact_email: string
+          contact_name: string
+          contact_phone?: string | null
+          county?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: unknown
+          linked_sacco_id?: string | null
+          member_count_estimate?: number | null
+          message?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sacco_name: string
+          status?: Database["public"]["Enums"]["sacco_application_status"]
+          updated_at?: string
+        }
+        Update: {
+          contact_email?: string
+          contact_name?: string
+          contact_phone?: string | null
+          county?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: unknown
+          linked_sacco_id?: string | null
+          member_count_estimate?: number | null
+          message?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sacco_name?: string
+          status?: Database["public"]["Enums"]["sacco_application_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sacco_applications_linked_sacco_id_fkey"
+            columns: ["linked_sacco_id"]
+            isOneToOne: false
+            referencedRelation: "saccos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sacco_imports: {
+        Row: {
+          created_at: string
+          created_count: number
+          error_count: number
+          errors: Json
+          finished_at: string | null
+          id: string
+          imported_by: string | null
+          row_count: number
+          sacco_id: string
+          source: Database["public"]["Enums"]["sacco_import_source"]
+          started_at: string
+          updated_at: string
+          updated_count: number
+        }
+        Insert: {
+          created_at?: string
+          created_count?: number
+          error_count?: number
+          errors?: Json
+          finished_at?: string | null
+          id?: string
+          imported_by?: string | null
+          row_count?: number
+          sacco_id: string
+          source: Database["public"]["Enums"]["sacco_import_source"]
+          started_at?: string
+          updated_at?: string
+          updated_count?: number
+        }
+        Update: {
+          created_at?: string
+          created_count?: number
+          error_count?: number
+          errors?: Json
+          finished_at?: string | null
+          id?: string
+          imported_by?: string | null
+          row_count?: number
+          sacco_id?: string
+          source?: Database["public"]["Enums"]["sacco_import_source"]
+          started_at?: string
+          updated_at?: string
+          updated_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sacco_imports_sacco_id_fkey"
+            columns: ["sacco_id"]
+            isOneToOne: false
+            referencedRelation: "saccos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sacco_members: {
+        Row: {
+          claimed_business_id: string | null
+          claimed_user_id: string | null
+          created_at: string
+          email: string | null
+          external_member_id: string | null
+          full_name: string
+          id: string
+          joined_at: string | null
+          metadata: Json
+          phone: string | null
+          sacco_id: string
+          status: Database["public"]["Enums"]["sacco_member_status"]
+          updated_at: string
+        }
+        Insert: {
+          claimed_business_id?: string | null
+          claimed_user_id?: string | null
+          created_at?: string
+          email?: string | null
+          external_member_id?: string | null
+          full_name: string
+          id?: string
+          joined_at?: string | null
+          metadata?: Json
+          phone?: string | null
+          sacco_id: string
+          status?: Database["public"]["Enums"]["sacco_member_status"]
+          updated_at?: string
+        }
+        Update: {
+          claimed_business_id?: string | null
+          claimed_user_id?: string | null
+          created_at?: string
+          email?: string | null
+          external_member_id?: string | null
+          full_name?: string
+          id?: string
+          joined_at?: string | null
+          metadata?: Json
+          phone?: string | null
+          sacco_id?: string
+          status?: Database["public"]["Enums"]["sacco_member_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sacco_members_claimed_business_id_fkey"
+            columns: ["claimed_business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sacco_members_sacco_id_fkey"
+            columns: ["sacco_id"]
+            isOneToOne: false
+            referencedRelation: "saccos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      saccos: {
+        Row: {
+          api_key_hash: string | null
+          api_key_issued_at: string | null
+          api_key_last4: string | null
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          county: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          loi_status: Database["public"]["Enums"]["sacco_loi_status"]
+          member_count_estimate: number | null
+          name: string
+          notes: string | null
+          region: string | null
+          registration_no: string | null
+          tier: Database["public"]["Enums"]["sacco_tier"]
+          updated_at: string
+        }
+        Insert: {
+          api_key_hash?: string | null
+          api_key_issued_at?: string | null
+          api_key_last4?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          county?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          loi_status?: Database["public"]["Enums"]["sacco_loi_status"]
+          member_count_estimate?: number | null
+          name: string
+          notes?: string | null
+          region?: string | null
+          registration_no?: string | null
+          tier?: Database["public"]["Enums"]["sacco_tier"]
+          updated_at?: string
+        }
+        Update: {
+          api_key_hash?: string | null
+          api_key_issued_at?: string | null
+          api_key_last4?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          county?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          loi_status?: Database["public"]["Enums"]["sacco_loi_status"]
+          member_count_estimate?: number | null
+          name?: string
+          notes?: string | null
+          region?: string | null
+          registration_no?: string | null
+          tier?: Database["public"]["Enums"]["sacco_tier"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       scheduled_posts: {
         Row: {
           business_id: string
@@ -4222,6 +4501,7 @@ export type Database = {
       }
       is_business_slug_available: { Args: { p_slug: string }; Returns: boolean }
       is_feedback_slug_available: { Args: { p_slug: string }; Returns: boolean }
+      is_sacco_admin: { Args: { _user_id: string }; Returns: boolean }
       log_security_event: {
         Args: {
           p_action: string
@@ -4242,6 +4522,18 @@ export type Database = {
         Returns: string
       }
       snapshot_all_health_scores: { Args: never; Returns: number }
+      submit_sacco_application: {
+        Args: {
+          p_contact_email: string
+          p_contact_name: string
+          p_contact_phone: string
+          p_county: string
+          p_member_count_estimate: number
+          p_message: string
+          p_sacco_name: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       ai_content_type:
@@ -4341,6 +4633,11 @@ export type Database = {
         | "general_merchandise"
         | "other"
       review_type: "client_to_freelancer" | "freelancer_to_client"
+      sacco_application_status: "new" | "reviewing" | "approved" | "rejected"
+      sacco_import_source: "csv" | "api" | "manual"
+      sacco_loi_status: "none" | "signed" | "active"
+      sacco_member_status: "imported" | "invited" | "claimed" | "inactive"
+      sacco_tier: "starter" | "growth" | "enterprise"
       sender_type: "customer" | "agent" | "system" | "bot"
       stock_movement_type: "sale" | "restock" | "adjustment" | "loss"
       ticket_category:
@@ -4605,6 +4902,11 @@ export const Constants = {
         "other",
       ],
       review_type: ["client_to_freelancer", "freelancer_to_client"],
+      sacco_application_status: ["new", "reviewing", "approved", "rejected"],
+      sacco_import_source: ["csv", "api", "manual"],
+      sacco_loi_status: ["none", "signed", "active"],
+      sacco_member_status: ["imported", "invited", "claimed", "inactive"],
+      sacco_tier: ["starter", "growth", "enterprise"],
       sender_type: ["customer", "agent", "system", "bot"],
       stock_movement_type: ["sale", "restock", "adjustment", "loss"],
       ticket_category: [
