@@ -948,6 +948,333 @@ export type Database = {
           },
         ]
       }
+      capital_advances: {
+        Row: {
+          amount_repaid_kes: number
+          application_id: string
+          business_id: string
+          closed_at: string | null
+          created_at: string
+          disbursed_at: string
+          factor: number
+          id: string
+          mpesa_disbursement_ref: string | null
+          principal_kes: number
+          revenue_share_pct: number
+          status: Database["public"]["Enums"]["capital_advance_status"]
+          total_owed_kes: number
+          updated_at: string
+        }
+        Insert: {
+          amount_repaid_kes?: number
+          application_id: string
+          business_id: string
+          closed_at?: string | null
+          created_at?: string
+          disbursed_at?: string
+          factor: number
+          id?: string
+          mpesa_disbursement_ref?: string | null
+          principal_kes: number
+          revenue_share_pct: number
+          status?: Database["public"]["Enums"]["capital_advance_status"]
+          total_owed_kes: number
+          updated_at?: string
+        }
+        Update: {
+          amount_repaid_kes?: number
+          application_id?: string
+          business_id?: string
+          closed_at?: string | null
+          created_at?: string
+          disbursed_at?: string
+          factor?: number
+          id?: string
+          mpesa_disbursement_ref?: string | null
+          principal_kes?: number
+          revenue_share_pct?: number
+          status?: Database["public"]["Enums"]["capital_advance_status"]
+          total_owed_kes?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "capital_advances_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: true
+            referencedRelation: "capital_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capital_advances_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      capital_applications: {
+        Row: {
+          business_id: string
+          created_at: string
+          esign_name: string | null
+          factor: number
+          id: string
+          offer_snapshot: Json
+          partner_id: string | null
+          partner_reference: string | null
+          requested_amount_kes: number
+          revenue_share_pct: number
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["capital_application_status"]
+          terms_accepted_at: string | null
+          total_repayment_kes: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          esign_name?: string | null
+          factor: number
+          id?: string
+          offer_snapshot?: Json
+          partner_id?: string | null
+          partner_reference?: string | null
+          requested_amount_kes: number
+          revenue_share_pct: number
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["capital_application_status"]
+          terms_accepted_at?: string | null
+          total_repayment_kes: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          esign_name?: string | null
+          factor?: number
+          id?: string
+          offer_snapshot?: Json
+          partner_id?: string | null
+          partner_reference?: string | null
+          requested_amount_kes?: number
+          revenue_share_pct?: number
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["capital_application_status"]
+          terms_accepted_at?: string | null
+          total_repayment_kes?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "capital_applications_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capital_applications_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "capital_partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      capital_audit: {
+        Row: {
+          action: string
+          actor_user_id: string | null
+          business_id: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          metadata: Json
+        }
+        Insert: {
+          action: string
+          actor_user_id?: string | null
+          business_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          metadata?: Json
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string | null
+          business_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          metadata?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "capital_audit_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      capital_offers: {
+        Row: {
+          business_age_days: number | null
+          business_id: string
+          computed_at: string
+          created_at: string
+          eligible: boolean
+          factor: number | null
+          factors: Json
+          max_advance_kes: number | null
+          monthly_gmv_kes: number | null
+          reason: string | null
+          revenue_share_max_pct: number | null
+          revenue_share_min_pct: number | null
+          score: number | null
+          updated_at: string
+        }
+        Insert: {
+          business_age_days?: number | null
+          business_id: string
+          computed_at?: string
+          created_at?: string
+          eligible?: boolean
+          factor?: number | null
+          factors?: Json
+          max_advance_kes?: number | null
+          monthly_gmv_kes?: number | null
+          reason?: string | null
+          revenue_share_max_pct?: number | null
+          revenue_share_min_pct?: number | null
+          score?: number | null
+          updated_at?: string
+        }
+        Update: {
+          business_age_days?: number | null
+          business_id?: string
+          computed_at?: string
+          created_at?: string
+          eligible?: boolean
+          factor?: number | null
+          factors?: Json
+          max_advance_kes?: number | null
+          monthly_gmv_kes?: number | null
+          reason?: string | null
+          revenue_share_max_pct?: number | null
+          revenue_share_min_pct?: number | null
+          score?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "capital_offers_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      capital_partners: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          kind: Database["public"]["Enums"]["capital_partner_kind"]
+          name: string
+          updated_at: string
+          webhook_secret_hash: string | null
+          webhook_url: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kind?: Database["public"]["Enums"]["capital_partner_kind"]
+          name: string
+          updated_at?: string
+          webhook_secret_hash?: string | null
+          webhook_url?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kind?: Database["public"]["Enums"]["capital_partner_kind"]
+          name?: string
+          updated_at?: string
+          webhook_secret_hash?: string | null
+          webhook_url?: string | null
+        }
+        Relationships: []
+      }
+      capital_repayments: {
+        Row: {
+          advance_id: string
+          amount_kes: number
+          collected_at: string | null
+          created_at: string
+          id: string
+          metadata: Json
+          mpesa_reference: string | null
+          scheduled_for: string | null
+          source: Database["public"]["Enums"]["capital_repayment_source"]
+          status: Database["public"]["Enums"]["capital_repayment_status"]
+          updated_at: string
+        }
+        Insert: {
+          advance_id: string
+          amount_kes: number
+          collected_at?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          mpesa_reference?: string | null
+          scheduled_for?: string | null
+          source?: Database["public"]["Enums"]["capital_repayment_source"]
+          status?: Database["public"]["Enums"]["capital_repayment_status"]
+          updated_at?: string
+        }
+        Update: {
+          advance_id?: string
+          amount_kes?: number
+          collected_at?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+          mpesa_reference?: string | null
+          scheduled_for?: string | null
+          source?: Database["public"]["Enums"]["capital_repayment_source"]
+          status?: Database["public"]["Enums"]["capital_repayment_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "capital_repayments_advance_id_fkey"
+            columns: ["advance_id"]
+            isOneToOne: false
+            referencedRelation: "capital_advances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       competitors: {
         Row: {
           business_id: string
@@ -4280,6 +4607,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_for_capital: {
+        Args: {
+          p_business_id: string
+          p_esign_name: string
+          p_requested_amount: number
+          p_revenue_share_pct: number
+        }
+        Returns: string
+      }
+      approve_capital_application: {
+        Args: { p_application_id: string; p_note?: string }
+        Returns: string
+      }
       check_and_record_admin_action: {
         Args: { p_action: string; p_max_per_hour?: number }
         Returns: Json
@@ -4289,6 +4629,7 @@ export type Database = {
         Args: { p_business_id: string }
         Returns: Json
       }
+      compute_capital_offer: { Args: { p_business_id: string }; Returns: Json }
       get_channel_tokens: { Args: { p_channel_id: string }; Returns: Json }
       get_cron_health: {
         Args: never
@@ -4521,6 +4862,14 @@ export type Database = {
         }
         Returns: string
       }
+      record_capital_repayment: {
+        Args: { p_advance_id: string; p_amount: number; p_reference?: string }
+        Returns: string
+      }
+      reject_capital_application: {
+        Args: { p_application_id: string; p_note: string }
+        Returns: undefined
+      }
       snapshot_all_health_scores: { Args: never; Returns: number }
       submit_sacco_application: {
         Args: {
@@ -4582,6 +4931,19 @@ export type Database = {
         | "completed"
         | "cancelled"
       campaign_type: "social" | "email" | "sms" | "multi_channel"
+      capital_advance_status: "active" | "repaid" | "defaulted"
+      capital_application_status:
+        | "submitted"
+        | "under_review"
+        | "approved"
+        | "rejected"
+        | "disbursed"
+        | "repaid"
+        | "defaulted"
+        | "cancelled"
+      capital_partner_kind: "sacco" | "bank" | "internal"
+      capital_repayment_source: "auto_mpesa" | "manual" | "partner"
+      capital_repayment_status: "pending" | "paid" | "failed"
       channel_type:
         | "whatsapp"
         | "instagram"
@@ -4845,6 +5207,20 @@ export const Constants = {
         "cancelled",
       ],
       campaign_type: ["social", "email", "sms", "multi_channel"],
+      capital_advance_status: ["active", "repaid", "defaulted"],
+      capital_application_status: [
+        "submitted",
+        "under_review",
+        "approved",
+        "rejected",
+        "disbursed",
+        "repaid",
+        "defaulted",
+        "cancelled",
+      ],
+      capital_partner_kind: ["sacco", "bank", "internal"],
+      capital_repayment_source: ["auto_mpesa", "manual", "partner"],
+      capital_repayment_status: ["pending", "paid", "failed"],
       channel_type: [
         "whatsapp",
         "instagram",
