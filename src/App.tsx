@@ -41,6 +41,9 @@ import SecurityFindings from "./pages/SecurityFindings";
 import AdminHealth from "./pages/AdminHealth";
 import BestTimesToPostKenya from "./pages/resources/BestTimesToPostKenya";
 import AdminSEO from "./pages/AdminSEO";
+import SaccoAdmin from "./pages/admin/SaccoAdmin";
+import SaccoDetail from "./pages/admin/SaccoDetail";
+import SaccosPublic from "./pages/partners/SaccosPublic";
 import { OfflineIndicator } from "@/pwa/OfflineIndicator";
 
 const queryClient = new QueryClient({
@@ -78,6 +81,7 @@ const App = () => (
             <Route path="/feedback/:slug" element={<FeedbackPublic />} />
             <Route path="/biz/:slug" element={<BusinessPublic />} />
             <Route path="/resources/best-times-to-post-kenya" element={<BestTimesToPostKenya />} />
+            <Route path="/partners/saccos" element={<SaccosPublic />} />
             <Route path="/feedback" element={<ProtectedRoute><Feedback /></ProtectedRoute>} />
             <Route path="/geo" element={<ProtectedRoute><GeoIntel /></ProtectedRoute>} />
             <Route path="/public-profile" element={<ProtectedRoute><PublicProfilePage /></ProtectedRoute>} />
@@ -105,6 +109,8 @@ const App = () => (
             <Route path="/bundles" element={<ProtectedRoute><Bundles /></ProtectedRoute>} />
             <Route path="/admin/health" element={<ProtectedRoute><AdminHealth /></ProtectedRoute>} />
             <Route path="/admin/seo" element={<ProtectedRoute><AdminSEO /></ProtectedRoute>} />
+            <Route path="/admin/saccos" element={<ProtectedRoute><SaccoAdmin /></ProtectedRoute>} />
+            <Route path="/admin/saccos/:id" element={<ProtectedRoute><SaccoDetail /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </BrowserRouter>
