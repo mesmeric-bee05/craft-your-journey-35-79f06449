@@ -2,6 +2,27 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+export interface OfferSnapshot {
+  score?: number;
+  monthly_gmv_kes?: number;
+  business_age_days?: number;
+  [k: string]: unknown;
+}
+
+export interface CapitalApplicationRow {
+  id: string;
+  business_id: string;
+  requested_amount_kes: number;
+  revenue_share_pct: number;
+  factor: number;
+  total_repayment_kes: number;
+  status: "submitted" | "under_review" | "approved" | "rejected" | "cancelled";
+  created_at: string;
+  esign_name: string | null;
+  offer_snapshot: OfferSnapshot | null;
+  businesses: { name: string } | null;
+}
+
 export interface CapitalOffer {
   eligible: boolean;
   score: number;
@@ -113,7 +134,7 @@ export function useCapitalAdminQueue() {
         .in("status", ["submitted", "under_review"])
         .order("created_at", { ascending: true });
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as unknown as CapitalApplicationRow[];
     },
   });
 }

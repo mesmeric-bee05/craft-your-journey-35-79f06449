@@ -1,99 +1,72 @@
-# SmartReach Capital — Revenue-Based Financing
+## Scope
 
-Full-depth scope: SmartReach Score → eligibility → application → underwriting → M-Pesa disbursement → repayment tracking → partner lender webhook. Ships as one migration + two edge functions + one dashboard page + one admin page.
+Four focused fixes/features, sequenced to keep the build green throughout. All work is frontend + typing only unless noted; no schema changes.
 
-## Product model
-- Revenue-based advance, not a loan. Business gets a lump sum, pays back a fixed % of daily M-Pesa GMV until the total repayment (advance × factor) is met.
-- Advance ceiling = f(SmartReach Score, verified 30-day GMV, business age). Cap 3× monthly GMV, max KES 500,000 for first offers.
-- Factor: 1.10 (score ≥ 80), 1.15 (60–79), 1.20 (40–59); ineligible below 40 or under 90 days of trading.
-- Revenue share: 5–20% of daily M-Pesa GMV depending on urgency.
+### 1. Fix `offer_snapshot` typing in Capital admin
 
-## What ships
+- Add a typed row shape in `useCapital.tsx`:
+  - `export interface CapitalApplicationRow { id; business_id; requested_amount_kes; revenue_share_pct; factor; total_repayment_kes; status; created_at; esign_name; offer_snapshot: OfferSnapshot | null; businesses: { name: string } | null; }`
+  - `OfferSnapshot = { score?: number; monthly_gmv_kes?: number; business_age_days?: number }`
+- `useCapitalAdminQueue` returns `CapitalApplicationRow[]` via a cast at the query boundary (`(data ?? []) as CapitalApplicationRow[]`), since `offer_snapshot` is `Json` in generated types.
+- Remove the inline `(queue as Array<...>)` cast in `CapitalAdmin.tsx`; iterate the typed rows directly. Filtering/sorting helpers (status filter, newest-first sort) now compile against the typed shape.
 
-1. **Eligibility engine** — SECURITY DEFINER function `compute_capital_offer(business_id)` reads:
-   - `business_health_score.overall` (SmartReach Score),
-   - last 90d of `transactions` where `payment_method='mpesa'` and `type='income'`,
-   - business age from `businesses.created_at`.
-   Returns `{ eligible, max_advance_kes, factor, revenue_share_pct, reason }`.
+### 2. Loading / empty / error states for `/admin/capital`
 
-2. **`/capital` dashboard** (business owner) — shows current offer, score gauge, "why this amount" breakdown, apply CTA. If active advance exists → shows balance, next projected auto-repayment, schedule.
+- Destructure `isLoading, isError, error, refetch` from `useCapitalAdminQueue`.
+- Add:
+  - Skeleton cards (3x) while loading.
+  - Error card with message + "Retry" button calling `refetch()`.
+  - Empty state card (icon + copy) when queue is empty.
+- Approve/Reject buttons: disable while that specific row's mutation is pending (track pending id), show inline spinner. Replace `alert()` with a `toast.error` for missing rejection note. Toast success/failure already handled in hooks.
+- Add a simple status filter (Submitted / Under review / All) and sort toggle (Oldest / Newest) — pure client-side over the typed rows.
 
-3. **Application flow** — user picks amount ≤ max, revenue share % (5/10/15/20), reviews terms, e-signs (checkbox + full name), submits. Creates `capital_applications` row (status=submitted).
+### 3. SACCO CSV import: preview, validation, dedupe, errors
 
-4. **Admin review queue** at `/admin/capital` — pending applications, one-click approve/reject with note, view full offer computation, view SmartReach Score history.
+In `SaccoDetail.tsx` + `useSaccos.tsx`:
 
-5. **M-Pesa disbursement (sandbox)** — on approval, edge function `capital-disburse` calls Daraja B2C in sandbox mode, records `capital_advances` row (status=disbursed), logs to `audit_logs`. Real credentials optional via secrets.
+- Extract a `validateCsvRows(rows)` util returning `{ valid, invalid }` where each invalid row has `{ rowNumber, reasons[] }`. Rules:
+  - `full_name` required, ≤120 chars.
+  - `phone` optional; if present must normalize to `+2547XXXXXXXX` or `+2541XXXXXXXX` (reuse existing `norm`).
+  - `email` optional; must match basic email regex, ≤255 chars.
+  - `joined_at` optional; must parse as ISO date.
+  - `external_member_id` optional; ≤64 chars.
+- Client-side dedupe by `external_member_id` (or `phone` fallback) within the file; duplicates flagged as warnings, not errors, keeping the first occurrence.
+- Import dialog upgraded:
+  - Full preview table (scrollable, first 50 rows) with per-row status badges: Valid / Warning / Error + tooltip listing reasons.
+  - Summary bar: `X valid · Y warnings · Z errors · N duplicates skipped`.
+  - "Download errors CSV" button generates a CSV of invalid rows with a `_errors` column.
+  - Import button disabled unless `valid > 0`; only valid rows are sent.
+- `useImportSaccoMembersCSV` returns per-batch `{ created, updated, skipped, errors: [{row, error}] }`; the toast on completion reads `Imported X · Skipped Y · Failed Z`, and errors are surfaced in a post-import result panel with a "Download failed rows" button.
 
-6. **Repayment engine** — daily cron (via existing cron infra) computes `repayment_due = today's M-Pesa GMV × revenue_share_pct`, inserts `capital_repayments` row (status=pending), triggers STK for collection (sandbox by default).
+### 4. Offline test mode for the IndexedDB outbox
 
-7. **Partner lender webhook** — outbound `capital-underwrite` edge function forwards approved applications to a configured partner (SACCO/bank) via signed POST, ingests decision via inbound webhook `capital-decision` (HMAC-verified). Falls back to in-house when no partner is configured.
+- New route `/settings/offline-test` (dev + admin only; hidden behind a `NODE_ENV !== 'production' || hasRole('admin')` guard).
+- Page (`src/pages/OfflineTest.tsx`) UI:
+  - Current online/offline status pill (reuse `useOnlineStatus`).
+  - Buttons to enqueue synthetic outbox items of each `OutboxKind` (registers no-op handlers that simulate success, transient failure — fails first N attempts — or permanent failure).
+  - Live outbox table: id, kind, attempts, lastError, createdAt (via `listOutbox` + subscription).
+  - "Simulate offline" toggle that intercepts `flushOutbox` (sets an in-module flag) and a "Force flush" button.
+  - Retry progress bar showing `processed / total` during a flush cycle.
+- Small additions to `src/pwa/outbox.ts`:
+  - Export a `flushProgress` subscription (`{ processed, failed, total, running }`) updated inside `flushOutbox`.
+  - Add `registerOutboxHandler` for the three synthetic kinds only when the test page mounts (cleanup on unmount).
+- No production behavior change; existing auto-flush on `online` still works.
 
-## Data model
+### 5. Continue phase-by-phase build hygiene
 
-```text
-capital_offers                snapshot of current computed offer per business
-  business_id (PK), score, max_advance_kes, factor, revenue_share_range,
-  computed_at, factors jsonb
+After each of the four items above:
 
-capital_applications          user-submitted requests
-  id, business_id, user_id, requested_amount_kes, revenue_share_pct,
-  factor, total_repayment_kes, status
-    (submitted|under_review|approved|rejected|disbursed|repaid|defaulted|cancelled),
-  offer_snapshot jsonb, terms_accepted_at, esign_name,
-  reviewed_by, reviewed_at, review_note,
-  partner_id (nullable), partner_reference (nullable)
+- Run tsgo/build, fix any type errors surfaced by the new typed rows or hook signatures.
+- Grep for other `offer_snapshot` / `capital_applications` consumers and align them to `CapitalApplicationRow` if needed.
+- Update `mem://features/smartreach-capital` note with the new typed row + admin UX states, and `mem://features/sacco-integration-portal` with the new import validation contract, and `mem://features/offline-first-pwa` with the offline test mode route.
 
-capital_advances              disbursed advances
-  id, application_id (unique), business_id, principal_kes,
-  factor, total_owed_kes, amount_repaid_kes, revenue_share_pct,
-  status (active|repaid|defaulted), disbursed_at,
-  mpesa_disbursement_ref, closed_at
+## Out of scope
 
-capital_repayments            daily/manual repayments
-  id, advance_id, amount_kes, source (auto_mpesa|manual|partner),
-  mpesa_reference, status (pending|paid|failed), collected_at
+- No database migrations, no edge function changes, no live M-Pesa / partner webhook work (still deferred per prior turn).
+- No redesign of Capital user page or SACCO admin list.
 
-capital_partners              partner lenders (SACCOs/banks)
-  id, name, kind (sacco|bank|internal), webhook_url,
-  webhook_secret_hash, is_active, created_at
+## Technical notes
 
-capital_audit                 append-only audit for capital actions
-  id, actor_user_id, business_id, action, entity_type, entity_id,
-  metadata jsonb, created_at
-```
-
-## Access rules (plain English)
-- **Business owner** can view their own offer, advances, repayments; submit applications tied to businesses they own.
-- **Business members** can view offer read-only; cannot apply.
-- **Admins** can view/approve/reject everything, manage partners.
-- **Anonymous**: no access.
-- Partner webhooks bypass RLS via `service_role` in edge functions; each call HMAC-signed.
-
-## Edge Functions
-- `capital-offer` (JWT) — recomputes & returns current offer for the caller's active business.
-- `capital-apply` (JWT) — validates amount ≤ max, records application, dispatches to `capital-underwrite` if a partner is configured for the business's SACCO.
-- `capital-disburse` (JWT, admin) — approves + calls M-Pesa B2C sandbox, writes advance.
-- `capital-repayment-run` (no JWT, scheduled) — daily job: for each active advance, compute due % of today's GMV, create repayment, initiate STK.
-- `capital-decision` (no JWT, HMAC) — inbound partner webhook to accept/reject applications.
-- `capital-underwrite` (server-called only) — outbound signed POST to partner webhook.
-
-## UI
-- `src/pages/Capital.tsx` — owner dashboard with offer card, score gauge, active advance card, repayment schedule.
-- `src/pages/admin/CapitalAdmin.tsx` — applications queue with approve/reject.
-- `src/components/capital/OfferBreakdown.tsx`, `src/components/capital/ApplyDialog.tsx`, `src/components/capital/RepaymentSchedule.tsx`.
-- Hook: `src/hooks/useCapital.tsx` (`useCapitalOffer`, `useMyAdvance`, `useApplyForCapital`, `useCapitalApplications`, `useApproveApplication`, `useRejectApplication`).
-
-## Out of scope for this pass
-- FICO-style external credit bureau lookup.
-- Automated collections escalation / SMS dunning.
-- Refinancing/top-ups on active advances.
-- Anything requiring live M-Pesa (all Daraja calls default to sandbox; real keys behind `MPESA_ENV=live` gate).
-
-## Secrets required (already present or to add)
-- `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_SHORTCODE`, `MPESA_PASSKEY`, `MPESA_ENV` (sandbox|live) — will prompt to add if missing.
-- `CAPITAL_PARTNER_WEBHOOK_SECRET` — generated automatically.
-
-## Files
-- 1 migration (~280 lines) — tables, enums, RLS, `compute_capital_offer` + `record_capital_repayment` functions, `update_updated_at_column` triggers, GRANTs.
-- 6 edge functions.
-- 5 new frontend files + 2 routes registered in App.tsx.
+- `offer_snapshot` remains `Json` in generated Supabase types; the typed row is a boundary cast, not a schema change.
+- Validation uses zod-free hand-written checks to keep the CSV path dependency-light; matches existing `norm` helper.
+- Outbox test handlers must be registered lazily to avoid overriding real handlers when the test page isn't mounted.

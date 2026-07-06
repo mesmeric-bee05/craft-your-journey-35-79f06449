@@ -5,6 +5,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import {
   useSacco, useSaccoMembers, useSaccoImports,
   useImportSaccoMembersCSV, useIssueSaccoApiKey, useUpdateSacco,
+  validateCsvRows, type ValidatedRow, type CsvImportResult,
 } from "@/hooks/useSaccos";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -15,8 +16,8 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Upload, Key, ArrowLeft, Copy } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Upload, Key, ArrowLeft, Copy, Download, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -48,34 +49,53 @@ export default function SaccoDetail() {
   const update = useUpdateSacco();
 
   const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [csvPreview, setCsvPreview] = useState<Array<Record<string, string>>>([]);
+  const [validation, setValidation] = useState<ReturnType<typeof validateCsvRows> | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [issuedKey, setIssuedKey] = useState<string | null>(null);
+  const [lastResult, setLastResult] = useState<CsvImportResult | null>(null);
 
   const handleFile = async (file: File) => {
     setCsvFile(file);
+    setLastResult(null);
     const text = await file.text();
-    setCsvPreview(parseCSV(text).slice(0, 5));
-  };
-
-  const runImport = async () => {
-    if (!csvFile || !id) return;
-    const text = await csvFile.text();
-    const rows = parseCSV(text).map((r) => ({
+    const parsed = parseCSV(text).map((r) => ({
       external_member_id: r.external_member_id || r.member_id || r.id,
       full_name: r.full_name || r.name || "",
       phone: r.phone || r.msisdn,
       email: r.email,
       joined_at: r.joined_at || r.join_date,
-    })).filter((r) => r.full_name);
-    if (rows.length === 0) {
-      toast.error("No valid rows found. Required column: full_name");
+    }));
+    setValidation(validateCsvRows(parsed));
+  };
+
+  const downloadCsv = (rows: ValidatedRow[], filename: string) => {
+    const header = "row,full_name,phone,email,external_member_id,joined_at,_errors\n";
+    const body = rows.map((v) => [
+      v.rowNumber, v.raw.full_name ?? "", v.raw.phone ?? "", v.raw.email ?? "",
+      v.raw.external_member_id ?? "", v.raw.joined_at ?? "",
+      `"${v.reasons.join("; ").replace(/"/g, '""')}"`,
+    ].join(",")).join("\n");
+    const blob = new Blob([header + body], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const runImport = async () => {
+    if (!id || !validation) return;
+    const rowsToSend = [...validation.valid, ...validation.warnings];
+    if (rowsToSend.length === 0) {
+      toast.error("No valid rows to import.");
       return;
     }
-    await importCsv.mutateAsync({ saccoId: id, rows });
-    setImportOpen(false);
-    setCsvFile(null);
-    setCsvPreview([]);
+    const res = await importCsv.mutateAsync({ saccoId: id, rows: rowsToSend });
+    setLastResult(res);
+    if (res.errors.length === 0) {
+      setImportOpen(false);
+      setCsvFile(null);
+      setValidation(null);
+    }
   };
 
   const rotateKey = async () => {
@@ -112,29 +132,97 @@ export default function SaccoDetail() {
             </Select>
             <Dialog open={importOpen} onOpenChange={setImportOpen}>
               <DialogTrigger asChild><Button variant="outline"><Upload className="h-4 w-4 mr-2" />Import CSV</Button></DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-w-3xl">
                 <DialogHeader>
                   <DialogTitle>Import members</DialogTitle>
                   <DialogDescription>
                     CSV with headers: <code className="text-xs">full_name, phone, email, external_member_id, joined_at</code>.
-                    Only <code>full_name</code> is required.
+                    Only <code>full_name</code> is required. Rows are validated and deduped before import.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-3">
                   <input type="file" accept=".csv,text/csv" onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} className="text-sm" />
-                  {csvPreview.length > 0 && (
-                    <div className="rounded border text-xs max-h-48 overflow-auto">
-                      <table className="w-full">
-                        <thead className="bg-muted"><tr>{Object.keys(csvPreview[0]).map((h) => <th key={h} className="p-1 text-left">{h}</th>)}</tr></thead>
-                        <tbody>{csvPreview.map((r, i) => <tr key={i}>{Object.values(r).map((v, j) => <td key={j} className="p-1">{v}</td>)}</tr>)}</tbody>
-                      </table>
-                      <div className="p-2 text-muted-foreground">Showing first 5 rows.</div>
+
+                  {validation && (
+                    <>
+                      <div className="flex items-center gap-3 text-sm flex-wrap">
+                        <Badge className="gap-1" variant="default"><CheckCircle2 className="h-3 w-3" />{validation.valid.length} valid</Badge>
+                        <Badge className="gap-1" variant="secondary"><AlertTriangle className="h-3 w-3" />{validation.warnings.length} warnings</Badge>
+                        <Badge className="gap-1" variant="destructive"><XCircle className="h-3 w-3" />{validation.errors.length} errors</Badge>
+                        <span className="text-muted-foreground text-xs">{validation.duplicatesSkipped} duplicates skipped</span>
+                        {validation.errors.length > 0 && (
+                          <Button size="sm" variant="outline" className="ml-auto" onClick={() => downloadCsv(validation.errors, "sacco-import-errors.csv")}>
+                            <Download className="h-3 w-3 mr-1" /> Errors CSV
+                          </Button>
+                        )}
+                      </div>
+
+                      <div className="rounded border text-xs max-h-72 overflow-auto">
+                        <table className="w-full">
+                          <thead className="bg-muted sticky top-0">
+                            <tr>
+                              <th className="p-1 text-left w-10">#</th>
+                              <th className="p-1 text-left w-20">Status</th>
+                              <th className="p-1 text-left">full_name</th>
+                              <th className="p-1 text-left">phone</th>
+                              <th className="p-1 text-left">email</th>
+                              <th className="p-1 text-left">ext_id</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {validation.validated.slice(0, 50).map((v) => (
+                              <Tooltip key={v.rowNumber}>
+                                <TooltipTrigger asChild>
+                                  <tr className={
+                                    v.status === "error" ? "bg-destructive/10"
+                                    : v.status === "warning" ? "bg-yellow-500/10" : ""
+                                  }>
+                                    <td className="p-1 text-muted-foreground">{v.rowNumber}</td>
+                                    <td className="p-1 capitalize">{v.status}</td>
+                                    <td className="p-1">{v.raw.full_name || <span className="text-destructive">—</span>}</td>
+                                    <td className="p-1 font-mono">{v.raw.phone || "—"}</td>
+                                    <td className="p-1">{v.raw.email || "—"}</td>
+                                    <td className="p-1">{v.raw.external_member_id || "—"}</td>
+                                  </tr>
+                                </TooltipTrigger>
+                                {v.reasons.length > 0 && (
+                                  <TooltipContent>
+                                    <ul className="text-xs list-disc pl-4">{v.reasons.map((r, i) => <li key={i}>{r}</li>)}</ul>
+                                  </TooltipContent>
+                                )}
+                              </Tooltip>
+                            ))}
+                          </tbody>
+                        </table>
+                        {validation.validated.length > 50 && (
+                          <div className="p-2 text-muted-foreground text-xs">Showing first 50 of {validation.validated.length} rows.</div>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  {lastResult && (
+                    <div className="rounded border p-3 text-sm space-y-2">
+                      <div>Imported {lastResult.created} · Failed {lastResult.errors.length}</div>
+                      {lastResult.errors.length > 0 && (
+                        <Button size="sm" variant="outline" onClick={() => {
+                          const rows: ValidatedRow[] = lastResult.errors.map((e) => ({
+                            rowNumber: e.row, raw: { full_name: "" }, normalizedPhone: null,
+                            status: "error", reasons: [e.error],
+                          }));
+                          downloadCsv(rows, "sacco-import-failed.csv");
+                        }}>
+                          <Download className="h-3 w-3 mr-1" /> Failed rows CSV
+                        </Button>
+                      )}
                     </div>
                   )}
                 </div>
                 <DialogFooter>
                   <Button variant="ghost" onClick={() => setImportOpen(false)}>Cancel</Button>
-                  <Button onClick={runImport} disabled={!csvFile || importCsv.isPending}>Import</Button>
+                  <Button onClick={runImport} disabled={!validation || (validation.valid.length + validation.warnings.length) === 0 || importCsv.isPending}>
+                    Import {validation ? `${validation.valid.length + validation.warnings.length} rows` : ""}
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
