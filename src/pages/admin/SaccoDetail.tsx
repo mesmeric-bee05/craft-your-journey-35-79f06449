@@ -5,6 +5,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import {
   useSacco, useSaccoMembers, useSaccoImports,
   useImportSaccoMembersCSV, useIssueSaccoApiKey, useUpdateSacco,
+  validateCsvRows, type ValidatedRow, type CsvImportResult,
 } from "@/hooks/useSaccos";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -15,8 +16,8 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Upload, Key, ArrowLeft, Copy } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Upload, Key, ArrowLeft, Copy, Download, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -48,34 +49,53 @@ export default function SaccoDetail() {
   const update = useUpdateSacco();
 
   const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [csvPreview, setCsvPreview] = useState<Array<Record<string, string>>>([]);
+  const [validation, setValidation] = useState<ReturnType<typeof validateCsvRows> | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [issuedKey, setIssuedKey] = useState<string | null>(null);
+  const [lastResult, setLastResult] = useState<CsvImportResult | null>(null);
 
   const handleFile = async (file: File) => {
     setCsvFile(file);
+    setLastResult(null);
     const text = await file.text();
-    setCsvPreview(parseCSV(text).slice(0, 5));
-  };
-
-  const runImport = async () => {
-    if (!csvFile || !id) return;
-    const text = await csvFile.text();
-    const rows = parseCSV(text).map((r) => ({
+    const parsed = parseCSV(text).map((r) => ({
       external_member_id: r.external_member_id || r.member_id || r.id,
       full_name: r.full_name || r.name || "",
       phone: r.phone || r.msisdn,
       email: r.email,
       joined_at: r.joined_at || r.join_date,
-    })).filter((r) => r.full_name);
-    if (rows.length === 0) {
-      toast.error("No valid rows found. Required column: full_name");
+    }));
+    setValidation(validateCsvRows(parsed));
+  };
+
+  const downloadCsv = (rows: ValidatedRow[], filename: string) => {
+    const header = "row,full_name,phone,email,external_member_id,joined_at,_errors\n";
+    const body = rows.map((v) => [
+      v.rowNumber, v.raw.full_name ?? "", v.raw.phone ?? "", v.raw.email ?? "",
+      v.raw.external_member_id ?? "", v.raw.joined_at ?? "",
+      `"${v.reasons.join("; ").replace(/"/g, '""')}"`,
+    ].join(",")).join("\n");
+    const blob = new Blob([header + body], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const runImport = async () => {
+    if (!id || !validation) return;
+    const rowsToSend = [...validation.valid, ...validation.warnings];
+    if (rowsToSend.length === 0) {
+      toast.error("No valid rows to import.");
       return;
     }
-    await importCsv.mutateAsync({ saccoId: id, rows });
-    setImportOpen(false);
-    setCsvFile(null);
-    setCsvPreview([]);
+    const res = await importCsv.mutateAsync({ saccoId: id, rows: rowsToSend });
+    setLastResult(res);
+    if (res.errors.length === 0) {
+      setImportOpen(false);
+      setCsvFile(null);
+      setValidation(null);
+    }
   };
 
   const rotateKey = async () => {
