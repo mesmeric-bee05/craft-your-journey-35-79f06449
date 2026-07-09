@@ -1,72 +1,83 @@
 ## Scope
 
-Four focused fixes/features, sequenced to keep the build green throughout. All work is frontend + typing only unless noted; no schema changes.
+Ship the deferred SmartReach Capital pieces end-to-end: live M-Pesa B2C disbursement on approval, a daily STK-push repayment cron, a partner-lender HMAC webhook for external repayment updates, and a first-class approvals audit trail in the admin UI. All work respects existing RLS, KES-only, and secrets patterns.
 
-### 1. Fix `offer_snapshot` typing in Capital admin
+### 1. Live M-Pesa Daraja B2C disbursement on approval
 
-- Add a typed row shape in `useCapital.tsx`:
-  - `export interface CapitalApplicationRow { id; business_id; requested_amount_kes; revenue_share_pct; factor; total_repayment_kes; status; created_at; esign_name; offer_snapshot: OfferSnapshot | null; businesses: { name: string } | null; }`
-  - `OfferSnapshot = { score?: number; monthly_gmv_kes?: number; business_age_days?: number }`
-- `useCapitalAdminQueue` returns `CapitalApplicationRow[]` via a cast at the query boundary (`(data ?? []) as CapitalApplicationRow[]`), since `offer_snapshot` is `Json` in generated types.
-- Remove the inline `(queue as Array<...>)` cast in `CapitalAdmin.tsx`; iterate the typed rows directly. Filtering/sorting helpers (status filter, newest-first sort) now compile against the typed shape.
+New edge function `supabase/functions/mpesa-b2c-disburse/index.ts`:
+- Admin-only (`verify_jwt` on; check `is_admin(auth.uid())` via SRK client).
+- Input: `{ advance_id }`. Loads advance + business owner phone.
+- OAuth against Daraja (`MPESA_CONSUMER_KEY` / `MPESA_CONSUMER_SECRET`), then POST `/mpesa/b2c/v3/paymentrequest` with `InitiatorName`, `SecurityCredential`, `CommandID=BusinessPayment`, `PartyA=MPESA_B2C_SHORTCODE`, `PartyB=<msisdn>`, `Amount=principal_kes`, `QueueTimeOutURL` / `ResultURL` pointing to new `mpesa-b2c-callback`.
+- Insert `transactions` row (`type=payout`, `status=pending`, `external_reference=ConversationID`) and stamp `capital_advances.disbursement_ref`.
+- Wrap in `capital_audit` entry (`capital.disburse.request`).
 
-### 2. Loading / empty / error states for `/admin/capital`
+New edge function `mpesa-b2c-callback` (public, no JWT):
+- Verifies `ResultCode`, updates matching transaction + advance (`status=active` on success, `status=failed` on failure), writes `capital_audit`.
 
-- Destructure `isLoading, isError, error, refetch` from `useCapitalAdminQueue`.
-- Add:
-  - Skeleton cards (3x) while loading.
-  - Error card with message + "Retry" button calling `refetch()`.
-  - Empty state card (icon + copy) when queue is empty.
-- Approve/Reject buttons: disable while that specific row's mutation is pending (track pending id), show inline spinner. Replace `alert()` with a `toast.error` for missing rejection note. Toast success/failure already handled in hooks.
-- Add a simple status filter (Submitted / Under review / All) and sort toggle (Oldest / Newest) — pure client-side over the typed rows.
+Migration adds columns `capital_advances.disbursement_ref text`, `capital_advances.disbursement_status text default 'pending'`, `capital_advances.disbursed_msisdn text`. `approve_capital_application` continues to create the advance in `active` with `disbursement_status='pending'`; the callback flips it to `disbursed` or `failed`.
 
-### 3. SACCO CSV import: preview, validation, dedupe, errors
+Wire an "Initiate disbursement" button on `CapitalAdmin.tsx` next to Approve (or auto-fire on approval when `MPESA_B2C_ENABLED=true`). Secrets requested via `add_secret`: `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_B2C_SHORTCODE`, `MPESA_B2C_INITIATOR_NAME`, `MPESA_B2C_SECURITY_CREDENTIAL`, `MPESA_ENV` (sandbox|production).
 
-In `SaccoDetail.tsx` + `useSaccos.tsx`:
+### 2. Daily STK repayment cron
 
-- Extract a `validateCsvRows(rows)` util returning `{ valid, invalid }` where each invalid row has `{ rowNumber, reasons[] }`. Rules:
-  - `full_name` required, ≤120 chars.
-  - `phone` optional; if present must normalize to `+2547XXXXXXXX` or `+2541XXXXXXXX` (reuse existing `norm`).
-  - `email` optional; must match basic email regex, ≤255 chars.
-  - `joined_at` optional; must parse as ISO date.
-  - `external_member_id` optional; ≤64 chars.
-- Client-side dedupe by `external_member_id` (or `phone` fallback) within the file; duplicates flagged as warnings, not errors, keeping the first occurrence.
-- Import dialog upgraded:
-  - Full preview table (scrollable, first 50 rows) with per-row status badges: Valid / Warning / Error + tooltip listing reasons.
-  - Summary bar: `X valid · Y warnings · Z errors · N duplicates skipped`.
-  - "Download errors CSV" button generates a CSV of invalid rows with a `_errors` column.
-  - Import button disabled unless `valid > 0`; only valid rows are sent.
-- `useImportSaccoMembersCSV` returns per-batch `{ created, updated, skipped, errors: [{row, error}] }`; the toast on completion reads `Imported X · Skipped Y · Failed Z`, and errors are surfaced in a post-import result panel with a "Download failed rows" button.
+New edge function `capital-repayment-cron`:
+- Iterates active advances with outstanding balance and a linked phone.
+- Computes today's due = `min(outstanding, revenue_share_pct% * yesterday_mpesa_gmv)` from `transactions`.
+- Calls the existing `mpesa-stk-push` function per business, passing `metadata.reason='capital_repayment'` and `advance_id`.
+- Inserts a `capital_repayments` row with `status='initiated'` and CheckoutRequestID.
 
-### 4. Offline test mode for the IndexedDB outbox
+Extend `mpesa-callback` (existing) to detect `capital_repayment` metadata: on success, update the matching `capital_repayments` row to `completed`, decrement `capital_advances.balance_owed_kes`, and close advance (`status='repaid'`) when balance hits 0. All writes logged to `capital_audit`.
 
-- New route `/settings/offline-test` (dev + admin only; hidden behind a `NODE_ENV !== 'production' || hasRole('admin')` guard).
-- Page (`src/pages/OfflineTest.tsx`) UI:
-  - Current online/offline status pill (reuse `useOnlineStatus`).
-  - Buttons to enqueue synthetic outbox items of each `OutboxKind` (registers no-op handlers that simulate success, transient failure — fails first N attempts — or permanent failure).
-  - Live outbox table: id, kind, attempts, lastError, createdAt (via `listOutbox` + subscription).
-  - "Simulate offline" toggle that intercepts `flushOutbox` (sets an in-module flag) and a "Force flush" button.
-  - Retry progress bar showing `processed / total` during a flush cycle.
-- Small additions to `src/pwa/outbox.ts`:
-  - Export a `flushProgress` subscription (`{ processed, failed, total, running }`) updated inside `flushOutbox`.
-  - Add `registerOutboxHandler` for the three synthetic kinds only when the test page mounts (cleanup on unmount).
-- No production behavior change; existing auto-flush on `online` still works.
+Schedule via `supabase--insert` (not migration) using `pg_cron` + `pg_net` at `0 9 * * *` Africa/Nairobi.
 
-### 5. Continue phase-by-phase build hygiene
+### 3. Partner lender HMAC webhook
 
-After each of the four items above:
+New edge function `capital-partner-webhook` (public, `verify_jwt=false`):
+- Reads header `X-Partner-Id` + `X-Signature` (`sha256=<hex>`).
+- Looks up `capital_partners.hmac_secret` (new column, encrypted at rest via existing pattern), timing-safe compares HMAC over raw body.
+- Rate-limited via `_shared/rate-limiter` (60/min per partner).
+- Accepts `{ event: 'repayment.recorded' | 'advance.written_off' | 'advance.status', advance_id, amount_kes?, reference?, occurred_at }`.
+- For `repayment.recorded`: insert `capital_repayments` (`source='partner'`), decrement balance, mark advance repaid if zero.
+- For `advance.written_off` / `advance.status`: update advance status.
+- Every event writes `capital_audit` and returns `{ ok, repayment_id? }`.
 
-- Run tsgo/build, fix any type errors surfaced by the new typed rows or hook signatures.
-- Grep for other `offer_snapshot` / `capital_applications` consumers and align them to `CapitalApplicationRow` if needed.
-- Update `mem://features/smartreach-capital` note with the new typed row + admin UX states, and `mem://features/sacco-integration-portal` with the new import validation contract, and `mem://features/offline-first-pwa` with the offline test mode route.
+Migration adds `capital_partners.hmac_secret text`, `capital_partners.webhook_url text`, `capital_partners.last_event_at timestamptz`, plus `capital_repayments.source text default 'manual'` and `capital_repayments.partner_id uuid references capital_partners`.
+
+Admin helper RPC `rotate_capital_partner_secret(p_partner_id)` — admin-only, returns a new random secret once (never stored plaintext beyond the row).
+
+### 4. Capital approvals audit log UI
+
+- `capital_audit` already exists; extend `approve_capital_application` / `reject_capital_application` to always insert with `metadata` containing `{note, requested_amount_kes, revenue_share_pct, factor}` (approve path already does; reject path gains richer metadata).
+- New hook `useCapitalAuditLog(applicationId?, businessId?)` in `useCapital.tsx` querying `capital_audit` filtered by entity.
+- New component `CapitalAuditTimeline` rendered inside each queue card (collapsible) and on a new admin route `/admin/capital/:id` showing full history: actor (join `profiles` via SECURITY DEFINER RPC `get_capital_audit(p_application_id)` to safely expose actor name/email), action, timestamp, metadata diff.
+- Add a top-level `/admin/capital/audit` page with filters (action type, date range, business search) and CSV export via existing `exportUtils`.
+
+### 5. Cross-cutting hardening & phase hygiene
+
+- Add zod validation on all new edge function bodies; return 400 with field errors.
+- Every new function includes CORS headers and structured error responses.
+- Update `mem://features/smartreach-capital` with disbursement, cron, webhook, and audit surfaces; note that live M-Pesa is behind `MPESA_B2C_ENABLED`.
+- Update `mem://security/scanner-guidance` to whitelist the partner webhook's public JWT-off status (HMAC-protected).
+- After each phase: `tsgo --noEmit`, targeted `bunx vitest run` if specs exist, and a Playwright smoke against `/admin/capital` to confirm approve → audit row appears.
+
+## Sequencing
+
+1. Migration: audit metadata, advance disbursement columns, partner secret columns, repayment source columns, `get_capital_audit` RPC. Approval.
+2. Audit UI (hook + timeline + `/admin/capital/audit` page) — pure frontend once migration lands.
+3. B2C disburse function + callback + admin button; secrets requested before deploy.
+4. Repayment cron function + `mpesa-callback` extension + pg_cron schedule.
+5. Partner webhook function + `rotate_capital_partner_secret` RPC + admin partner mgmt panel.
+6. Memory + docs update, final typecheck, Playwright smoke.
 
 ## Out of scope
 
-- No database migrations, no edge function changes, no live M-Pesa / partner webhook work (still deferred per prior turn).
-- No redesign of Capital user page or SACCO admin list.
+- No changes to non-Capital flows.
+- No production Daraja go-live checklist (Safaricom app review) — code is production-ready but stays in sandbox until user flips `MPESA_ENV=production` and provides prod credentials.
+- No SACCO or PWA changes in this pass.
 
 ## Technical notes
 
-- `offer_snapshot` remains `Json` in generated Supabase types; the typed row is a boundary cast, not a schema change.
-- Validation uses zod-free hand-written checks to keep the CSV path dependency-light; matches existing `norm` helper.
-- Outbox test handlers must be registered lazily to avoid overriding real handlers when the test page isn't mounted.
+- B2C SecurityCredential must be pre-encrypted with Safaricom's public cert; user supplies the already-encrypted string as a secret.
+- HMAC compares use `crypto.subtle.timingSafeEqual`-equivalent via constant-time compare in Deno.
+- pg_cron schedule stored via `supabase--insert` because it embeds the project URL + anon key (per Cloud rules).
+- All new tables/columns get `GRANT`s in the same migration; RLS restricts partner rows to admins only (`is_admin(auth.uid())`).
