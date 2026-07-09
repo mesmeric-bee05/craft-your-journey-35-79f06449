@@ -33,6 +33,7 @@ export default function CapitalAdmin() {
   const { data: queue = [], isLoading, isError, error, refetch, isRefetching } = useCapitalAdminQueue();
   const approve = useApproveApplication();
   const reject = useRejectApplication();
+  const disburse = useDisburseAdvance();
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -168,16 +169,40 @@ export default function CapitalAdmin() {
                 rows={2}
               />
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <Button onClick={() => handleApprove(a)} disabled={rowBusy}>
                   {rowBusy && approve.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Check className="h-4 w-4 mr-1" />}
-                  Approve &amp; disburse
+                  Approve
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={async () => {
+                    // Find advance id from application id
+                    const { data: adv } = await supabase.from("capital_advances")
+                      .select("id").eq("application_id", a.id).maybeSingle();
+                    if (!adv?.id) { toast.error("No advance yet — approve first"); return; }
+                    setPendingId(a.id);
+                    try { await disburse.mutateAsync(adv.id); } finally { setPendingId(null); }
+                  }}
+                  disabled={rowBusy}
+                >
+                  {rowBusy && disburse.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Banknote className="h-4 w-4 mr-1" />}
+                  Disburse via M-Pesa
                 </Button>
                 <Button variant="destructive" onClick={() => handleReject(a)} disabled={rowBusy}>
                   {rowBusy && reject.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <X className="h-4 w-4 mr-1" />}
                   Reject
                 </Button>
               </div>
+
+              <Collapsible>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm">View audit history</Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-2">
+                  <CapitalAuditTimeline applicationId={a.id} />
+                </CollapsibleContent>
+              </Collapsible>
             </Card>
           );
         })}
