@@ -184,6 +184,9 @@ export function useRecordRepayment() {
         p_advance_id: input.advance_id,
         p_amount: input.amount,
         p_reference: input.reference ?? null,
+        p_source: "manual",
+        p_partner_id: null,
+        p_checkout_request_id: null,
       });
       if (error) throw error;
     },
@@ -195,3 +198,98 @@ export function useRecordRepayment() {
     onError: (e: Error) => toast.error(e.message),
   });
 }
+
+export interface CapitalAuditEntry {
+  id: string;
+  action: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  actor_user_id: string | null;
+  actor_name: string | null;
+  actor_email: string | null;
+}
+
+export function useCapitalAuditLog(applicationId: string | undefined) {
+  return useQuery({
+    queryKey: ["capital-audit", applicationId],
+    enabled: !!applicationId,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_capital_audit", { p_application_id: applicationId! });
+      if (error) throw error;
+      return (data ?? []) as unknown as CapitalAuditEntry[];
+    },
+    staleTime: 15_000,
+  });
+}
+
+export function useAdminAuditFeed(limit: number = 200) {
+  return useQuery({
+    queryKey: ["capital-audit-feed", limit],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("capital_audit")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return (data ?? []) as unknown as Array<{
+        id: string; action: string; entity_type: string | null; entity_id: string | null;
+        business_id: string | null; actor_user_id: string | null;
+        metadata: Record<string, unknown>; created_at: string;
+      }>;
+    },
+    staleTime: 15_000,
+  });
+}
+
+export function useDisburseAdvance() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (advance_id: string) => {
+      const { data, error } = await supabase.functions.invoke("mpesa-b2c-disburse", {
+        body: { advance_id },
+      });
+      if (error) throw error;
+      if (!(data as any)?.ok) throw new Error((data as any)?.error?.message ?? (data as any)?.error ?? "Disbursement failed");
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["capital-admin"] });
+      qc.invalidateQueries({ queryKey: ["capital-audit"] });
+      toast.success("Disbursement initiated — awaiting M-Pesa confirmation");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useRotatePartnerSecret() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (partnerId: string) => {
+      const { data, error } = await supabase.rpc("rotate_capital_partner_secret", { p_partner_id: partnerId });
+      if (error) throw error;
+      return data as string;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["capital-partners"] });
+      toast.success("New secret generated — copy it now, it will not be shown again");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useCapitalPartners() {
+  return useQuery({
+    queryKey: ["capital-partners"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("capital_partners")
+        .select("id, name, kind, webhook_url, is_active, last_event_at, webhook_secret_hash, created_at")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
