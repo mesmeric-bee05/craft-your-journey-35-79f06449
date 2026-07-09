@@ -956,6 +956,10 @@ export type Database = {
           closed_at: string | null
           created_at: string
           disbursed_at: string
+          disbursed_msisdn: string | null
+          disbursement_error: string | null
+          disbursement_requested_at: string | null
+          disbursement_status: string
           factor: number
           id: string
           mpesa_disbursement_ref: string | null
@@ -972,6 +976,10 @@ export type Database = {
           closed_at?: string | null
           created_at?: string
           disbursed_at?: string
+          disbursed_msisdn?: string | null
+          disbursement_error?: string | null
+          disbursement_requested_at?: string | null
+          disbursement_status?: string
           factor: number
           id?: string
           mpesa_disbursement_ref?: string | null
@@ -988,6 +996,10 @@ export type Database = {
           closed_at?: string | null
           created_at?: string
           disbursed_at?: string
+          disbursed_msisdn?: string | null
+          disbursement_error?: string | null
+          disbursement_requested_at?: string | null
+          disbursement_status?: string
           factor?: number
           id?: string
           mpesa_disbursement_ref?: string | null
@@ -1198,6 +1210,7 @@ export type Database = {
           id: string
           is_active: boolean
           kind: Database["public"]["Enums"]["capital_partner_kind"]
+          last_event_at: string | null
           name: string
           updated_at: string
           webhook_secret_hash: string | null
@@ -1208,6 +1221,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           kind?: Database["public"]["Enums"]["capital_partner_kind"]
+          last_event_at?: string | null
           name: string
           updated_at?: string
           webhook_secret_hash?: string | null
@@ -1218,6 +1232,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           kind?: Database["public"]["Enums"]["capital_partner_kind"]
+          last_event_at?: string | null
           name?: string
           updated_at?: string
           webhook_secret_hash?: string | null
@@ -1229,11 +1244,13 @@ export type Database = {
         Row: {
           advance_id: string
           amount_kes: number
+          checkout_request_id: string | null
           collected_at: string | null
           created_at: string
           id: string
           metadata: Json
           mpesa_reference: string | null
+          partner_id: string | null
           scheduled_for: string | null
           source: Database["public"]["Enums"]["capital_repayment_source"]
           status: Database["public"]["Enums"]["capital_repayment_status"]
@@ -1242,11 +1259,13 @@ export type Database = {
         Insert: {
           advance_id: string
           amount_kes: number
+          checkout_request_id?: string | null
           collected_at?: string | null
           created_at?: string
           id?: string
           metadata?: Json
           mpesa_reference?: string | null
+          partner_id?: string | null
           scheduled_for?: string | null
           source?: Database["public"]["Enums"]["capital_repayment_source"]
           status?: Database["public"]["Enums"]["capital_repayment_status"]
@@ -1255,11 +1274,13 @@ export type Database = {
         Update: {
           advance_id?: string
           amount_kes?: number
+          checkout_request_id?: string | null
           collected_at?: string | null
           created_at?: string
           id?: string
           metadata?: Json
           mpesa_reference?: string | null
+          partner_id?: string | null
           scheduled_for?: string | null
           source?: Database["public"]["Enums"]["capital_repayment_source"]
           status?: Database["public"]["Enums"]["capital_repayment_status"]
@@ -1271,6 +1292,13 @@ export type Database = {
             columns: ["advance_id"]
             isOneToOne: false
             referencedRelation: "capital_advances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "capital_repayments_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "capital_partners"
             referencedColumns: ["id"]
           },
         ]
@@ -4630,6 +4658,20 @@ export type Database = {
         Returns: Json
       }
       compute_capital_offer: { Args: { p_business_id: string }; Returns: Json }
+      get_capital_audit: {
+        Args: { p_application_id: string }
+        Returns: {
+          action: string
+          actor_email: string
+          actor_name: string
+          actor_user_id: string
+          created_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+          metadata: Json
+        }[]
+      }
       get_channel_tokens: { Args: { p_channel_id: string }; Returns: Json }
       get_cron_health: {
         Args: never
@@ -4862,13 +4904,33 @@ export type Database = {
         }
         Returns: string
       }
-      record_capital_repayment: {
-        Args: { p_advance_id: string; p_amount: number; p_reference?: string }
-        Returns: string
-      }
+      record_capital_repayment:
+        | {
+            Args: {
+              p_advance_id: string
+              p_amount: number
+              p_reference?: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_advance_id: string
+              p_amount: number
+              p_checkout_request_id?: string
+              p_partner_id?: string
+              p_reference?: string
+              p_source?: string
+            }
+            Returns: string
+          }
       reject_capital_application: {
         Args: { p_application_id: string; p_note: string }
         Returns: undefined
+      }
+      rotate_capital_partner_secret: {
+        Args: { p_partner_id: string }
+        Returns: string
       }
       snapshot_all_health_scores: { Args: never; Returns: number }
       submit_sacco_application: {
