@@ -160,6 +160,29 @@ Deno.serve(async (req) => {
           }
         }
 
+        // Capital repayment reconciliation: if the STK was seeded by the repayment cron,
+        // record the repayment against the advance so the balance decreases.
+        const meta = (transaction.metadata ?? {}) as Record<string, unknown>;
+        if (meta.reason === "capital_repayment" && meta.advance_id) {
+          const { error: repayErr } = await supabase.rpc("record_capital_repayment", {
+            p_advance_id: meta.advance_id,
+            p_amount: Number(transaction.amount),
+            p_reference: (metadata.mpesa_receipt as string) ?? CheckoutRequestID,
+            p_source: "auto_mpesa",
+            p_partner_id: null,
+            p_checkout_request_id: CheckoutRequestID,
+          });
+          if (repayErr) {
+            logError("mpesa-callback", repayErr, { step: "capital_repayment", advanceId: meta.advance_id });
+          }
+          // Mark the seeded capital_repayments row as paid too (in case the row was inserted before the rpc)
+          await supabase.from("capital_repayments").update({
+            status: "paid",
+            collected_at: new Date().toISOString(),
+            mpesa_reference: (metadata.mpesa_receipt as string) ?? CheckoutRequestID,
+          }).eq("checkout_request_id", CheckoutRequestID).eq("status", "pending");
+        }
+
         // Create notification
         await supabase.from('notifications').insert({
           business_id: transaction.business_id,
