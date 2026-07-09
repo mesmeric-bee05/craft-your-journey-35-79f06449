@@ -5,10 +5,19 @@ import {
   useCapitalAdminQueue,
   useApproveApplication,
   useRejectApplication,
+  useDisburseAdvance,
   type CapitalApplicationRow,
 } from "@/hooks/useCapital";
+import { supabase } from "@/integrations/supabase/client";
+import { CapitalAuditTimeline } from "@/components/capital/CapitalAuditTimeline";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Collapsible, CollapsibleContent, CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
