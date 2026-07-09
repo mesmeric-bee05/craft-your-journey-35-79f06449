@@ -38,3 +38,15 @@ verify_jwt = false
 
 [functions.security-alert]
 verify_jwt = false
+
+[functions.mpesa-b2c-disburse]
+verify_jwt = false
+
+[functions.mpesa-b2c-callback]
+verify_jwt = false
+
+[functions.capital-repayment-cron]
+verify_jwt = false
+
+[functions.capital-partner-webhook]
+verify_jwt = false
