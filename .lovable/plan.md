@@ -1,83 +1,110 @@
-## Scope
 
-Ship the deferred SmartReach Capital pieces end-to-end: live M-Pesa B2C disbursement on approval, a daily STK-push repayment cron, a partner-lender HMAC webhook for external repayment updates, and a first-class approvals audit trail in the admin UI. All work respects existing RLS, KES-only, and secrets patterns.
+# SmartReach Capital — Go-Live & Ops Phase
 
-### 1. Live M-Pesa Daraja B2C disbursement on approval
+Ship the pieces that turn the sandbox-ready Capital flow into a live, observable, and recoverable production system.
 
-New edge function `supabase/functions/mpesa-b2c-disburse/index.ts`:
-- Admin-only (`verify_jwt` on; check `is_admin(auth.uid())` via SRK client).
-- Input: `{ advance_id }`. Loads advance + business owner phone.
-- OAuth against Daraja (`MPESA_CONSUMER_KEY` / `MPESA_CONSUMER_SECRET`), then POST `/mpesa/b2c/v3/paymentrequest` with `InitiatorName`, `SecurityCredential`, `CommandID=BusinessPayment`, `PartyA=MPESA_B2C_SHORTCODE`, `PartyB=<msisdn>`, `Amount=principal_kes`, `QueueTimeOutURL` / `ResultURL` pointing to new `mpesa-b2c-callback`.
-- Insert `transactions` row (`type=payout`, `status=pending`, `external_reference=ConversationID`) and stamp `capital_advances.disbursement_ref`.
-- Wrap in `capital_audit` entry (`capital.disburse.request`).
+## 1. Secrets: switch M-Pesa to live + cron auth
 
-New edge function `mpesa-b2c-callback` (public, no JWT):
-- Verifies `ResultCode`, updates matching transaction + advance (`status=active` on success, `status=failed` on failure), writes `capital_audit`.
+Request via `add_secret` (user pastes values in the secure form):
 
-Migration adds columns `capital_advances.disbursement_ref text`, `capital_advances.disbursement_status text default 'pending'`, `capital_advances.disbursed_msisdn text`. `approve_capital_application` continues to create the advance in `active` with `disbursement_status='pending'`; the callback flips it to `disbursed` or `failed`.
+- `MPESA_ENV` = `production`
+- `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET` (Daraja app)
+- `MPESA_PASSKEY`, `MPESA_SHORTCODE` (STK — repayments)
+- `MPESA_B2C_SHORTCODE`, `MPESA_B2C_INITIATOR_NAME`, `MPESA_B2C_SECURITY_CREDENTIAL` (B2C — disbursement)
+- `CRON_SECRET` — generated via `generate_secret` (32 chars); required by `capital-repayment-cron` `x-cron-secret` header
 
-Wire an "Initiate disbursement" button on `CapitalAdmin.tsx` next to Approve (or auto-fire on approval when `MPESA_B2C_ENABLED=true`). Secrets requested via `add_secret`: `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET`, `MPESA_B2C_SHORTCODE`, `MPESA_B2C_INITIATOR_NAME`, `MPESA_B2C_SECURITY_CREDENTIAL`, `MPESA_ENV` (sandbox|production).
+Format hints on each so pastes are validated (shortcode digits, env enum, credential length).
 
-### 2. Daily STK repayment cron
+## 2. Schedule the daily STK repayment cron
 
-New edge function `capital-repayment-cron`:
-- Iterates active advances with outstanding balance and a linked phone.
-- Computes today's due = `min(outstanding, revenue_share_pct% * yesterday_mpesa_gmv)` from `transactions`.
-- Calls the existing `mpesa-stk-push` function per business, passing `metadata.reason='capital_repayment'` and `advance_id`.
-- Inserts a `capital_repayments` row with `status='initiated'` and CheckoutRequestID.
+Insert (via `supabase--insert`, not migration — contains project URL + anon key) a `pg_cron` job that hits the edge function daily at 09:00 Africa/Nairobi and passes the cron secret:
 
-Extend `mpesa-callback` (existing) to detect `capital_repayment` metadata: on success, update the matching `capital_repayments` row to `completed`, decrement `capital_advances.balance_owed_kes`, and close advance (`status='repaid'`) when balance hits 0. All writes logged to `capital_audit`.
+```text
+schedule: '0 6 * * *'  -- 06:00 UTC = 09:00 EAT
+job:      net.http_post(
+  url  => 'https://<project>.functions.supabase.co/capital-repayment-cron',
+  headers => '{"x-cron-secret":"<CRON_SECRET>","Content-Type":"application/json"}',
+  body => '{}')
+```
 
-Schedule via `supabase--insert` (not migration) using `pg_cron` + `pg_net` at `0 9 * * *` Africa/Nairobi.
+Wrap the call so the returned `request_id` is logged into `cron_job_runs` (existing table) with job_name `capital-repayment-daily`. Add a manual "Run now" admin button on the ops dashboard that calls the same function with the secret via a thin server-side edge proxy (never exposing the secret to the client).
 
-### 3. Partner lender HMAC webhook
+## 3. Validate the HMAC partner webhook
 
-New edge function `capital-partner-webhook` (public, `verify_jwt=false`):
-- Reads header `X-Partner-Id` + `X-Signature` (`sha256=<hex>`).
-- Looks up `capital_partners.hmac_secret` (new column, encrypted at rest via existing pattern), timing-safe compares HMAC over raw body.
-- Rate-limited via `_shared/rate-limiter` (60/min per partner).
-- Accepts `{ event: 'repayment.recorded' | 'advance.written_off' | 'advance.status', advance_id, amount_kes?, reference?, occurred_at }`.
-- For `repayment.recorded`: insert `capital_repayments` (`source='partner'`), decrement balance, mark advance repaid if zero.
-- For `advance.written_off` / `advance.status`: update advance status.
-- Every event writes `capital_audit` and returns `{ ok, repayment_id? }`.
+Add `supabase/functions/capital-partner-webhook-test/index.ts` — admin-only helper that:
 
-Migration adds `capital_partners.hmac_secret text`, `capital_partners.webhook_url text`, `capital_partners.last_event_at timestamptz`, plus `capital_repayments.source text default 'manual'` and `capital_repayments.partner_id uuid references capital_partners`.
+- accepts `{ partner_id, event, advance_id, amount_kes? }`
+- fetches the partner's plaintext secret from a new one-time `rotate_capital_partner_secret` cache (see below) OR asks admin to paste it,
+- computes `fingerprint = sha256(plaintext)` and `signature = sha256(fingerprint + "\n" + body)`,
+- POSTs to the real webhook, returns status + parsed response.
 
-Admin helper RPC `rotate_capital_partner_secret(p_partner_id)` — admin-only, returns a new random secret once (never stored plaintext beyond the row).
+UI: new "Test webhook" dialog on `/admin/capital/partners` (new tab in `CapitalAdmin`) with event picker, advance selector, dry-run toggle, and response viewer. Success writes to `capital_audit` with action `capital.partner.test`.
 
-### 4. Capital approvals audit log UI
+## 4. Retry actions with status feedback
 
-- `capital_audit` already exists; extend `approve_capital_application` / `reject_capital_application` to always insert with `metadata` containing `{note, requested_amount_kes, revenue_share_pct, factor}` (approve path already does; reject path gains richer metadata).
-- New hook `useCapitalAuditLog(applicationId?, businessId?)` in `useCapital.tsx` querying `capital_audit` filtered by entity.
-- New component `CapitalAuditTimeline` rendered inside each queue card (collapsible) and on a new admin route `/admin/capital/:id` showing full history: actor (join `profiles` via SECURITY DEFINER RPC `get_capital_audit(p_application_id)` to safely expose actor name/email), action, timestamp, metadata diff.
-- Add a top-level `/admin/capital/audit` page with filters (action type, date range, business search) and CSV export via existing `exportUtils`.
+New admin actions (all admin-only edge functions, all audited):
 
-### 5. Cross-cutting hardening & phase hygiene
+- **Retry disbursement** — `mpesa-b2c-disburse` already idempotent on `disbursement_status != 'disbursed'`; add explicit `retry=true` path that clears `disbursement_error` and re-invokes. Button appears on advances with `disbursement_status in ('failed','processing_stale')`.
+- **Retry repayment** — new `capital-repayment-retry` function: given a `capital_repayments.id` with status `pending`/`failed`, re-queries Daraja `stkpushquery` and updates status, or re-issues STK if expired. Button on repayment rows in audit page.
+- **Reprocess webhook event** — persist raw webhook payloads in new `capital_webhook_events` table (id, partner_id, headers, body, sig_valid, status, error, created_at); "Reprocess" replays the event through the same handler using service role. Button on failed rows.
 
-- Add zod validation on all new edge function bodies; return 400 with field errors.
-- Every new function includes CORS headers and structured error responses.
-- Update `mem://features/smartreach-capital` with disbursement, cron, webhook, and audit surfaces; note that live M-Pesa is behind `MPESA_B2C_ENABLED`.
-- Update `mem://security/scanner-guidance` to whitelist the partner webhook's public JWT-off status (HMAC-protected).
-- After each phase: `tsgo --noEmit`, targeted `bunx vitest run` if specs exist, and a Playwright smoke against `/admin/capital` to confirm approve → audit row appears.
+Each action returns `{ ok, message, next_status }` and the UI shows a toast + inline status pill (`queued`, `processing`, `succeeded`, `failed`).
 
-## Sequencing
+## 5. Ops dashboard: `/admin/capital/ops`
 
-1. Migration: audit metadata, advance disbursement columns, partner secret columns, repayment source columns, `get_capital_audit` RPC. Approval.
-2. Audit UI (hook + timeline + `/admin/capital/audit` page) — pure frontend once migration lands.
-3. B2C disburse function + callback + admin button; secrets requested before deploy.
-4. Repayment cron function + `mpesa-callback` extension + pg_cron schedule.
-5. Partner webhook function + `rotate_capital_partner_secret` RPC + admin partner mgmt panel.
-6. Memory + docs update, final typecheck, Playwright smoke.
+New page with three tabs, all admin-only:
 
-## Out of scope
+- **Cron runs** — reuse `cron_job_runs` + existing `CronRunsTimeline` filtered to `capital-*` jobs; shows last run, duration, rows affected, next scheduled time, "Run now" button.
+- **Webhook events** — table from `capital_webhook_events` with columns: partner, event, advance, sig_valid, status, error, created_at; row expander shows raw body; filters by partner/status/date; reprocess button per row.
+- **Disbursement & repayment errors** — joined view of `capital_advances` (failed disbursements) + `capital_repayments` (failed/pending>24h) with retry buttons.
 
-- No changes to non-Capital flows.
-- No production Daraja go-live checklist (Safaricom app review) — code is production-ready but stays in sandbox until user flips `MPESA_ENV=production` and provides prod credentials.
-- No SACCO or PWA changes in this pass.
+Existing `/admin/capital/audit` page stays as the who/what/when log; add a top-nav link to Ops.
 
-## Technical notes
+## Technical details
 
-- B2C SecurityCredential must be pre-encrypted with Safaricom's public cert; user supplies the already-encrypted string as a secret.
-- HMAC compares use `crypto.subtle.timingSafeEqual`-equivalent via constant-time compare in Deno.
-- pg_cron schedule stored via `supabase--insert` because it embeds the project URL + anon key (per Cloud rules).
-- All new tables/columns get `GRANT`s in the same migration; RLS restricts partner rows to admins only (`is_admin(auth.uid())`).
+### Migration
+```sql
+-- capital_webhook_events for durable, replayable ingestion
+CREATE TABLE public.capital_webhook_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  partner_id uuid REFERENCES public.capital_partners(id),
+  event text NOT NULL,
+  advance_id uuid,
+  headers jsonb NOT NULL DEFAULT '{}',
+  body jsonb NOT NULL,
+  sig_valid boolean NOT NULL,
+  status text NOT NULL DEFAULT 'received',
+  error text,
+  processed_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+GRANT SELECT ON public.capital_webhook_events TO authenticated;
+GRANT ALL   ON public.capital_webhook_events TO service_role;
+ALTER TABLE public.capital_webhook_events ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Admins read webhook events"
+  ON public.capital_webhook_events FOR SELECT TO authenticated
+  USING (public.is_admin(auth.uid()));
+```
+
+`capital-partner-webhook` writes to this table before dispatching, so a handler crash leaves a replayable row.
+
+### Files
+- `supabase/migrations/<ts>_capital_ops.sql`
+- `supabase/functions/capital-repayment-retry/index.ts`
+- `supabase/functions/capital-partner-webhook-test/index.ts`
+- `supabase/functions/capital-cron-trigger/index.ts` (secure "Run now" proxy)
+- edits: `capital-partner-webhook/index.ts` (persist events), `mpesa-b2c-disburse/index.ts` (retry flag)
+- `src/pages/admin/CapitalOpsPage.tsx` + `src/hooks/useCapitalOps.tsx`
+- `src/components/capital/{WebhookEventsTable,DisbursementErrorsTable,PartnerTestDialog}.tsx`
+- routing in `src/App.tsx`
+
+### Sequencing
+1. Request secrets (blocks live testing but not code).
+2. Migration + audit table.
+3. Retry + reprocess edge functions.
+4. Ops dashboard UI wired to real tables.
+5. Cron insert via `supabase--insert` once `CRON_SECRET` exists.
+6. Partner webhook end-to-end test using the test helper; confirm `capital_repayments` + `capital_audit` rows land.
+
+### Out of scope
+No new SACCO, PWA, or landing-page work. Daraja stays until user confirms production credentials are valid.
