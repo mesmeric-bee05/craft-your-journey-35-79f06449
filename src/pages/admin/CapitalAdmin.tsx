@@ -89,6 +89,9 @@ export default function CapitalAdmin() {
                 <SelectItem value="newest">Newest first</SelectItem>
               </SelectContent>
             </Select>
+            <Button variant="outline" size="sm" asChild>
+              <a href="/admin/capital/ops">Operations</a>
+            </Button>
             <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isRefetching} aria-label="Refresh">
               <RefreshCw className={`h-4 w-4 ${isRefetching ? "animate-spin" : ""}`} />
             </Button>

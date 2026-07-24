@@ -125,57 +125,88 @@ Deno.serve(async (req) => {
     }
     const ev = parsed.data;
 
-    const { data: advance } = await svc.from("capital_advances")
-      .select("id, business_id, status")
-      .eq("id", ev.advance_id).maybeSingle();
-    if (!advance) {
-      return secureResponse(JSON.stringify({ error: "Advance not found" }), 404, corsHeaders);
-    }
+    // Persist inbound event for audit + retry
+    const { data: evRow } = await svc.from("capital_webhook_events").insert({
+      partner_id: partner.id,
+      event: ev.event,
+      advance_id: ev.advance_id,
+      headers: { fingerprint, has_signature: true },
+      body: payload as Record<string, unknown>,
+      sig_valid: true,
+      status: "processing",
+    }).select("id").single();
+    const eventRowId = (evRow as { id: string } | null)?.id ?? null;
 
-    let repaymentId: string | null = null;
-
-    if (ev.event === "repayment.recorded") {
-      if (!ev.amount_kes) {
-        return secureResponse(JSON.stringify({ error: "amount_kes required" }), 400, corsHeaders);
+    try {
+      const { data: advance } = await svc.from("capital_advances")
+        .select("id, business_id, status")
+        .eq("id", ev.advance_id).maybeSingle();
+      if (!advance) {
+        if (eventRowId) await svc.from("capital_webhook_events").update({
+          status: "failed", error: "advance_not_found", processed_at: new Date().toISOString(),
+        }).eq("id", eventRowId);
+        return secureResponse(JSON.stringify({ error: "Advance not found" }), 404, corsHeaders);
       }
-      const { data, error } = await svc.rpc("record_capital_repayment", {
-        p_advance_id: ev.advance_id,
-        p_amount: ev.amount_kes,
-        p_reference: ev.reference ?? null,
-        p_source: "partner",
-        p_partner_id: partner.id,
-        p_checkout_request_id: null,
-      });
-      if (error) throw error;
-      repaymentId = data as string;
-    } else if (ev.event === "advance.written_off") {
-      await svc.from("capital_advances").update({
-        status: "defaulted", closed_at: new Date().toISOString(),
-      }).eq("id", ev.advance_id);
-      await svc.from("capital_audit").insert({
-        business_id: advance.business_id,
-        action: "capital.advance.written_off",
-        entity_type: "capital_advance", entity_id: ev.advance_id,
-        metadata: { partner_id: partner.id, reference: ev.reference },
-      });
-    } else if (ev.event === "advance.status" && ev.status) {
-      await svc.from("capital_advances").update({ status: ev.status }).eq("id", ev.advance_id);
-      await svc.from("capital_audit").insert({
-        business_id: advance.business_id,
-        action: "capital.advance.status",
-        entity_type: "capital_advance", entity_id: ev.advance_id,
-        metadata: { partner_id: partner.id, new_status: ev.status },
-      });
+
+      let repaymentId: string | null = null;
+
+      if (ev.event === "repayment.recorded") {
+        if (!ev.amount_kes) {
+          if (eventRowId) await svc.from("capital_webhook_events").update({
+            status: "failed", error: "amount_kes_required", processed_at: new Date().toISOString(),
+          }).eq("id", eventRowId);
+          return secureResponse(JSON.stringify({ error: "amount_kes required" }), 400, corsHeaders);
+        }
+        const { data, error } = await svc.rpc("record_capital_repayment", {
+          p_advance_id: ev.advance_id,
+          p_amount: ev.amount_kes,
+          p_reference: ev.reference ?? null,
+          p_source: "partner",
+          p_partner_id: partner.id,
+          p_checkout_request_id: null,
+        });
+        if (error) throw error;
+        repaymentId = data as string;
+      } else if (ev.event === "advance.written_off") {
+        await svc.from("capital_advances").update({
+          status: "defaulted", closed_at: new Date().toISOString(),
+        }).eq("id", ev.advance_id);
+        await svc.from("capital_audit").insert({
+          business_id: advance.business_id,
+          action: "capital.advance.written_off",
+          entity_type: "capital_advance", entity_id: ev.advance_id,
+          metadata: { partner_id: partner.id, reference: ev.reference },
+        });
+      } else if (ev.event === "advance.status" && ev.status) {
+        await svc.from("capital_advances").update({ status: ev.status }).eq("id", ev.advance_id);
+        await svc.from("capital_audit").insert({
+          business_id: advance.business_id,
+          action: "capital.advance.status",
+          entity_type: "capital_advance", entity_id: ev.advance_id,
+          metadata: { partner_id: partner.id, new_status: ev.status },
+        });
+      }
+
+      await svc.from("capital_partners").update({
+        last_event_at: new Date().toISOString(),
+      }).eq("id", partner.id);
+
+      if (eventRowId) await svc.from("capital_webhook_events").update({
+        status: "processed", processed_at: new Date().toISOString(),
+      }).eq("id", eventRowId);
+
+      logSecurityEvent("capital_partner_event", { partnerId, event: ev.event });
+      return secureResponse(
+        JSON.stringify({ ok: true, repayment_id: repaymentId, event_id: eventRowId }), 200, corsHeaders
+      );
+    } catch (innerErr) {
+      if (eventRowId) await svc.from("capital_webhook_events").update({
+        status: "failed",
+        error: (innerErr as Error).message ?? "processing_error",
+        processed_at: new Date().toISOString(),
+      }).eq("id", eventRowId);
+      throw innerErr;
     }
-
-    await svc.from("capital_partners").update({
-      last_event_at: new Date().toISOString(),
-    }).eq("id", partner.id);
-
-    logSecurityEvent("capital_partner_event", { partnerId, event: ev.event });
-    return secureResponse(
-      JSON.stringify({ ok: true, repayment_id: repaymentId }), 200, corsHeaders
-    );
   } catch (err) {
     logError("capital-partner-webhook", err, { fatal: true });
     return secureResponse(JSON.stringify({ error: "Internal error" }), 500, corsHeaders);
