@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.capital-partner-webhook]
 verify_jwt = false
+
+[functions.capital-ops-admin]
+verify_jwt = false

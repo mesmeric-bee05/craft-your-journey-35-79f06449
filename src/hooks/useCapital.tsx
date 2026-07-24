@@ -293,3 +293,125 @@ export function useCapitalPartners() {
   });
 }
 
+// ---------- Ops: webhook events, failed disbursements, retry actions ----------
+
+export interface CapitalWebhookEventRow {
+  id: string;
+  partner_id: string | null;
+  event: string;
+  advance_id: string | null;
+  headers: Record<string, unknown>;
+  body: Record<string, unknown>;
+  sig_valid: boolean;
+  status: string;
+  error: string | null;
+  processed_at: string | null;
+  created_at: string;
+}
+
+export function useCapitalWebhookEvents(limit = 100) {
+  return useQuery({
+    queryKey: ["capital-webhook-events", limit],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("capital_webhook_events")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return (data ?? []) as unknown as CapitalWebhookEventRow[];
+    },
+    staleTime: 15_000,
+  });
+}
+
+export interface FailedDisbursementRow {
+  id: string;
+  business_id: string;
+  principal_kes: number;
+  disbursement_status: string;
+  disbursement_error: string | null;
+  disbursement_requested_at: string | null;
+  businesses: { name: string } | null;
+}
+
+export function useFailedDisbursements() {
+  return useQuery({
+    queryKey: ["capital-failed-disbursements"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("capital_advances")
+        .select("id, business_id, principal_kes, disbursement_status, disbursement_error, disbursement_requested_at, businesses(name)")
+        .in("disbursement_status", ["failed", "processing"])
+        .order("disbursement_requested_at", { ascending: false, nullsFirst: false })
+        .limit(50);
+      if (error) throw error;
+      return (data ?? []) as unknown as FailedDisbursementRow[];
+    },
+    staleTime: 15_000,
+  });
+}
+
+export function useRetryDisbursement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (advance_id: string) => {
+      const { data, error } = await supabase.functions.invoke("capital-ops-admin", {
+        body: { action: "retry_disbursement", advance_id },
+      });
+      if (error) throw error;
+      if (!(data as { ok?: boolean })?.ok) {
+        throw new Error((data as { result?: { error?: string } })?.result?.error ?? "Retry failed");
+      }
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["capital-failed-disbursements"] });
+      qc.invalidateQueries({ queryKey: ["capital-admin"] });
+      toast.success("Disbursement retry initiated");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useReprocessWebhookEvent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (event_id: string) => {
+      const { data, error } = await supabase.functions.invoke("capital-ops-admin", {
+        body: { action: "reprocess_webhook", event_id },
+      });
+      if (error) throw error;
+      if (!(data as { ok?: boolean })?.ok) {
+        throw new Error((data as { detail?: string })?.detail ?? "Reprocess failed");
+      }
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["capital-webhook-events"] });
+      toast.success("Event reprocessed");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useTriggerRepaymentCron() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("capital-ops-admin", {
+        body: { action: "trigger_repayment_cron" },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["capital-failed-disbursements"] });
+      const processed = (data as { result?: { processed?: number } })?.result?.processed ?? 0;
+      toast.success(`Repayment cron ran — ${processed} advance(s) processed`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+
