@@ -47,6 +47,7 @@ import SaccosPublic from "./pages/partners/SaccosPublic";
 import Capital from "./pages/Capital";
 import CapitalAdmin from "./pages/admin/CapitalAdmin";
 import CapitalAuditPage from "./pages/admin/CapitalAuditPage";
+import CapitalOpsPage from "./pages/admin/CapitalOpsPage";
 import OfflineTest from "./pages/OfflineTest";
 import { OfflineIndicator } from "@/pwa/OfflineIndicator";
 
@@ -118,7 +119,9 @@ const App = () => (
             <Route path="/capital" element={<ProtectedRoute><Capital /></ProtectedRoute>} />
             <Route path="/admin/capital" element={<ProtectedRoute><CapitalAdmin /></ProtectedRoute>} />
             <Route path="/admin/capital/audit" element={<ProtectedRoute><CapitalAuditPage /></ProtectedRoute>} />
+            <Route path="/admin/capital/ops" element={<ProtectedRoute><CapitalOpsPage /></ProtectedRoute>} />
             <Route path="/settings/offline-test" element={<ProtectedRoute><OfflineTest /></ProtectedRoute>} />
+
             <Route path="*" element={<NotFound />} />
           </Routes>
           </BrowserRouter>
