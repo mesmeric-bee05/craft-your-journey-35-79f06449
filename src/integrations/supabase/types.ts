@@ -1303,6 +1303,56 @@ export type Database = {
           },
         ]
       }
+      capital_webhook_events: {
+        Row: {
+          advance_id: string | null
+          body: Json
+          created_at: string
+          error: string | null
+          event: string
+          headers: Json
+          id: string
+          partner_id: string | null
+          processed_at: string | null
+          sig_valid: boolean
+          status: string
+        }
+        Insert: {
+          advance_id?: string | null
+          body?: Json
+          created_at?: string
+          error?: string | null
+          event: string
+          headers?: Json
+          id?: string
+          partner_id?: string | null
+          processed_at?: string | null
+          sig_valid?: boolean
+          status?: string
+        }
+        Update: {
+          advance_id?: string | null
+          body?: Json
+          created_at?: string
+          error?: string | null
+          event?: string
+          headers?: Json
+          id?: string
+          partner_id?: string | null
+          processed_at?: string | null
+          sig_valid?: boolean
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "capital_webhook_events_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "capital_partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       competitors: {
         Row: {
           business_id: string
