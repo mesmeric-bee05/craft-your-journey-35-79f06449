@@ -70,7 +70,15 @@ Deno.serve(async (req) => {
     .eq("status", "active")
     .eq("disbursement_status", "disbursed");
 
-  if (error) return secureResponse(JSON.stringify({ error: error.message }), 500, corsHeaders);
+  if (error) {
+    await notifyOpsFailure(svc, {
+      source: "capital-repayment-cron",
+      code: "advance_query_failed",
+      title: "Capital repayment cron could not load advances",
+      detail: error.message,
+    });
+    return secureResponse(JSON.stringify({ error: error.message }), 500, corsHeaders);
+  }
 
   const results: any[] = [];
   const yesterday = new Date(Date.now() - 24 * 3600_000).toISOString();
@@ -79,8 +87,15 @@ Deno.serve(async (req) => {
   try { token = await getAccessToken(key, cs, sandbox); }
   catch (e) {
     logError("capital-repayment-cron", e, { step: "oauth" });
+    await notifyOpsFailure(svc, {
+      source: "capital-repayment-cron",
+      code: "daraja_auth_failed",
+      title: "Capital repayment cron failed to authenticate with Daraja",
+      detail: String((e as Error).message ?? e),
+    });
     return secureResponse(JSON.stringify({ error: "Daraja auth failed" }), 502, corsHeaders);
   }
+
 
   for (const a of advances ?? []) {
     try {
