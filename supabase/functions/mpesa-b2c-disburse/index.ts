@@ -180,11 +180,20 @@ Deno.serve(async (req) => {
     });
 
     if (!ok) {
+      const reason = result.errorMessage ?? result.ResponseDescription ?? "B2C failed";
       await svc.from("capital_advances").update({
         disbursement_status: "failed",
-        disbursement_error: result.errorMessage ?? result.ResponseDescription ?? "B2C failed",
+        disbursement_error: reason,
       }).eq("id", advance.id);
+      await notifyOpsFailure(svc, {
+        source: "mpesa-b2c-disburse",
+        code: String(result.ResponseCode ?? "b2c_failed"),
+        title: "Capital disbursement failed",
+        detail: String(reason),
+        context: { advance_id: advance.id, business_id: advance.business_id },
+      });
     } else {
+
       await svc.from("capital_advances").update({
         mpesa_disbursement_ref: result.ConversationID,
       }).eq("id", advance.id);
