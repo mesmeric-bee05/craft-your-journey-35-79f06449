@@ -12,6 +12,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, secureResponse } from "../_shared/security-headers.ts";
 import { logError, logSecurityEvent } from "../_shared/errors.ts";
+import { notifyOpsFailure } from "../_shared/cron-alerts.ts";
+
 
 function normalizePhone(phone: string): string {
   const cleaned = phone.replace(/\s+/g, "");
