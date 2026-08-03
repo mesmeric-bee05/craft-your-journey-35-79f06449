@@ -92,57 +92,75 @@ Deno.serve(async (req) => {
       return secureResponse(JSON.stringify({ ok: r.ok, result }), r.ok ? 200 : 502, corsHeaders);
     }
 
-    if (parsed.data.action === "reprocess_webhook") {
+    if (parsed.data.action === "reprocess_webhook" || parsed.data.action === "replay_webhook") {
+      const isReplay = parsed.data.action === "replay_webhook";
       const { event_id } = parsed.data;
+
+      // Extra quota on replay: it bypasses the dedupe guard for a single event.
+      if (isReplay) {
+        const { data: quota } = await svc.rpc("check_and_record_admin_action", {
+          p_action: "capital.webhook.replay",
+          p_max_per_hour: 20,
+        });
+        if (quota && (quota as { allowed?: boolean }).allowed === false) {
+          return secureResponse(JSON.stringify({
+            error: "Replay quota exceeded — try again later", detail: quota,
+          }), 429, corsHeaders);
+        }
+      }
+
       const { data: ev } = await svc.from("capital_webhook_events")
         .select("*").eq("id", event_id).single();
       if (!ev) return secureResponse(JSON.stringify({ error: "Event not found" }), 404, corsHeaders);
 
-      const body = ev.body as { event?: string; advance_id?: string; amount_kes?: number; reference?: string; status?: string };
-      let outcome: { ok: boolean; detail: unknown } = { ok: false, detail: "no_action" };
+      const body = ev.body as CapitalEventBody;
+      let outcome: { ok: boolean; code: string; detail?: unknown };
 
       try {
-        if (body.event === "repayment.recorded" && body.advance_id && body.amount_kes) {
-          const { data, error } = await svc.rpc("record_capital_repayment", {
-            p_advance_id: body.advance_id,
-            p_amount: body.amount_kes,
-            p_reference: body.reference ?? null,
-            p_source: "partner",
-            p_partner_id: ev.partner_id,
-            p_checkout_request_id: null,
-          });
-          if (error) throw error;
-          outcome = { ok: true, detail: { repayment_id: data } };
-        } else if (body.event === "advance.status" && body.advance_id && body.status) {
-          await svc.from("capital_advances").update({ status: body.status }).eq("id", body.advance_id);
-          outcome = { ok: true, detail: { status: body.status } };
-        } else if (body.event === "advance.written_off" && body.advance_id) {
-          await svc.from("capital_advances").update({
-            status: "defaulted", closed_at: new Date().toISOString(),
-          }).eq("id", body.advance_id);
-          outcome = { ok: true, detail: { defaulted: true } };
-        }
+        const r = await handleCapitalEvent(svc, body, ev.partner_id ?? null);
+        outcome = { ok: r.ok, code: r.code, detail: r.detail ?? null };
         await svc.from("capital_webhook_events").update({
-          status: outcome.ok ? "processed" : "failed",
-          error: outcome.ok ? null : "unhandled_event",
+          status: r.ok ? "processed" : "failed",
+          error: r.ok ? null : r.code,
           processed_at: new Date().toISOString(),
         }).eq("id", event_id);
       } catch (err) {
+        const message = (err as Error).message;
         await svc.from("capital_webhook_events").update({
-          status: "failed", error: (err as Error).message, processed_at: new Date().toISOString(),
+          status: "failed", error: message, processed_at: new Date().toISOString(),
         }).eq("id", event_id);
-        outcome = { ok: false, detail: (err as Error).message };
+        outcome = { ok: false, code: "exception", detail: message };
       }
 
       await svc.from("capital_audit").insert({
         actor_user_id: admin.userId,
-        action: "capital.webhook.reprocess",
+        action: isReplay ? "capital.webhook.replay" : "capital.webhook.reprocess",
         entity_type: "capital_webhook_event", entity_id: event_id,
-        metadata: { outcome, event_type: body.event },
+        metadata: {
+          outcome,
+          event_type: body.event ?? null,
+          advance_id: body.advance_id ?? null,
+          ip: req.headers.get("x-forwarded-for") ?? null,
+          user_agent: req.headers.get("user-agent") ?? null,
+        },
       });
-      logSecurityEvent("capital_webhook_reprocess", { userId: admin.userId, event_id, ok: outcome.ok });
+
+      if (!outcome.ok) {
+        await notifyOpsFailure(svc, {
+          source: "capital-ops-admin",
+          code: outcome.code,
+          title: isReplay ? "Capital webhook replay failed" : "Capital webhook reprocess failed",
+          detail: String(outcome.detail ?? outcome.code),
+          context: { event_id, actor: admin.userId, event: body.event ?? "unknown" },
+        });
+      }
+
+      logSecurityEvent(isReplay ? "capital_webhook_replay" : "capital_webhook_reprocess", {
+        userId: admin.userId, event_id, ok: outcome.ok,
+      });
       return secureResponse(JSON.stringify(outcome), outcome.ok ? 200 : 400, corsHeaders);
     }
+
 
     if (parsed.data.action === "trigger_repayment_cron") {
       const cronSecret = Deno.env.get("CRON_SECRET");
