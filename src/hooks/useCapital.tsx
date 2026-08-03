@@ -307,7 +307,9 @@ export interface CapitalWebhookEventRow {
   error: string | null;
   processed_at: string | null;
   created_at: string;
+  dedupe_key: string | null;
 }
+
 
 export function useCapitalWebhookEvents(limit = 100) {
   return useQuery({
