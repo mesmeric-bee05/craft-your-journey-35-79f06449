@@ -14,12 +14,16 @@ import { requireAdmin } from "../_shared/admin-auth.ts";
 import { rateLimit } from "../_shared/rate-limiter.ts";
 import { logError, logSecurityEvent } from "../_shared/errors.ts";
 import { parseJsonBody } from "../_shared/validators.ts";
+import { notifyOpsFailure } from "../_shared/cron-alerts.ts";
+import { handleCapitalEvent, type CapitalEventBody } from "../_shared/capital-webhook-handler.ts";
 
 const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("retry_disbursement"), advance_id: z.string().uuid() }),
   z.object({ action: z.literal("reprocess_webhook"), event_id: z.string().uuid() }),
+  z.object({ action: z.literal("replay_webhook"), event_id: z.string().uuid() }),
   z.object({ action: z.literal("trigger_repayment_cron") }),
 ]);
+
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders("*");

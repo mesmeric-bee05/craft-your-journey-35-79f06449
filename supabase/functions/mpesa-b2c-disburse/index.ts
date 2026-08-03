@@ -20,7 +20,12 @@ import { rateLimit } from "../_shared/rate-limiter.ts";
 import { logError, logSecurityEvent } from "../_shared/errors.ts";
 import { parseJsonBody } from "../_shared/validators.ts";
 
-const Body = z.object({ advance_id: z.string().uuid() }).strict();
+const Body = z.object({
+  advance_id: z.string().uuid(),
+  /** Admin retry action only: allow re-requesting a payout stuck in `processing`. */
+  force: z.boolean().optional(),
+}).strict();
+
 
 function normalizePhone(phone: string): string {
   const cleaned = phone.replace(/\s+/g, "");
