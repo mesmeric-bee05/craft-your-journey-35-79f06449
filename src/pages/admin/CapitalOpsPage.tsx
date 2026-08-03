@@ -5,9 +5,10 @@ import {
   useCapitalWebhookEvents,
   useFailedDisbursements,
   useRetryDisbursement,
-  useReprocessWebhookEvent,
+  useReplayWebhookEvent,
   useTriggerRepaymentCron,
   type CapitalWebhookEventRow,
+  type FailedDisbursementRow,
 } from "@/hooks/useCapital";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,34 +20,47 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Activity, RefreshCw, PlayCircle, Loader2, AlertCircle, Webhook, Banknote, Download,
+  Activity, RefreshCw, PlayCircle, Loader2, AlertCircle, Webhook, Banknote,
+  Download, FileText, Repeat, CheckCircle2, XCircle,
 } from "lucide-react";
 import { CronRunsTimeline } from "@/components/admin/CronRunsTimeline";
 import { Link } from "react-router-dom";
+import { downloadCsv, downloadPdfReport, type ExportColumn } from "@/lib/opsExport";
 
 const fmtKES = (n: number) => `KES ${Math.round(n).toLocaleString()}`;
 
-function toCsv(rows: CapitalWebhookEventRow[]): string {
-  const cols = ["created_at", "event", "status", "sig_valid", "advance_id", "error"];
-  const esc = (v: unknown) => {
-    const s = v == null ? "" : String(v).replace(/"/g, '""');
-    return /[",\n]/.test(s) ? `"${s}"` : s;
-  };
-  return [cols.join(","), ...rows.map(r =>
-    [r.created_at, r.event, r.status, r.sig_valid, r.advance_id ?? "", r.error ?? ""].map(esc).join(",")
-  )].join("\n");
-}
+const eventColumns: ExportColumn<CapitalWebhookEventRow>[] = [
+  { key: "created_at", label: "Received", value: (r) => new Date(r.created_at).toLocaleString() },
+  { key: "event", label: "Event", value: (r) => r.event },
+  { key: "status", label: "Status", value: (r) => r.status },
+  { key: "sig_valid", label: "Signature", value: (r) => (r.sig_valid ? "valid" : "invalid") },
+  { key: "advance_id", label: "Advance", value: (r) => r.advance_id ?? "" },
+  { key: "processed_at", label: "Processed", value: (r) => r.processed_at ?? "" },
+  { key: "error", label: "Error", value: (r) => r.error ?? "" },
+];
+
+const disbursementColumns: ExportColumn<FailedDisbursementRow>[] = [
+  { key: "business", label: "Business", value: (r) => r.businesses?.name ?? "Unknown" },
+  { key: "principal_kes", label: "Principal (KES)", value: (r) => Number(r.principal_kes) },
+  { key: "disbursement_status", label: "Status", value: (r) => r.disbursement_status },
+  {
+    key: "disbursement_requested_at", label: "Requested",
+    value: (r) => (r.disbursement_requested_at ? new Date(r.disbursement_requested_at).toLocaleString() : ""),
+  },
+  { key: "disbursement_error", label: "Error", value: (r) => r.disbursement_error ?? "" },
+];
 
 export default function CapitalOpsPage() {
   const events = useCapitalWebhookEvents(200);
   const failed = useFailedDisbursements();
   const retryDisburse = useRetryDisbursement();
-  const reprocess = useReprocessWebhookEvent();
+  const replay = useReplayWebhookEvent();
   const triggerCron = useTriggerRepaymentCron();
 
   const [eventStatus, setEventStatus] = useState<string>("all");
   const [eventSearch, setEventSearch] = useState("");
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [rowResult, setRowResult] = useState<Record<string, { ok: boolean; message: string }>>({});
 
   const filteredEvents = useMemo(() => {
     const rows = events.data ?? [];
@@ -61,14 +75,27 @@ export default function CapitalOpsPage() {
     });
   }, [events.data, eventStatus, eventSearch]);
 
-  const downloadEventsCsv = () => {
-    const blob = new Blob([toCsv(filteredEvents)], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `capital-webhook-events-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const eventFilterSummary = [
+    `status: ${eventStatus}`,
+    eventSearch ? `search: "${eventSearch}"` : "search: none",
+  ];
+
+  const doReplay = async (id: string) => {
+    setPendingId(id);
+    try {
+      const res = await replay.mutateAsync(id);
+      setRowResult(prev => ({
+        ...prev,
+        [id]: { ok: true, message: `Replayed: ${res.code ?? "ok"}` },
+      }));
+    } catch (e) {
+      setRowResult(prev => ({
+        ...prev,
+        [id]: { ok: false, message: (e as Error).message },
+      }));
+    } finally {
+      setPendingId(null);
+    }
   };
 
   return (
@@ -122,12 +149,30 @@ export default function CapitalOpsPage() {
           {/* Disbursements */}
           <TabsContent value="disbursements" className="mt-4">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
                 <CardTitle className="text-base">Failed / stuck disbursements</CardTitle>
-                <Button size="sm" variant="outline" onClick={() => failed.refetch()} disabled={failed.isRefetching}>
-                  <RefreshCw className={`h-3 w-3 mr-2 ${failed.isRefetching ? "animate-spin" : ""}`} />
-                  Refresh
-                </Button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button
+                    size="sm" variant="outline"
+                    disabled={(failed.data?.length ?? 0) === 0}
+                    onClick={() => downloadCsv(failed.data ?? [], disbursementColumns, "capital-disbursements")}
+                  >
+                    <Download className="h-3 w-3 mr-2" /> CSV
+                  </Button>
+                  <Button
+                    size="sm" variant="outline"
+                    disabled={(failed.data?.length ?? 0) === 0}
+                    onClick={() => downloadPdfReport(
+                      failed.data ?? [], disbursementColumns, "capital-disbursements",
+                      { title: "Capital disbursement exceptions", subtitle: "Failed and in-flight disbursements" },
+                    )}
+                  >
+                    <FileText className="h-3 w-3 mr-2" /> PDF
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => failed.refetch()} disabled={failed.isRefetching}>
+                    <RefreshCw className={`h-3 w-3 ${failed.isRefetching ? "animate-spin" : ""}`} />
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="space-y-2">
                 {failed.isLoading && [0, 1, 2].map(i => <Skeleton key={i} className="h-16" />)}
@@ -198,8 +243,26 @@ export default function CapitalOpsPage() {
                       <SelectItem value="received">Received</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Button size="sm" variant="outline" onClick={downloadEventsCsv} disabled={filteredEvents.length === 0}>
-                    <Download className="h-3 w-3 mr-2" /> Export
+                  <Button
+                    size="sm" variant="outline"
+                    onClick={() => downloadCsv(filteredEvents, eventColumns, "capital-webhook-events")}
+                    disabled={filteredEvents.length === 0}
+                  >
+                    <Download className="h-3 w-3 mr-2" /> CSV
+                  </Button>
+                  <Button
+                    size="sm" variant="outline"
+                    onClick={() => downloadPdfReport(
+                      filteredEvents, eventColumns, "capital-webhook-events",
+                      {
+                        title: "Capital partner webhook audit",
+                        subtitle: "Inbound partner lender events",
+                        filters: eventFilterSummary,
+                      },
+                    )}
+                    disabled={filteredEvents.length === 0}
+                  >
+                    <FileText className="h-3 w-3 mr-2" /> PDF
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => events.refetch()} disabled={events.isRefetching}>
                     <RefreshCw className={`h-3 w-3 ${events.isRefetching ? "animate-spin" : ""}`} />
@@ -213,48 +276,53 @@ export default function CapitalOpsPage() {
                     No webhook events yet. Partner lenders will surface here as they call the endpoint.
                   </div>
                 )}
-                {filteredEvents.map(e => (
-                  <div key={e.id} className="border rounded-md p-3 space-y-2">
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <div className="flex items-center gap-2 flex-wrap min-w-0">
-                        <Badge variant={
-                          e.status === "processed" ? "secondary"
-                            : e.status === "failed" ? "destructive"
-                              : "outline"
-                        }>{e.status}</Badge>
-                        <span className="font-mono text-xs">{e.event}</span>
-                        {e.advance_id && (
-                          <span className="text-xs text-muted-foreground font-mono">
-                            adv:{e.advance_id.slice(0, 8)}
+                {filteredEvents.map(e => {
+                  const result = rowResult[e.id];
+                  return (
+                    <div key={e.id} className="border rounded-md p-3 space-y-2">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap min-w-0">
+                          <Badge variant={
+                            e.status === "processed" ? "secondary"
+                              : e.status === "failed" ? "destructive"
+                                : "outline"
+                          }>{e.status}</Badge>
+                          <span className="font-mono text-xs">{e.event}</span>
+                          {e.advance_id && (
+                            <span className="text-xs text-muted-foreground font-mono">
+                              adv:{e.advance_id.slice(0, 8)}
+                            </span>
+                          )}
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(e.created_at).toLocaleString()}
                           </span>
-                        )}
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(e.created_at).toLocaleString()}
-                        </span>
-                      </div>
-                      {e.status === "failed" && (
+                        </div>
                         <Button
                           size="sm"
-                          variant="outline"
+                          variant={e.status === "failed" ? "default" : "outline"}
                           disabled={pendingId === e.id}
-                          onClick={async () => {
-                            setPendingId(e.id);
-                            try { await reprocess.mutateAsync(e.id); }
-                            finally { setPendingId(null); }
-                          }}
+                          onClick={() => doReplay(e.id)}
                         >
                           {pendingId === e.id
                             ? <Loader2 className="h-3 w-3 mr-2 animate-spin" />
-                            : <RefreshCw className="h-3 w-3 mr-2" />}
-                          Reprocess
+                            : <Repeat className="h-3 w-3 mr-2" />}
+                          Replay
                         </Button>
+                      </div>
+                      {e.error && (
+                        <div className="text-xs text-destructive break-all">{e.error}</div>
+                      )}
+                      {result && (
+                        <div className={`text-xs flex items-center gap-1 ${result.ok ? "text-emerald-500" : "text-destructive"}`}>
+                          {result.ok
+                            ? <CheckCircle2 className="h-3 w-3" />
+                            : <XCircle className="h-3 w-3" />}
+                          <span className="break-all">{result.message}</span>
+                        </div>
                       )}
                     </div>
-                    {e.error && (
-                      <div className="text-xs text-destructive break-all">{e.error}</div>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </CardContent>
             </Card>
           </TabsContent>
