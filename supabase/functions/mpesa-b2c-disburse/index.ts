@@ -87,6 +87,15 @@ Deno.serve(async (req) => {
     if (advance.disbursement_status === "disbursed") {
       return secureResponse(JSON.stringify({ error: "Already disbursed" }), 409, corsHeaders);
     }
+    // Idempotency guard: never double-request a payout already in flight unless
+    // an admin explicitly forces a retry from the ops dashboard.
+    if (advance.disbursement_status === "processing" && !parsed.data.force) {
+      return secureResponse(JSON.stringify({
+        error: "Disbursement already in progress",
+        code: "IN_PROGRESS",
+      }), 409, corsHeaders);
+    }
+
 
     // Owner phone from profile
     const ownerId = (advance.businesses as any)?.owner_id as string | undefined;
