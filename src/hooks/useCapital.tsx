@@ -307,7 +307,9 @@ export interface CapitalWebhookEventRow {
   error: string | null;
   processed_at: string | null;
   created_at: string;
+  dedupe_key: string | null;
 }
+
 
 export function useCapitalWebhookEvents(limit = 100) {
   return useQuery({
@@ -413,5 +415,85 @@ export function useTriggerRepaymentCron() {
     onError: (e: Error) => toast.error(e.message),
   });
 }
+
+/** Replay a single stored webhook event through the live handler. */
+export function useReplayWebhookEvent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (event_id: string) => {
+      const { data, error } = await supabase.functions.invoke("capital-ops-admin", {
+        body: { action: "replay_webhook", event_id },
+      });
+      if (error) throw error;
+      const res = data as { ok?: boolean; code?: string; detail?: unknown };
+      if (!res?.ok) {
+        throw new Error(
+          typeof res?.detail === "string" ? res.detail : res?.code ?? "Replay failed"
+        );
+      }
+      return res;
+    },
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ["capital-webhook-events"] });
+      qc.invalidateQueries({ queryKey: ["capital-audit-feed"] });
+      toast.success(`Event replayed — ${res.code ?? "ok"}`);
+    },
+    onError: (e: Error) => toast.error(`Replay failed: ${e.message}`),
+  });
+}
+
+// ---------- User-facing advance status ----------
+
+export interface MyAdvanceStatus {
+  has_activity: boolean;
+  application: {
+    id: string;
+    status: string;
+    requested_amount_kes: number;
+    revenue_share_pct: number;
+    review_note: string | null;
+    created_at: string;
+  } | null;
+  advance: {
+    id: string;
+    principal_kes: number;
+    total_owed_kes: number;
+    amount_repaid_kes: number;
+    revenue_share_pct: number;
+    status: string;
+    disbursement_status: string;
+    disbursement_error: string | null;
+    disbursement_requested_at: string | null;
+    mpesa_disbursement_ref: string | null;
+    disbursed_at: string | null;
+    closed_at: string | null;
+  } | null;
+  repayments: Array<{
+    id: string;
+    amount_kes: number;
+    source: string;
+    status: string;
+    scheduled_for: string | null;
+    collected_at: string | null;
+    reference: string | null;
+  }>;
+  last_synced_at: string | null;
+}
+
+export function useMyAdvanceStatus(businessId: string | undefined) {
+  return useQuery({
+    queryKey: ["capital-my-status", businessId],
+    enabled: !!businessId,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_my_advance_status", {
+        p_business_id: businessId!,
+      });
+      if (error) throw error;
+      return data as unknown as MyAdvanceStatus;
+    },
+    staleTime: 30_000,
+  });
+}
+
 
 

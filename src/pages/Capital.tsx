@@ -4,7 +4,8 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useBusiness } from "@/hooks/useBusiness";
 import {
   useCapitalOffer, useMyAdvance, useMyApplications, useAdvanceRepayments,
-  useApplyForCapital, useRecordRepayment,
+  useApplyForCapital, useMyAdvanceStatus,
+  useRecordRepayment,
 } from "@/hooks/useCapital";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ export default function Capital() {
   const { data: repayments = [] } = useAdvanceRepayments(advance?.id);
   const apply = useApplyForCapital();
   const record = useRecordRepayment();
+  const { data: advStatus } = useMyAdvanceStatus(bid);
 
   const [applyOpen, setApplyOpen] = useState(false);
   const [amount, setAmount] = useState(0);
@@ -159,6 +161,91 @@ export default function Capital() {
             )}
           </Card>
         )}
+
+        {advStatus?.has_activity && (
+          <Card className="p-6 space-y-4">
+            <div className="font-semibold">Application &amp; disbursement status</div>
+            <ol className="space-y-2 text-sm">
+              {[
+                { key: "submitted", label: "Application submitted" },
+                { key: "under_review", label: "Under review" },
+                { key: "approved", label: "Approved" },
+                { key: "disbursed", label: "Funds disbursed" },
+              ].map((step) => {
+                const appStatus = advStatus.application?.status ?? "";
+                const disb = advStatus.advance?.disbursement_status ?? "";
+                const done =
+                  step.key === "submitted" ? true
+                    : step.key === "under_review" ? ["under_review", "approved"].includes(appStatus) || !!advStatus.advance
+                      : step.key === "approved" ? appStatus === "approved" || !!advStatus.advance
+                        : disb === "disbursed";
+                return (
+                  <li key={step.key} className="flex items-center gap-2">
+                    <span className={`h-2 w-2 rounded-full ${done ? "bg-emerald-500" : "bg-muted-foreground/40"}`} />
+                    <span className={done ? "" : "text-muted-foreground"}>{step.label}</span>
+                  </li>
+                );
+              })}
+            </ol>
+
+            {advStatus.advance && (
+              <div className="rounded-lg bg-muted/40 p-3 text-sm space-y-1">
+                <div className="flex justify-between">
+                  <span>Disbursement</span>
+                  <span className="capitalize font-medium">{advStatus.advance.disbursement_status}</span>
+                </div>
+                {advStatus.advance.mpesa_disbursement_ref && (
+                  <div className="flex justify-between">
+                    <span>M-Pesa reference</span>
+                    <span className="font-mono text-xs">{advStatus.advance.mpesa_disbursement_ref}</span>
+                  </div>
+                )}
+                {advStatus.advance.disbursement_error && (
+                  <div className="text-destructive text-xs flex items-start gap-1">
+                    <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
+                    <span>
+                      We couldn't send your funds yet: {advStatus.advance.disbursement_error}. Our team has been notified and will retry.
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {advStatus.repayments.length > 0 && (
+              <div>
+                <div className="text-sm font-semibold mb-2">Repayment activity</div>
+                <ul className="space-y-1 text-sm">
+                  {(() => {
+                    let running = Number(advStatus.advance?.total_owed_kes ?? 0);
+                    return advStatus.repayments.map((r) => {
+                      if (r.status === "paid") running -= Number(r.amount_kes);
+                      return (
+                        <li key={r.id} className="flex justify-between border-b border-border/40 py-1">
+                          <span>
+                            {r.collected_at ? new Date(r.collected_at).toLocaleDateString() : r.scheduled_for ?? "—"}
+                            {" · "}
+                            <span className="text-muted-foreground capitalize">{r.source.replace(/_/g, " ")}</span>
+                            {r.status !== "paid" && <span className="text-muted-foreground"> ({r.status})</span>}
+                          </span>
+                          <span className="font-mono">
+                            {fmtKES(Number(r.amount_kes))}
+                            <span className="text-muted-foreground"> · bal {fmtKES(Math.max(0, running))}</span>
+                          </span>
+                        </li>
+                      );
+                    });
+                  })()}
+                </ul>
+              </div>
+            )}
+
+            <div className="text-xs text-muted-foreground">
+              Last synced with our lending partners:{" "}
+              {advStatus.last_synced_at ? new Date(advStatus.last_synced_at).toLocaleString() : "no partner activity yet"}
+            </div>
+          </Card>
+        )}
+
 
         {apps.length > 0 && (
           <Card className="p-6">

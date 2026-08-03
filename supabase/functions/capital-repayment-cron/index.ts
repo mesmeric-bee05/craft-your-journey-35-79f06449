@@ -12,6 +12,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, secureResponse } from "../_shared/security-headers.ts";
 import { logError, logSecurityEvent } from "../_shared/errors.ts";
+import { notifyOpsFailure } from "../_shared/cron-alerts.ts";
+
 
 function normalizePhone(phone: string): string {
   const cleaned = phone.replace(/\s+/g, "");
@@ -68,7 +70,15 @@ Deno.serve(async (req) => {
     .eq("status", "active")
     .eq("disbursement_status", "disbursed");
 
-  if (error) return secureResponse(JSON.stringify({ error: error.message }), 500, corsHeaders);
+  if (error) {
+    await notifyOpsFailure(svc, {
+      source: "capital-repayment-cron",
+      code: "advance_query_failed",
+      title: "Capital repayment cron could not load advances",
+      detail: error.message,
+    });
+    return secureResponse(JSON.stringify({ error: error.message }), 500, corsHeaders);
+  }
 
   const results: any[] = [];
   const yesterday = new Date(Date.now() - 24 * 3600_000).toISOString();
@@ -77,8 +87,15 @@ Deno.serve(async (req) => {
   try { token = await getAccessToken(key, cs, sandbox); }
   catch (e) {
     logError("capital-repayment-cron", e, { step: "oauth" });
+    await notifyOpsFailure(svc, {
+      source: "capital-repayment-cron",
+      code: "daraja_auth_failed",
+      title: "Capital repayment cron failed to authenticate with Daraja",
+      detail: String((e as Error).message ?? e),
+    });
     return secureResponse(JSON.stringify({ error: "Daraja auth failed" }), 502, corsHeaders);
   }
+
 
   for (const a of advances ?? []) {
     try {
@@ -166,5 +183,44 @@ Deno.serve(async (req) => {
 
   logSecurityEvent("capital_repayment_cron_run", { count: results.length });
 
-  return secureResponse(JSON.stringify({ ok: true, processed: results.length, results }), 200, corsHeaders);
+  // Alert on per-advance failures inside this run.
+  const failures = results.filter((r) => r.error);
+  if (failures.length > 0) {
+    await notifyOpsFailure(svc, {
+      source: "capital-repayment-cron",
+      code: "advance_processing_errors",
+      title: `Capital repayment cron: ${failures.length} advance(s) failed`,
+      detail: failures.map((f) => `${f.id}: ${f.error}`).join("\n"),
+      context: { failed: failures.length, processed: results.length },
+    });
+  }
+
+  // Detect stuck disbursements: still "processing" after 30 minutes.
+  const stuckCutoff = new Date(Date.now() - 30 * 60_000).toISOString();
+  const { data: stuck } = await svc.from("capital_advances")
+    .select("id, business_id, principal_kes, disbursement_requested_at")
+    .eq("disbursement_status", "processing")
+    .lt("disbursement_requested_at", stuckCutoff);
+
+  if ((stuck ?? []).length > 0) {
+    await notifyOpsFailure(svc, {
+      source: "capital-repayment-cron",
+      code: "stuck_disbursements",
+      title: `${stuck!.length} Capital disbursement(s) stuck in processing`,
+      detail: stuck!
+        .map((s: { id: string; disbursement_requested_at: string | null }) =>
+          `${s.id} requested ${s.disbursement_requested_at ?? "unknown"}`)
+        .join("\n"),
+      context: { count: stuck!.length },
+    });
+  }
+
+  return secureResponse(JSON.stringify({
+    ok: true,
+    processed: results.length,
+    failed: failures.length,
+    stuck_disbursements: (stuck ?? []).length,
+    results,
+  }), 200, corsHeaders);
+
 });

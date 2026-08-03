@@ -147,3 +147,120 @@ export async function notifyCronFailure(svc: any, p: CronAlertPayload): Promise<
     });
   } catch (_) { /* ignore */ }
 }
+
+/* ------------------------------------------------------------------ *
+ * Generic Capital / ops failure alerting
+ * ------------------------------------------------------------------ */
+
+export interface OpsAlertPayload {
+  /** e.g. "capital-partner-webhook", "mpesa-b2c-disburse" */
+  source: string;
+  /** short machine-ish label, e.g. "signature_invalid" */
+  code: string;
+  title: string;
+  detail: string;
+  context?: Record<string, unknown>;
+}
+
+async function postOpsSlack(p: OpsAlertPayload): Promise<{ ok: boolean; reason?: string }> {
+  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+  const slackKey = Deno.env.get("SLACK_API_KEY");
+  const channel = Deno.env.get("SLACK_ALERTS_CHANNEL_ID");
+  if (!lovableKey || !slackKey || !channel) return { ok: false, reason: "slack_not_configured" };
+  const url = appBaseUrl();
+  const ctx = p.context
+    ? Object.entries(p.context).map(([k, v]) => `*${k}:*\n${String(v)}`)
+    : [];
+  const body = {
+    channel,
+    text: `:rotating_light: ${p.title}`,
+    blocks: [
+      { type: "header", text: { type: "plain_text", text: `🚨 ${p.title}`.slice(0, 150) } },
+      {
+        type: "section",
+        fields: [
+          { type: "mrkdwn", text: `*Source:*\n${p.source}` },
+          { type: "mrkdwn", text: `*Code:*\n${p.code}` },
+          ...ctx.slice(0, 6).map((text) => ({ type: "mrkdwn", text })),
+        ],
+      },
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: "```" + p.detail.slice(0, 800).replace(/```/g, "''") + "```",
+        },
+      },
+      {
+        type: "actions",
+        elements: [
+          {
+            type: "button",
+            text: { type: "plain_text", text: "Capital Operations" },
+            url: `${url}/admin/capital/ops`,
+          },
+          {
+            type: "button",
+            text: { type: "plain_text", text: "System Health" },
+            url: `${url}/admin/health`,
+          },
+          {
+            type: "button",
+            text: { type: "plain_text", text: "Security Findings" },
+            url: `${url}/security/findings`,
+          },
+        ],
+      },
+    ],
+  };
+  try {
+    const res = await fetch(`${SLACK_GATEWAY}/chat.postMessage`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        Authorization: `Bearer ${lovableKey}`,
+        "X-Connection-Api-Key": slackKey,
+      },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.ok) return { ok: false, reason: json?.error ?? `http_${res.status}` };
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, reason: String((e as Error).message ?? e) };
+  }
+}
+
+/**
+ * Fire-and-forget ops alert: Slack + email (degrades silently) + audit row.
+ * Never throws — alerting must not mask the underlying failure.
+ */
+// deno-lint-ignore no-explicit-any
+export async function notifyOpsFailure(svc: any, p: OpsAlertPayload): Promise<void> {
+  const startedAt = new Date().toISOString();
+  const [slack, email] = await Promise.all([
+    postOpsSlack(p),
+    postEmail({
+      jobName: `${p.source}:${p.code}`,
+      status: "failure",
+      errorText: `${p.title}\n${p.detail}`,
+      startedAt,
+    }),
+  ]);
+  try {
+    await svc.from("audit_logs").insert({
+      action: "ops.failure_alert",
+      entity_type: p.source,
+      metadata: {
+        code: p.code,
+        title: p.title,
+        detail: p.detail.slice(0, 1500),
+        context: p.context ?? {},
+        at: startedAt,
+        slack: slack.ok ? "sent" : `skip:${slack.reason}`,
+        email: email.ok ? "sent" : `skip:${email.reason}`,
+      },
+    });
+  } catch (_) { /* ignore */ }
+}
+

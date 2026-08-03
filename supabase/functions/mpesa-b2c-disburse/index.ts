@@ -19,8 +19,15 @@ import { requireAdmin } from "../_shared/admin-auth.ts";
 import { rateLimit } from "../_shared/rate-limiter.ts";
 import { logError, logSecurityEvent } from "../_shared/errors.ts";
 import { parseJsonBody } from "../_shared/validators.ts";
+import { notifyOpsFailure } from "../_shared/cron-alerts.ts";
 
-const Body = z.object({ advance_id: z.string().uuid() }).strict();
+
+const Body = z.object({
+  advance_id: z.string().uuid(),
+  /** Admin retry action only: allow re-requesting a payout stuck in `processing`. */
+  force: z.boolean().optional(),
+}).strict();
+
 
 function normalizePhone(phone: string): string {
   const cleaned = phone.replace(/\s+/g, "");
@@ -82,6 +89,15 @@ Deno.serve(async (req) => {
     if (advance.disbursement_status === "disbursed") {
       return secureResponse(JSON.stringify({ error: "Already disbursed" }), 409, corsHeaders);
     }
+    // Idempotency guard: never double-request a payout already in flight unless
+    // an admin explicitly forces a retry from the ops dashboard.
+    if (advance.disbursement_status === "processing" && !parsed.data.force) {
+      return secureResponse(JSON.stringify({
+        error: "Disbursement already in progress",
+        code: "IN_PROGRESS",
+      }), 409, corsHeaders);
+    }
+
 
     // Owner phone from profile
     const ownerId = (advance.businesses as any)?.owner_id as string | undefined;
@@ -166,11 +182,20 @@ Deno.serve(async (req) => {
     });
 
     if (!ok) {
+      const reason = result.errorMessage ?? result.ResponseDescription ?? "B2C failed";
       await svc.from("capital_advances").update({
         disbursement_status: "failed",
-        disbursement_error: result.errorMessage ?? result.ResponseDescription ?? "B2C failed",
+        disbursement_error: reason,
       }).eq("id", advance.id);
+      await notifyOpsFailure(svc, {
+        source: "mpesa-b2c-disburse",
+        code: String(result.ResponseCode ?? "b2c_failed"),
+        title: "Capital disbursement failed",
+        detail: String(reason),
+        context: { advance_id: advance.id, business_id: advance.business_id },
+      });
     } else {
+
       await svc.from("capital_advances").update({
         mpesa_disbursement_ref: result.ConversationID,
       }).eq("id", advance.id);

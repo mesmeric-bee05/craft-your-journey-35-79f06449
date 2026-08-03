@@ -1308,6 +1308,7 @@ export type Database = {
           advance_id: string | null
           body: Json
           created_at: string
+          dedupe_key: string | null
           error: string | null
           event: string
           headers: Json
@@ -1321,6 +1322,7 @@ export type Database = {
           advance_id?: string | null
           body?: Json
           created_at?: string
+          dedupe_key?: string | null
           error?: string | null
           event: string
           headers?: Json
@@ -1334,6 +1336,7 @@ export type Database = {
           advance_id?: string | null
           body?: Json
           created_at?: string
+          dedupe_key?: string | null
           error?: string | null
           event?: string
           headers?: Json
@@ -4816,6 +4819,7 @@ export type Database = {
           warning_threshold: number
         }[]
       }
+      get_my_advance_status: { Args: { p_business_id: string }; Returns: Json }
       get_my_kyc: {
         Args: never
         Returns: {
