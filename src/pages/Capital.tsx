@@ -4,7 +4,8 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useBusiness } from "@/hooks/useBusiness";
 import {
   useCapitalOffer, useMyAdvance, useMyApplications, useAdvanceRepayments,
-  useApplyForCapital, useRecordRepayment,
+  useApplyForCapital, useMyAdvanceStatus,
+  useRecordRepayment,
 } from "@/hooks/useCapital";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ export default function Capital() {
   const { data: repayments = [] } = useAdvanceRepayments(advance?.id);
   const apply = useApplyForCapital();
   const record = useRecordRepayment();
+  const { data: advStatus } = useMyAdvanceStatus(bid);
 
   const [applyOpen, setApplyOpen] = useState(false);
   const [amount, setAmount] = useState(0);
@@ -160,7 +162,7 @@ export default function Capital() {
           </Card>
         )}
 
-        {status?.has_activity && (
+        {advStatus?.has_activity && (
           <Card className="p-6 space-y-4">
             <div className="font-semibold">Application &amp; disbursement status</div>
             <ol className="space-y-2 text-sm">
@@ -170,12 +172,12 @@ export default function Capital() {
                 { key: "approved", label: "Approved" },
                 { key: "disbursed", label: "Funds disbursed" },
               ].map((step) => {
-                const appStatus = status.application?.status ?? "";
-                const disb = status.advance?.disbursement_status ?? "";
+                const appStatus = advStatus.application?.status ?? "";
+                const disb = advStatus.advance?.disbursement_status ?? "";
                 const done =
                   step.key === "submitted" ? true
-                    : step.key === "under_review" ? ["under_review", "approved"].includes(appStatus) || !!status.advance
-                      : step.key === "approved" ? appStatus === "approved" || !!status.advance
+                    : step.key === "under_review" ? ["under_review", "approved"].includes(appStatus) || !!advStatus.advance
+                      : step.key === "approved" ? appStatus === "approved" || !!advStatus.advance
                         : disb === "disbursed";
                 return (
                   <li key={step.key} className="flex items-center gap-2">
@@ -186,36 +188,36 @@ export default function Capital() {
               })}
             </ol>
 
-            {status.advance && (
+            {advStatus.advance && (
               <div className="rounded-lg bg-muted/40 p-3 text-sm space-y-1">
                 <div className="flex justify-between">
                   <span>Disbursement</span>
-                  <span className="capitalize font-medium">{status.advance.disbursement_status}</span>
+                  <span className="capitalize font-medium">{advStatus.advance.disbursement_status}</span>
                 </div>
-                {status.advance.mpesa_disbursement_ref && (
+                {advStatus.advance.mpesa_disbursement_ref && (
                   <div className="flex justify-between">
                     <span>M-Pesa reference</span>
-                    <span className="font-mono text-xs">{status.advance.mpesa_disbursement_ref}</span>
+                    <span className="font-mono text-xs">{advStatus.advance.mpesa_disbursement_ref}</span>
                   </div>
                 )}
-                {status.advance.disbursement_error && (
+                {advStatus.advance.disbursement_error && (
                   <div className="text-destructive text-xs flex items-start gap-1">
                     <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
                     <span>
-                      We couldn't send your funds yet: {status.advance.disbursement_error}. Our team has been notified and will retry.
+                      We couldn't send your funds yet: {advStatus.advance.disbursement_error}. Our team has been notified and will retry.
                     </span>
                   </div>
                 )}
               </div>
             )}
 
-            {status.repayments.length > 0 && (
+            {advStatus.repayments.length > 0 && (
               <div>
                 <div className="text-sm font-semibold mb-2">Repayment activity</div>
                 <ul className="space-y-1 text-sm">
                   {(() => {
-                    let running = Number(status.advance?.total_owed_kes ?? 0);
-                    return status.repayments.map((r) => {
+                    let running = Number(advStatus.advance?.total_owed_kes ?? 0);
+                    return advStatus.repayments.map((r) => {
                       if (r.status === "paid") running -= Number(r.amount_kes);
                       return (
                         <li key={r.id} className="flex justify-between border-b border-border/40 py-1">
@@ -239,7 +241,7 @@ export default function Capital() {
 
             <div className="text-xs text-muted-foreground">
               Last synced with our lending partners:{" "}
-              {status.last_synced_at ? new Date(status.last_synced_at).toLocaleString() : "no partner activity yet"}
+              {advStatus.last_synced_at ? new Date(advStatus.last_synced_at).toLocaleString() : "no partner activity yet"}
             </div>
           </Card>
         )}
