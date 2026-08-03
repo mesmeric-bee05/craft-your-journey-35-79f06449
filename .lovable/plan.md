@@ -1,110 +1,64 @@
+# Capital Ops Hardening + Voice & Cultural Moat
 
-# SmartReach Capital — Go-Live & Ops Phase
+Two tracks. Track A finishes the Capital operations loop you listed. Track B starts the two Master-Document modules that are still completely absent from the codebase: the Voice Commerce Engine and the cultural-language layer (Swahili / Sheng' / Kenglish registers + Kenyan Business Calendar intelligence).
 
-Ship the pieces that turn the sandbox-ready Capital flow into a live, observable, and recoverable production system.
+## Verified current state
 
-## 1. Secrets: switch M-Pesa to live + cron auth
+- `capital_webhook_events` exists (partner_id, event, advance_id, headers, body, sig_valid, status, error, processed_at) with an admin-only read policy — but it has **no dedupe/idempotency column**, so a repeated partner delivery is logged and processed twice.
+- `capital_repayments` has **only a primary key** — no unique constraint on `checkout_request_id` or partner reference, so duplicate callbacks can insert duplicate repayment rows.
+- Cron alerting exists (`_shared/cron-alerts.ts`, Slack + audit log) but is wired only into `snapshot-health-scores` and `security-rescan-runner` — not into the capital webhook, disbursement, or repayment-cron paths.
+- `CapitalOpsPage` has CSV export for webhook events only, and a "Reprocess" button on failed events only.
+- No voice/speech code anywhere in `src/`, and no Sheng'/register-aware language layer beyond ad-hoc prompt text.
 
-Request via `add_secret` (user pastes values in the secure form):
+## Track A — Capital operations
 
-- `MPESA_ENV` = `production`
-- `MPESA_CONSUMER_KEY`, `MPESA_CONSUMER_SECRET` (Daraja app)
-- `MPESA_PASSKEY`, `MPESA_SHORTCODE` (STK — repayments)
-- `MPESA_B2C_SHORTCODE`, `MPESA_B2C_INITIATOR_NAME`, `MPESA_B2C_SECURITY_CREDENTIAL` (B2C — disbursement)
-- `CRON_SECRET` — generated via `generate_secret` (32 chars); required by `capital-repayment-cron` `x-cron-secret` header
+### A1. Idempotency (database + functions)
+- Migration: add `dedupe_key text` to `capital_webhook_events` with a unique index; add `unique (advance_id, checkout_request_id)` and a unique partial index on `(advance_id, source, external_reference)` to `capital_repayments`.
+- `capital-partner-webhook`: compute `dedupe_key` from partner id + event id (or HMAC signature digest when the partner sends no id). On conflict, log the event as `duplicate` and return 200 without reprocessing.
+- `record_capital_repayment` RPC: make the insert conflict-tolerant and return the existing repayment id instead of creating a second row; recompute advance balance from the repayment sum rather than incrementing.
+- `mpesa-b2c-disburse`: refuse to re-request a payout when `disbursement_status` is already `processing`/`disbursed` unless an explicit `force` flag from the admin retry action is set.
+- `mpesa-b2c-callback` and the STK repayment path become safe to call repeatedly.
 
-Format hints on each so pastes are validated (shortcode digits, env enum, credential length).
+### A2. Failure alerting
+- Extend `_shared/cron-alerts.ts` with a generic `notifyOpsFailure` (Slack blocks + audit row) carrying deep links to `/admin/capital/ops`, `/admin/health`, and `/security/findings`.
+- Fire it on: partner webhook signature failure or processing error, disbursement failure, repayment-cron failure, and stuck disbursements (status `processing` older than 30 minutes, detected by the repayment cron).
+- Email path reuses the existing transactional-email attempt and degrades silently if email infra is not provisioned.
 
-## 2. Schedule the daily STK repayment cron
+### A3. Per-event replay
+- Add a `replay_webhook` action to `capital-ops-admin` that re-runs the stored event body through the same handler as the live webhook, bypassing the dedupe guard for that single event, and writes a replay audit row (actor, event id, outcome).
+- Available on **every** event row (not just failed ones), rate-limited via `check_and_record_admin_action`, with inline per-row success/failure feedback and the resulting status badge refresh.
 
-Insert (via `supabase--insert`, not migration — contains project URL + anon key) a `pg_cron` job that hits the edge function daily at 09:00 Africa/Nairobi and passes the cron secret:
+### A4. Ops export (CSV + PDF)
+- Shared export helper covering webhook events, cron runs, and disbursement/repayment history with the active filters applied.
+- CSV as today; PDF via a client-side generator producing a paginated, branded audit report (title, filter summary, generated-at, row table).
 
-```text
-schedule: '0 6 * * *'  -- 06:00 UTC = 09:00 EAT
-job:      net.http_post(
-  url  => 'https://<project>.functions.supabase.co/capital-repayment-cron',
-  headers => '{"x-cron-secret":"<CRON_SECRET>","Content-Type":"application/json"}',
-  body => '{}')
-```
+### A5. User-facing Capital status page
+- New section on `/capital`: application timeline (submitted → under review → approved → disbursed), disbursement progress with M-Pesa reference and failure reason in plain language, repayment activity table with running balance, and a "last synced" line showing the latest webhook/cron timestamp for that advance.
+- Backed by a security-definer RPC returning only the owner's advance status/timestamps — no partner or admin fields exposed.
 
-Wrap the call so the returned `request_id` is logged into `cron_job_runs` (existing table) with job_name `capital-repayment-daily`. Add a manual "Run now" admin button on the ops dashboard that calls the same function with the secret via a thin server-side edge proxy (never exposing the secret to the client).
+## Track B — Voice & cultural moat (first shippable slice)
 
-## 3. Validate the HMAC partner webhook
+### B1. Voice Commerce Engine (MVP)
+- `VoiceCommandBar`: hold-to-talk mic control available from the dashboard shell, using the browser speech API with a graceful "not supported" fallback.
+- `voice-command` edge function: transcribed text → intent classification (sales query, stock update, inventory reorder, campaign draft) → executes against existing hooks/tables, returning a spoken-style reply plus a structured confirmation card. Write actions always require explicit confirmation.
+- Supported first intents: "today's sales", "low stock", "add N units of X", "unpaid invoices".
+- Language auto-detection across English / Swahili / Sheng' with the reply rendered in the detected language.
 
-Add `supabase/functions/capital-partner-webhook-test/index.ts` — admin-only helper that:
+### B2. Cultural language layer
+- Central `src/lib/culture/` module: register detection (casual Sheng', professional Swahili, Kenglish code-switch), a curated phrase/lexicon map, and a shared system-prompt builder used by content generation, reply suggestions, Biashara Mind, and the voice assistant, so tone is consistent everywhere.
+- Business-wide language/register preference in `user_settings`, surfaced in Settings.
 
-- accepts `{ partner_id, event, advance_id, amount_kes? }`
-- fetches the partner's plaintext secret from a new one-time `rotate_capital_partner_secret` cache (see below) OR asks admin to paste it,
-- computes `fingerprint = sha256(plaintext)` and `signature = sha256(fingerprint + "\n" + body)`,
-- POSTs to the real webhook, returns status + parsed response.
+### B3. Kenyan Business Calendar Intelligence
+- Seeded calendar of Kenyan business cycles (school-fee rushes in Jan/May/Aug/Nov, Eid al-Fitr, Eid al-Adha, Christmas, Easter, Mashujaa Day, Jamhuri Day, harvest windows).
+- Dashboard/marketing surface: "coming up in 2-4 weeks" cards with a one-click campaign draft prefilled by the cultural prompt builder.
 
-UI: new "Test webhook" dialog on `/admin/capital/partners` (new tab in `CapitalAdmin`) with event picker, advance selector, dry-run toggle, and response viewer. Success writes to `capital_audit` with action `capital.partner.test`.
+## Explicitly deferred (Series A/B in the document, not in this plan)
 
-## 4. Retry actions with status feedback
+Autonomous multi-agent campaign manager, blockchain-verified work history and supply-chain trust network, AR product visualisation, multi-currency pan-African payment stack, carbon/ESG reporting, KRA auto-filing. Each is its own phase and depends on Track A/B landing first.
 
-New admin actions (all admin-only edge functions, all audited):
+## Technical notes
 
-- **Retry disbursement** — `mpesa-b2c-disburse` already idempotent on `disbursement_status != 'disbursed'`; add explicit `retry=true` path that clears `disbursement_error` and re-invokes. Button appears on advances with `disbursement_status in ('failed','processing_stale')`.
-- **Retry repayment** — new `capital-repayment-retry` function: given a `capital_repayments.id` with status `pending`/`failed`, re-queries Daraja `stkpushquery` and updates status, or re-issues STK if expired. Button on repayment rows in audit page.
-- **Reprocess webhook event** — persist raw webhook payloads in new `capital_webhook_events` table (id, partner_id, headers, body, sig_valid, status, error, created_at); "Reprocess" replays the event through the same handler using service role. Button on failed rows.
-
-Each action returns `{ ok, message, next_status }` and the UI shows a toast + inline status pill (`queued`, `processing`, `succeeded`, `failed`).
-
-## 5. Ops dashboard: `/admin/capital/ops`
-
-New page with three tabs, all admin-only:
-
-- **Cron runs** — reuse `cron_job_runs` + existing `CronRunsTimeline` filtered to `capital-*` jobs; shows last run, duration, rows affected, next scheduled time, "Run now" button.
-- **Webhook events** — table from `capital_webhook_events` with columns: partner, event, advance, sig_valid, status, error, created_at; row expander shows raw body; filters by partner/status/date; reprocess button per row.
-- **Disbursement & repayment errors** — joined view of `capital_advances` (failed disbursements) + `capital_repayments` (failed/pending>24h) with retry buttons.
-
-Existing `/admin/capital/audit` page stays as the who/what/when log; add a top-nav link to Ops.
-
-## Technical details
-
-### Migration
-```sql
--- capital_webhook_events for durable, replayable ingestion
-CREATE TABLE public.capital_webhook_events (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  partner_id uuid REFERENCES public.capital_partners(id),
-  event text NOT NULL,
-  advance_id uuid,
-  headers jsonb NOT NULL DEFAULT '{}',
-  body jsonb NOT NULL,
-  sig_valid boolean NOT NULL,
-  status text NOT NULL DEFAULT 'received',
-  error text,
-  processed_at timestamptz,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-GRANT SELECT ON public.capital_webhook_events TO authenticated;
-GRANT ALL   ON public.capital_webhook_events TO service_role;
-ALTER TABLE public.capital_webhook_events ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Admins read webhook events"
-  ON public.capital_webhook_events FOR SELECT TO authenticated
-  USING (public.is_admin(auth.uid()));
-```
-
-`capital-partner-webhook` writes to this table before dispatching, so a handler crash leaves a replayable row.
-
-### Files
-- `supabase/migrations/<ts>_capital_ops.sql`
-- `supabase/functions/capital-repayment-retry/index.ts`
-- `supabase/functions/capital-partner-webhook-test/index.ts`
-- `supabase/functions/capital-cron-trigger/index.ts` (secure "Run now" proxy)
-- edits: `capital-partner-webhook/index.ts` (persist events), `mpesa-b2c-disburse/index.ts` (retry flag)
-- `src/pages/admin/CapitalOpsPage.tsx` + `src/hooks/useCapitalOps.tsx`
-- `src/components/capital/{WebhookEventsTable,DisbursementErrorsTable,PartnerTestDialog}.tsx`
-- routing in `src/App.tsx`
-
-### Sequencing
-1. Request secrets (blocks live testing but not code).
-2. Migration + audit table.
-3. Retry + reprocess edge functions.
-4. Ops dashboard UI wired to real tables.
-5. Cron insert via `supabase--insert` once `CRON_SECRET` exists.
-6. Partner webhook end-to-end test using the test helper; confirm `capital_repayments` + `capital_audit` rows land.
-
-### Out of scope
-No new SACCO, PWA, or landing-page work. Daraja stays until user confirms production credentials are valid.
+- All new SQL goes through one migration per track step with explicit `GRANT`s and RLS policies; admin-only surfaces continue to use `is_admin(auth.uid())` plus `check_and_record_admin_action` rate limiting.
+- Webhook and replay handlers share a single extracted handler module under `supabase/functions/_shared/` so live and replayed events can never diverge.
+- Voice write actions reuse existing hooks and RLS paths — no new privileged write path.
+- Typecheck and build after each track step.
