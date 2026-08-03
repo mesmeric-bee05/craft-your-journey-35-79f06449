@@ -37,6 +37,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, secureResponse } from "../_shared/security-headers.ts";
 import { rateLimit } from "../_shared/rate-limiter.ts";
 import { logError, logSecurityEvent } from "../_shared/errors.ts";
+import { notifyOpsFailure } from "../_shared/cron-alerts.ts";
+import {
+  computeDedupeKey,
+  handleCapitalEvent,
+  type CapitalEventBody,
+} from "../_shared/capital-webhook-handler.ts";
 
 const Event = z.object({
   event: z.enum(["repayment.recorded", "advance.written_off", "advance.status"]),
@@ -67,6 +73,11 @@ Deno.serve(async (req) => {
     return secureResponse(JSON.stringify({ error: "Method not allowed" }), 405, corsHeaders);
   }
 
+  const svc = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+
   try {
     const partnerId = req.headers.get("x-partner-id");
     const fingerprint = req.headers.get("x-fingerprint");
@@ -84,11 +95,6 @@ Deno.serve(async (req) => {
       return rl.response!;
     }
 
-    const svc = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
-
     const { data: partner } = await svc.from("capital_partners")
       .select("id, name, webhook_secret_hash, is_active")
       .eq("id", partnerId)
@@ -96,11 +102,25 @@ Deno.serve(async (req) => {
 
     if (!partner || !partner.is_active || !partner.webhook_secret_hash) {
       logSecurityEvent("capital_partner_unknown", { partnerId });
+      await notifyOpsFailure(svc, {
+        source: "capital-partner-webhook",
+        code: "partner_unknown_or_inactive",
+        title: "Capital webhook rejected: unknown or inactive partner",
+        detail: `Partner id ${partnerId} is unknown, inactive, or has no webhook secret.`,
+        context: { partner_id: partnerId },
+      });
       return secureResponse(JSON.stringify({ error: "Unauthorized" }), 401, corsHeaders);
     }
 
     if (!timingSafeEqual(fingerprint, partner.webhook_secret_hash)) {
       logSecurityEvent("capital_partner_bad_fingerprint", { partnerId });
+      await notifyOpsFailure(svc, {
+        source: "capital-partner-webhook",
+        code: "fingerprint_invalid",
+        title: "Capital webhook rejected: bad secret fingerprint",
+        detail: `Fingerprint mismatch for partner ${partner.name}.`,
+        context: { partner_id: partnerId },
+      });
       return secureResponse(JSON.stringify({ error: "Unauthorized" }), 401, corsHeaders);
     }
 
@@ -109,6 +129,13 @@ Deno.serve(async (req) => {
     const expected = await sha256Hex(`${fingerprint}\n${rawBody}`);
     if (!timingSafeEqual(signature.replace(/^sha256=/, ""), expected)) {
       logSecurityEvent("capital_partner_bad_signature", { partnerId });
+      await notifyOpsFailure(svc, {
+        source: "capital-partner-webhook",
+        code: "signature_invalid",
+        title: "Capital webhook rejected: invalid signature",
+        detail: `Signature verification failed for partner ${partner.name}.`,
+        context: { partner_id: partnerId },
+      });
       return secureResponse(JSON.stringify({ error: "Bad signature" }), 401, corsHeaders);
     }
 
@@ -124,9 +151,22 @@ Deno.serve(async (req) => {
       );
     }
     const ev = parsed.data;
+    const dedupeKey = await computeDedupeKey(partner.id, ev as CapitalEventBody, rawBody);
+
+    // Idempotency: a repeated delivery is logged once and never reprocessed.
+    const { data: existing } = await svc.from("capital_webhook_events")
+      .select("id, status")
+      .eq("dedupe_key", dedupeKey)
+      .maybeSingle();
+    if (existing) {
+      logSecurityEvent("capital_partner_duplicate", { partnerId, event: ev.event });
+      return secureResponse(JSON.stringify({
+        ok: true, duplicate: true, event_id: existing.id, status: existing.status,
+      }), 200, corsHeaders);
+    }
 
     // Persist inbound event for audit + retry
-    const { data: evRow } = await svc.from("capital_webhook_events").insert({
+    const { data: evRow, error: insErr } = await svc.from("capital_webhook_events").insert({
       partner_id: partner.id,
       event: ev.event,
       advance_id: ev.advance_id,
@@ -134,77 +174,67 @@ Deno.serve(async (req) => {
       body: payload as Record<string, unknown>,
       sig_valid: true,
       status: "processing",
+      dedupe_key: dedupeKey,
     }).select("id").single();
+
+    // Unique-index violation === concurrent duplicate delivery.
+    if (insErr) {
+      if ((insErr as { code?: string }).code === "23505") {
+        return secureResponse(JSON.stringify({ ok: true, duplicate: true }), 200, corsHeaders);
+      }
+      throw insErr;
+    }
     const eventRowId = (evRow as { id: string } | null)?.id ?? null;
 
     try {
-      const { data: advance } = await svc.from("capital_advances")
-        .select("id, business_id, status")
-        .eq("id", ev.advance_id).maybeSingle();
-      if (!advance) {
-        if (eventRowId) await svc.from("capital_webhook_events").update({
-          status: "failed", error: "advance_not_found", processed_at: new Date().toISOString(),
+      const outcome = await handleCapitalEvent(svc, ev as CapitalEventBody, partner.id);
+
+      if (eventRowId) {
+        await svc.from("capital_webhook_events").update({
+          status: outcome.ok ? "processed" : "failed",
+          error: outcome.ok ? null : outcome.code,
+          processed_at: new Date().toISOString(),
         }).eq("id", eventRowId);
-        return secureResponse(JSON.stringify({ error: "Advance not found" }), 404, corsHeaders);
       }
 
-      let repaymentId: string | null = null;
-
-      if (ev.event === "repayment.recorded") {
-        if (!ev.amount_kes) {
-          if (eventRowId) await svc.from("capital_webhook_events").update({
-            status: "failed", error: "amount_kes_required", processed_at: new Date().toISOString(),
-          }).eq("id", eventRowId);
-          return secureResponse(JSON.stringify({ error: "amount_kes required" }), 400, corsHeaders);
-        }
-        const { data, error } = await svc.rpc("record_capital_repayment", {
-          p_advance_id: ev.advance_id,
-          p_amount: ev.amount_kes,
-          p_reference: ev.reference ?? null,
-          p_source: "partner",
-          p_partner_id: partner.id,
-          p_checkout_request_id: null,
+      if (!outcome.ok) {
+        await notifyOpsFailure(svc, {
+          source: "capital-partner-webhook",
+          code: outcome.code,
+          title: "Capital webhook processing failed",
+          detail: `Event ${ev.event} for advance ${ev.advance_id} failed: ${outcome.code}`,
+          context: { partner_id: partner.id, event_id: eventRowId, event: ev.event },
         });
-        if (error) throw error;
-        repaymentId = data as string;
-      } else if (ev.event === "advance.written_off") {
-        await svc.from("capital_advances").update({
-          status: "defaulted", closed_at: new Date().toISOString(),
-        }).eq("id", ev.advance_id);
-        await svc.from("capital_audit").insert({
-          business_id: advance.business_id,
-          action: "capital.advance.written_off",
-          entity_type: "capital_advance", entity_id: ev.advance_id,
-          metadata: { partner_id: partner.id, reference: ev.reference },
-        });
-      } else if (ev.event === "advance.status" && ev.status) {
-        await svc.from("capital_advances").update({ status: ev.status }).eq("id", ev.advance_id);
-        await svc.from("capital_audit").insert({
-          business_id: advance.business_id,
-          action: "capital.advance.status",
-          entity_type: "capital_advance", entity_id: ev.advance_id,
-          metadata: { partner_id: partner.id, new_status: ev.status },
-        });
+        const status = outcome.code === "advance_not_found" ? 404 : 400;
+        return secureResponse(
+          JSON.stringify({ error: outcome.code, event_id: eventRowId }), status, corsHeaders
+        );
       }
 
       await svc.from("capital_partners").update({
         last_event_at: new Date().toISOString(),
       }).eq("id", partner.id);
 
-      if (eventRowId) await svc.from("capital_webhook_events").update({
-        status: "processed", processed_at: new Date().toISOString(),
-      }).eq("id", eventRowId);
-
       logSecurityEvent("capital_partner_event", { partnerId, event: ev.event });
-      return secureResponse(
-        JSON.stringify({ ok: true, repayment_id: repaymentId, event_id: eventRowId }), 200, corsHeaders
-      );
+      return secureResponse(JSON.stringify({
+        ok: true,
+        repayment_id: (outcome.detail?.repayment_id as string | undefined) ?? null,
+        event_id: eventRowId,
+      }), 200, corsHeaders);
     } catch (innerErr) {
+      const message = (innerErr as Error).message ?? "processing_error";
       if (eventRowId) await svc.from("capital_webhook_events").update({
         status: "failed",
-        error: (innerErr as Error).message ?? "processing_error",
+        error: message,
         processed_at: new Date().toISOString(),
       }).eq("id", eventRowId);
+      await notifyOpsFailure(svc, {
+        source: "capital-partner-webhook",
+        code: "processing_exception",
+        title: "Capital webhook threw during processing",
+        detail: message,
+        context: { partner_id: partner.id, event_id: eventRowId, event: ev.event },
+      });
       throw innerErr;
     }
   } catch (err) {
@@ -212,3 +242,4 @@ Deno.serve(async (req) => {
     return secureResponse(JSON.stringify({ error: "Internal error" }), 500, corsHeaders);
   }
 });
+
