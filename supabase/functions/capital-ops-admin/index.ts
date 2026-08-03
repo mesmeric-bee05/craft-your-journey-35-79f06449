@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
           "Content-Type": "application/json",
           Authorization: req.headers.get("Authorization") ?? `Bearer ${serviceKey}`,
         },
-        body: JSON.stringify({ advance_id }),
+        body: JSON.stringify({ advance_id, force: true }),
       });
       const result = await r.json();
 
