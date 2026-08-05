@@ -19,11 +19,16 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { Banknote, TrendingUp, Shield, AlertCircle } from "lucide-react";
+import { useCulture } from "@/lib/culture/CultureProvider";
+import { LanguageToneSwitcher } from "@/components/culture/LanguageToneSwitcher";
+import { CapitalJourney } from "@/components/capital/CapitalJourney";
+import { CapitalVoiceAssistant } from "@/components/capital/CapitalVoiceAssistant";
 
 const fmtKES = (n: number) => `KES ${Math.round(n).toLocaleString()}`;
 
 export default function Capital() {
   const { business } = useBusiness();
+  const { t } = useCulture();
   const bid = business?.id;
   const { data: offer, isLoading } = useCapitalOffer(bid);
   const { data: advance } = useMyAdvance(bid);
@@ -70,16 +75,17 @@ export default function Capital() {
     <DashboardLayout>
       <Helmet><title>SmartReach Capital — Financing</title></Helmet>
       <div className="p-6 space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-            <Banknote className="h-7 w-7 text-primary" /> SmartReach Capital
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Revenue-based financing tied to your SmartReach Score. No fixed monthly payments — repay a small share of your daily M-Pesa income.
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+              <Banknote className="h-7 w-7 text-primary" /> {t.capitalTitle}
+            </h1>
+            <p className="text-muted-foreground mt-1 max-w-2xl">{t.capitalSubtitle}</p>
+          </div>
+          <LanguageToneSwitcher />
         </div>
 
-        {isLoading && <Card className="p-6 text-muted-foreground">Computing your offer…</Card>}
+        {isLoading && <Card className="p-6 text-muted-foreground">{t.computingOffer}</Card>}
 
         {offer && !advance && (
           <Card className="p-6 bg-gradient-to-br from-emerald-900/30 to-background border-emerald-500/20">
@@ -87,26 +93,26 @@ export default function Capital() {
               <div className="space-y-4">
                 <div className="flex items-start justify-between gap-4 flex-wrap">
                   <div>
-                    <div className="text-sm text-muted-foreground">You're pre-approved for up to</div>
+                    <div className="text-sm text-muted-foreground">{t.preApprovedFor}</div>
                     <div className="text-4xl font-bold text-emerald-400">{fmtKES(offer.max_advance_kes)}</div>
                     <div className="text-sm text-muted-foreground mt-1">
-                      Total repayment: {fmtKES(offer.max_advance_kes * (offer.factor ?? 1))} · factor ×{offer.factor}
+                      {t.totalRepayment}: {fmtKES(offer.max_advance_kes * (offer.factor ?? 1))} · factor ×{offer.factor}
                     </div>
                   </div>
-                  <Button size="lg" onClick={openApply}>Apply for advance</Button>
+                  <Button size="lg" onClick={openApply}>{t.applyCta}</Button>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-4 border-t border-border/50">
-                  <Stat label="SmartReach Score" value={String(offer.score)} icon={TrendingUp} />
-                  <Stat label="30-day M-Pesa GMV" value={fmtKES(offer.monthly_gmv_kes)} icon={Banknote} />
-                  <Stat label="Business age" value={`${offer.business_age_days} days`} icon={Shield} />
-                  <Stat label="Revenue share" value={`${offer.revenue_share_min_pct}–${offer.revenue_share_max_pct}%`} icon={TrendingUp} />
+                  <Stat label={t.score} value={String(offer.score)} icon={TrendingUp} />
+                  <Stat label={t.monthlyGmv} value={fmtKES(offer.monthly_gmv_kes)} icon={Banknote} />
+                  <Stat label={t.businessAge} value={`${offer.business_age_days} days`} icon={Shield} />
+                  <Stat label={t.revenueShare} value={`${offer.revenue_share_min_pct}–${offer.revenue_share_max_pct}%`} icon={TrendingUp} />
                 </div>
               </div>
             ) : (
               <div className="flex items-start gap-3">
                 <AlertCircle className="h-5 w-5 text-amber-500 mt-0.5" />
                 <div>
-                  <div className="font-semibold mb-1">Not eligible yet</div>
+                  <div className="font-semibold mb-1">{t.notEligible}</div>
                   <p className="text-sm text-muted-foreground">{offer.reason}</p>
                 </div>
               </div>
@@ -118,22 +124,22 @@ export default function Capital() {
           <Card className="p-6 space-y-4">
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div>
-                <div className="text-sm text-muted-foreground">Active advance</div>
+                <div className="text-sm text-muted-foreground">{t.activeAdvance}</div>
                 <div className="text-3xl font-bold">{fmtKES(Number(advance.principal_kes))}</div>
-                <div className="text-sm text-muted-foreground">Disbursed {new Date(advance.disbursed_at).toLocaleDateString()}</div>
+                <div className="text-sm text-muted-foreground">{t.disbursedOn} {new Date(advance.disbursed_at).toLocaleDateString()}</div>
               </div>
               <Badge className="bg-emerald-500/15 text-emerald-500 border-emerald-500/30" variant="outline">Active</Badge>
             </div>
             <div>
               <div className="flex justify-between text-sm mb-2">
-                <span>Repaid {fmtKES(repaid)}</span>
-                <span className="text-muted-foreground">Balance {fmtKES(balance)}</span>
+                <span>{t.repaid} {fmtKES(repaid)}</span>
+                <span className="text-muted-foreground">{t.balance} {fmtKES(balance)}</span>
               </div>
               <Progress value={pctRepaid} />
             </div>
             <div className="flex gap-2 items-end pt-2 border-t border-border/50">
               <div className="flex-1">
-                <Label className="text-xs">Record a manual repayment (KES)</Label>
+                <Label className="text-xs">{t.recordRepayment}</Label>
                 <Input type="number" value={repayAmount} onChange={(e) => setRepayAmount(e.target.value)} />
               </div>
               <Button
@@ -144,11 +150,11 @@ export default function Capital() {
                   setRepayAmount("");
                 }}
                 disabled={!repayAmount || record.isPending}
-              >Record</Button>
+              >{t.record}</Button>
             </div>
             {repayments.length > 0 && (
               <div className="pt-2">
-                <div className="text-sm font-semibold mb-2">Repayment history</div>
+                <div className="text-sm font-semibold mb-2">{t.repaymentHistory}</div>
                 <ul className="space-y-1 text-sm">
                   {repayments.slice(0, 8).map((r: { id: string; amount_kes: number; source: string; scheduled_for: string | null; status: string }) => (
                     <li key={r.id} className="flex justify-between border-b border-border/40 py-1">
@@ -164,13 +170,13 @@ export default function Capital() {
 
         {advStatus?.has_activity && (
           <Card className="p-6 space-y-4">
-            <div className="font-semibold">Application &amp; disbursement status</div>
+            <div className="font-semibold">{t.statusHeading}</div>
             <ol className="space-y-2 text-sm">
               {[
-                { key: "submitted", label: "Application submitted" },
-                { key: "under_review", label: "Under review" },
-                { key: "approved", label: "Approved" },
-                { key: "disbursed", label: "Funds disbursed" },
+                { key: "submitted", label: t.stepSubmitted },
+                { key: "under_review", label: t.stepUnderReview },
+                { key: "approved", label: t.stepApproved },
+                { key: "disbursed", label: t.stepDisbursed },
               ].map((step) => {
                 const appStatus = advStatus.application?.status ?? "";
                 const disb = advStatus.advance?.disbursement_status ?? "";
@@ -191,12 +197,12 @@ export default function Capital() {
             {advStatus.advance && (
               <div className="rounded-lg bg-muted/40 p-3 text-sm space-y-1">
                 <div className="flex justify-between">
-                  <span>Disbursement</span>
+                  <span>{t.disbursement}</span>
                   <span className="capitalize font-medium">{advStatus.advance.disbursement_status}</span>
                 </div>
                 {advStatus.advance.mpesa_disbursement_ref && (
                   <div className="flex justify-between">
-                    <span>M-Pesa reference</span>
+                    <span>{t.mpesaRef}</span>
                     <span className="font-mono text-xs">{advStatus.advance.mpesa_disbursement_ref}</span>
                   </div>
                 )}
@@ -204,7 +210,7 @@ export default function Capital() {
                   <div className="text-destructive text-xs flex items-start gap-1">
                     <AlertCircle className="h-3 w-3 mt-0.5 shrink-0" />
                     <span>
-                      We couldn't send your funds yet: {advStatus.advance.disbursement_error}. Our team has been notified and will retry.
+                      {t.disbursementFailed}: {advStatus.advance.disbursement_error}
                     </span>
                   </div>
                 )}
@@ -213,7 +219,7 @@ export default function Capital() {
 
             {advStatus.repayments.length > 0 && (
               <div>
-                <div className="text-sm font-semibold mb-2">Repayment activity</div>
+                <div className="text-sm font-semibold mb-2">{t.repaymentActivity}</div>
                 <ul className="space-y-1 text-sm">
                   {(() => {
                     let running = Number(advStatus.advance?.total_owed_kes ?? 0);
@@ -240,11 +246,30 @@ export default function Capital() {
             )}
 
             <div className="text-xs text-muted-foreground">
-              Last synced with our lending partners:{" "}
-              {advStatus.last_synced_at ? new Date(advStatus.last_synced_at).toLocaleString() : "no partner activity yet"}
+              {t.lastSynced}:{" "}
+              {advStatus.last_synced_at ? new Date(advStatus.last_synced_at).toLocaleString() : t.noPartnerActivity}
             </div>
           </Card>
         )}
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <CapitalJourney
+            currentStage={
+              advance
+                ? (advStatus?.advance?.disbursement_status === "disbursed" || advance.disbursed_at ? 3 : 2)
+                : apps.length > 0
+                  ? 2
+                  : offer?.eligible
+                    ? 1
+                    : 0
+            }
+            onAction={(stage) => {
+              if (stage === 2 && offer?.eligible && !advance) openApply();
+              else if (stage <= 1) window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+          />
+          <CapitalVoiceAssistant businessId={bid} />
+        </div>
 
 
         {apps.length > 0 && (

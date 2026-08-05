@@ -9,7 +9,8 @@ import { SLASettings } from '@/components/settings/SLASettings';
 import { CSATSettings } from '@/components/settings/CSATSettings';
 import { CannedResponsesSettings } from '@/components/settings/CannedResponsesSettings';
 import { TeamSettings } from '@/components/settings/TeamSettings';
-import { User, Bell, Link2, Shield, Clock, Star, MessageSquare, Users, Building2 } from 'lucide-react';
+import { NotificationPreferenceCenter } from '@/components/settings/NotificationPreferenceCenter';
+import { User, Bell, Link2, Shield, Clock, Star, MessageSquare, Users, Building2, BellRing } from 'lucide-react';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 export default function Settings() {
@@ -41,6 +42,10 @@ export default function Settings() {
               <TabsTrigger value="notifications" className="gap-2">
                 <Bell className="h-4 w-4" />
                 <span className="hidden sm:inline">Notifications</span>
+              </TabsTrigger>
+              <TabsTrigger value="alerts" className="gap-2">
+                <BellRing className="h-4 w-4" />
+                <span className="hidden sm:inline">Alerts &amp; Language</span>
               </TabsTrigger>
               <TabsTrigger value="channels" className="gap-2">
                 <Link2 className="h-4 w-4" />
@@ -82,9 +87,14 @@ export default function Settings() {
             <NotificationSettings />
           </TabsContent>
 
+          <TabsContent value="alerts">
+            <NotificationPreferenceCenter />
+          </TabsContent>
+
           <TabsContent value="channels">
             <ChannelSettings />
           </TabsContent>
+
 
           <TabsContent value="sla">
             <SLASettings />
