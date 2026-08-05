@@ -31,6 +31,7 @@ import {
   Brain,
   MapPin,
   Globe,
+  Banknote,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
@@ -52,6 +53,7 @@ import { useSessionTimeout } from '@/hooks/useSessionTimeout';
 import { supabase } from '@/integrations/supabase/client';
 import { useBusiness } from '@/hooks/useBusiness';
 import { useQuery } from '@tanstack/react-query';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 
 interface NavItem {
   label: string;
@@ -82,10 +84,15 @@ const mainNavItems: NavItem[] = [
   { label: 'Biashara Mind', icon: Brain, href: '/wellness' },
 ];
 
-const bottomNavItems: NavItem[] = [
+interface BottomNavItem extends NavItem {
+  adminOnly?: boolean;
+}
+
+const bottomNavItems: BottomNavItem[] = [
   { label: 'Settings', icon: Settings, href: '/settings' },
-  { label: 'System Health', icon: Zap, href: '/admin/health' },
-  { label: 'SEO Monitor', icon: Search, href: '/admin/seo' },
+  { label: 'System Health', icon: Zap, href: '/admin/health', adminOnly: true },
+  { label: 'SEO Monitor', icon: Search, href: '/admin/seo', adminOnly: true },
+  { label: 'Capital Ops', icon: Banknote, href: '/admin/capital/ops', adminOnly: true },
   { label: 'Help Center', icon: HelpCircle, href: '/help' },
 ];
 
@@ -116,6 +123,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const { user, signOut } = useAuth();
   const { profile } = useUserProfile();
   const { business } = useBusiness();
+  const { isAdmin } = useIsAdmin();
   useSessionTimeout();
 
   // Dynamic unread count for inbox badge
@@ -221,7 +229,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
           {/* Bottom Navigation */}
           <div className="px-4 py-4 border-t border-sidebar-border space-y-1">
-            {bottomNavItems.map((item) => {
+            {bottomNavItems.filter((item) => !item.adminOnly || isAdmin).map((item) => {
               const isActive = location.pathname === item.href;
               return (
                 <Link
