@@ -96,16 +96,23 @@ export function CapitalVoiceAssistant({ businessId, onConfirmDetails, onRetry, o
           throw new Error(detail);
         }
         const answer = (data as { answer?: string })?.answer ?? "";
+        const intent = ((data as { intent?: VoiceIntent })?.intent ?? "status") as VoiceIntent;
         if (!answer) throw new Error("No answer returned");
         setTurns((prev) => [...prev, { role: "assistant", text: answer }]);
         speak(answer);
+
+        // Voice never mutates on its own: read-only intents run immediately,
+        // state-changing intents wait for an explicit on-screen confirmation.
+        if (intent === "documents") onShowDocuments?.();
+        else if (intent === "confirm_details" || intent === "retry") setPendingIntent(intent);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Voice assistant failed");
       } finally {
         setThinking(false);
       }
     },
-    [businessId, pref.locale, pref.tone, speak],
+    [businessId, pref.locale, pref.tone, speak, onShowDocuments],
+
   );
 
   const startListening = useCallback(() => {
