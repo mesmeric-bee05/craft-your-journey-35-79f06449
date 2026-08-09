@@ -345,15 +345,19 @@ async function postOpsSlack(p: OpsAlertPayload): Promise<{ ok: boolean; reason?:
 // deno-lint-ignore no-explicit-any
 export async function notifyOpsFailure(svc: any, p: OpsAlertPayload): Promise<void> {
   const startedAt = new Date().toISOString();
+  const policy = await resolveAlertPolicy(svc);
+  if (policy.muted) return;
+  if (await throttled(svc, "ops.failure_alert", p.code, policy.windowMinutes)) return;
   const [slack, email] = await Promise.all([
-    postOpsSlack(p),
-    postEmail({
+    policy.slack ? postOpsSlack(p) : Promise.resolve({ ok: false, reason: "disabled_by_preference" }),
+    policy.email ? postEmail({
       jobName: `${p.source}:${p.code}`,
       status: "failure",
       errorText: `${p.title}\n${p.detail}`,
       startedAt,
-    }),
+    }) : Promise.resolve({ ok: false, reason: "disabled_by_preference" }),
   ]);
+  await notifyInApp(svc, policy.inAppUserIds, p.title, p.detail, `${appBaseUrl()}/admin/capital/ops`);
   try {
     await svc.from("audit_logs").insert({
       action: "ops.failure_alert",
@@ -366,6 +370,7 @@ export async function notifyOpsFailure(svc: any, p: OpsAlertPayload): Promise<vo
         at: startedAt,
         slack: slack.ok ? "sent" : `skip:${slack.reason}`,
         email: email.ok ? "sent" : `skip:${email.reason}`,
+        in_app: policy.inAppUserIds.length,
       },
     });
   } catch (_) { /* ignore */ }
