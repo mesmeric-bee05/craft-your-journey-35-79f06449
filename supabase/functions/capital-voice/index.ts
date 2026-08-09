@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
     const payload = await aiRes.json();
     const answer = payload?.choices?.[0]?.message?.content?.trim();
     if (!answer) return json({ error: "No answer generated" }, 502);
-    return json({ answer });
+    return json({ answer, intent });
   } catch (e) {
     console.error("[capital-voice] error", e);
     return json({ error: e instanceof Error ? e.message : "Unexpected error" }, 500);
