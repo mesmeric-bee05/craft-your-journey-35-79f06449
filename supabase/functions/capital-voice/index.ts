@@ -17,6 +17,23 @@ function sanitize(input: string): string {
     .slice(0, 500);
 }
 
+export type VoiceIntent = "confirm_details" | "retry" | "documents" | "status";
+
+/**
+ * Keyword intent detection across English, Kiswahili, Sheng' and Kenglish.
+ * Intents never mutate data on their own — the client always asks the owner to
+ * confirm on screen before any action runs.
+ */
+function detectIntent(q: string): VoiceIntent {
+  const s = q.toLowerCase();
+  if (/(confirm|thibitisha|hakikisha|check my details|review (my )?details|sahihi)/.test(s)) return "confirm_details";
+  if (/(retry|try again|jaribu tena|rudia|refresh|angalia upya)/.test(s)) return "retry";
+  if (/(document|documents|nyaraka|hati|papers|karatasi|requirement|inahitajika)/.test(s)) return "documents";
+  return "status";
+}
+
+
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const json = (body: unknown, status = 200) =>
