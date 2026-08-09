@@ -30,15 +30,29 @@ interface Turn {
   text: string;
 }
 
-export function CapitalVoiceAssistant({ businessId }: { businessId: string | undefined }) {
+type VoiceIntent = "confirm_details" | "retry" | "documents" | "status";
+
+interface Props {
+  businessId: string | undefined;
+  /** Opens the on-screen details review/confirm step. */
+  onConfirmDetails?: () => void;
+  /** Refreshes the owner's advance status. */
+  onRetry?: () => void;
+  /** Reveals the required-documents checklist. */
+  onShowDocuments?: () => void;
+}
+
+export function CapitalVoiceAssistant({ businessId, onConfirmDetails, onRetry, onShowDocuments }: Props) {
   const { t, pref, speechLang } = useCulture();
   const [turns, setTurns] = useState<Turn[]>([]);
   const [draft, setDraft] = useState("");
   const [listening, setListening] = useState(false);
   const [thinking, setThinking] = useState(false);
   const [speakEnabled, setSpeakEnabled] = useState(true);
+  const [pendingIntent, setPendingIntent] = useState<Exclude<VoiceIntent, "status" | "documents"> | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const supportsVoice = !!getRecognitionCtor();
+
 
   const speak = useCallback(
     (text: string) => {
