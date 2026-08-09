@@ -32,6 +32,30 @@ Deno.serve(async (req) => {
     const robots = await fetch(`${SITE_URL.replace(/\/$/, "")}/robots.txt`, { method: "HEAD" });
     const sitemap = await fetch(SITEMAP_URL, { method: "HEAD" });
 
+    // Ownership pre-check: submitting a sitemap for a site the connected Google
+    // account does not own returns a permanent 403. That is a setup gap, not a
+    // job failure — record it as "skipped" with actionable guidance and no alert.
+    const sites = await gscFetch(`/webmasters/v3/sites`);
+    const owned = Array.isArray((sites.body as { siteEntry?: Array<{ siteUrl: string }> } | null)?.siteEntry)
+      ? (sites.body as { siteEntry: Array<{ siteUrl: string; permissionLevel?: string }> }).siteEntry
+      : [];
+    const normalized = SITE_URL.replace(/\/$/, "");
+    const match = owned.find((s) => s.siteUrl.replace(/\/$/, "") === normalized);
+    if (sites.ok && !match) {
+      const note =
+        `Site ${SITE_URL} is not verified in the connected Google Search Console account. ` +
+        `Verify ownership in Search Console (or run the site verification action on /admin/seo), then this job will submit the sitemap automatically.`;
+      await logRun(svc, "skipped", {
+        duration_ms: Date.now() - start,
+        rows_affected: 0,
+        error_text: note,
+        metadata: { site: SITE_URL, sitemap: SITEMAP_URL, verified_sites: owned.map((s) => s.siteUrl) },
+      });
+      return new Response(JSON.stringify({ ok: true, skipped: true, reason: note }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // (Re)submit sitemap to GSC
     const put = await gscFetch(`/webmasters/v3/sites/${encodeSite(SITE_URL)}/sitemaps/${encodeSite(SITEMAP_URL)}`, { method: "PUT" });
     // Fetch sitemap status detail
@@ -44,9 +68,11 @@ Deno.serve(async (req) => {
       sitemap_status: sitemap.status,
       gsc_put_status: put.status,
       gsc_detail: detail.body,
+      permission_level: match?.permissionLevel ?? null,
     };
 
     if (!put.ok) throw new Error(`GSC sitemap submit failed: HTTP ${put.status} ${JSON.stringify(put.body).slice(0, 400)}`);
+
 
     await logRun(svc, "success", {
       duration_ms: Date.now() - start,
