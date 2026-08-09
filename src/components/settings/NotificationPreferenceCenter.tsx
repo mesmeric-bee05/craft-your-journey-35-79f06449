@@ -51,7 +51,7 @@ export function NotificationPreferenceCenter() {
         .from("notifications")
         .select("created_at")
         .eq("user_id", user.id)
-        .eq("type", "system")
+        .eq("type", "status_change")
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();

@@ -211,7 +211,7 @@ async function notifyInApp(svc: any, userIds: string[], title: string, message: 
     await svc.from("notifications").insert(
       userIds.map((user_id) => ({
         user_id,
-        type: "system" as const,
+        type: "status_change" as const,
         title: title.slice(0, 120),
         message: message.slice(0, 400),
         metadata: { link },
