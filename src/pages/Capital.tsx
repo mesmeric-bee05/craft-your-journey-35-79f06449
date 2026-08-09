@@ -268,7 +268,18 @@ export default function Capital() {
               else if (stage <= 1) window.scrollTo({ top: 0, behavior: "smooth" });
             }}
           />
-          <CapitalVoiceAssistant businessId={bid} />
+          <CapitalVoiceAssistant
+            businessId={bid}
+            onConfirmDetails={() => {
+              if (offer?.eligible && !advance) openApply();
+              else document.getElementById("capital-status")?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+            onRetry={() => { void refetchStatus(); }}
+            onShowDocuments={() =>
+              document.getElementById("capital-required-docs")?.scrollIntoView({ behavior: "smooth", block: "center" })
+            }
+          />
+
         </div>
 
 
