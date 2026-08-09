@@ -36,7 +36,7 @@ export default function Capital() {
   const { data: repayments = [] } = useAdvanceRepayments(advance?.id);
   const apply = useApplyForCapital();
   const record = useRecordRepayment();
-  const { data: advStatus } = useMyAdvanceStatus(bid);
+  const { data: advStatus, refetch: refetchStatus } = useMyAdvanceStatus(bid);
 
   const [applyOpen, setApplyOpen] = useState(false);
   const [amount, setAmount] = useState(0);
