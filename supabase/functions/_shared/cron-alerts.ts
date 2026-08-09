@@ -129,8 +129,113 @@ async function postEmail(p: CronAlertPayload): Promise<{ ok: boolean; reason?: s
   }
 }
 
+/* ------------------------------------------------------------------ *
+ * User notification preferences (Settings → Alerts & Language)
+ * ------------------------------------------------------------------ */
+
+type Frequency = "immediate" | "hourly" | "daily" | "off";
+
+interface AlertPolicy {
+  slack: boolean;
+  email: boolean;
+  inAppUserIds: string[];
+  /** Minimum minutes between alerts for the same key; 0 = immediate. */
+  windowMinutes: number;
+  /** True when every admin turned alerts off. */
+  muted: boolean;
+}
+
+const WINDOW: Record<Frequency, number> = { immediate: 0, hourly: 60, daily: 1440, off: -1 };
+
+/** Union of admin preferences. Falls back to Slack+email immediate when nothing is stored. */
+// deno-lint-ignore no-explicit-any
+async function resolveAlertPolicy(svc: any): Promise<AlertPolicy> {
+  const fallback: AlertPolicy = { slack: true, email: true, inAppUserIds: [], windowMinutes: 0, muted: false };
+  try {
+    const { data: roles } = await svc.from("user_roles").select("user_id").eq("role", "admin");
+    const ids: string[] = (roles ?? []).map((r: { user_id: string }) => r.user_id);
+    if (ids.length === 0) return fallback;
+    const { data: settings } = await svc.from("user_settings").select("user_id, preferences").in("user_id", ids);
+    const rows: Array<{ user_id: string; preferences: Record<string, unknown> | null }> = settings ?? [];
+    if (rows.length === 0) return { ...fallback, inAppUserIds: ids };
+
+    let slack = false, email = false;
+    const inApp: string[] = [];
+    let window = Number.POSITIVE_INFINITY;
+    let any = false;
+    for (const id of ids) {
+      const p = (rows.find((r) => r.user_id === id)?.preferences?.ops_alerts ?? {}) as {
+        email?: boolean; slack?: boolean; in_app?: boolean; frequency?: Frequency;
+      };
+      const freq: Frequency = p.frequency ?? "immediate";
+      if (freq === "off") continue;
+      any = true;
+      window = Math.min(window, WINDOW[freq] ?? 0);
+      if (p.slack) slack = true;
+      if (p.email !== false) email = true;
+      if (p.in_app !== false) inApp.push(id);
+    }
+    if (!any) return { slack: false, email: false, inAppUserIds: [], windowMinutes: 0, muted: true };
+    return { slack, email, inAppUserIds: inApp, windowMinutes: Number.isFinite(window) ? window : 0, muted: false };
+  } catch (_) {
+    return fallback;
+  }
+}
+
+/** True when an identical alert was already logged inside the digest window. */
+// deno-lint-ignore no-explicit-any
+async function throttled(svc: any, action: string, key: string, windowMinutes: number): Promise<boolean> {
+  if (windowMinutes <= 0) return false;
+  try {
+    const since = new Date(Date.now() - windowMinutes * 60_000).toISOString();
+    const { data } = await svc
+      .from("audit_logs")
+      .select("id, metadata, created_at")
+      .eq("action", action)
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    return (data ?? []).some(
+      (r: { metadata: Record<string, unknown> | null }) =>
+        String(r.metadata?.job_name ?? r.metadata?.code ?? "") === key,
+    );
+  } catch (_) {
+    return false;
+  }
+}
+
+// deno-lint-ignore no-explicit-any
+async function notifyInApp(svc: any, userIds: string[], title: string, message: string, link: string) {
+  if (userIds.length === 0) return;
+  try {
+    await svc.from("notifications").insert(
+      userIds.map((user_id) => ({
+        user_id,
+        type: "status_change" as const,
+        title: title.slice(0, 120),
+        message: message.slice(0, 400),
+        metadata: { link },
+      })),
+    );
+  } catch (_) { /* ignore */ }
+}
+
 export async function notifyCronFailure(svc: any, p: CronAlertPayload): Promise<void> {
-  const [slack, email] = await Promise.all([postSlack(p), postEmail(p)]);
+  const policy = await resolveAlertPolicy(svc);
+  if (policy.muted) return;
+  if (await throttled(svc, "cron.failure_alert", p.jobName, policy.windowMinutes)) return;
+
+  const [slack, email] = await Promise.all([
+    policy.slack ? postSlack(p) : Promise.resolve({ ok: false, reason: "disabled_by_preference" }),
+    policy.email ? postEmail(p) : Promise.resolve({ ok: false, reason: "disabled_by_preference" }),
+  ]);
+  await notifyInApp(
+    svc,
+    policy.inAppUserIds,
+    `Scheduled job failed: ${p.jobName}`,
+    p.errorText,
+    `${appBaseUrl()}/admin/health`,
+  );
   try {
     await svc.from("audit_logs").insert({
       action: "cron.failure_alert",
@@ -143,10 +248,12 @@ export async function notifyCronFailure(svc: any, p: CronAlertPayload): Promise<
         error_text: p.errorText.slice(0, 1500),
         slack: slack.ok ? "sent" : `skip:${slack.reason}`,
         email: email.ok ? "sent" : `skip:${email.reason}`,
+        in_app: policy.inAppUserIds.length,
       },
     });
   } catch (_) { /* ignore */ }
 }
+
 
 /* ------------------------------------------------------------------ *
  * Generic Capital / ops failure alerting
@@ -238,15 +345,19 @@ async function postOpsSlack(p: OpsAlertPayload): Promise<{ ok: boolean; reason?:
 // deno-lint-ignore no-explicit-any
 export async function notifyOpsFailure(svc: any, p: OpsAlertPayload): Promise<void> {
   const startedAt = new Date().toISOString();
+  const policy = await resolveAlertPolicy(svc);
+  if (policy.muted) return;
+  if (await throttled(svc, "ops.failure_alert", p.code, policy.windowMinutes)) return;
   const [slack, email] = await Promise.all([
-    postOpsSlack(p),
-    postEmail({
+    policy.slack ? postOpsSlack(p) : Promise.resolve({ ok: false, reason: "disabled_by_preference" }),
+    policy.email ? postEmail({
       jobName: `${p.source}:${p.code}`,
       status: "failure",
       errorText: `${p.title}\n${p.detail}`,
       startedAt,
-    }),
+    }) : Promise.resolve({ ok: false, reason: "disabled_by_preference" }),
   ]);
+  await notifyInApp(svc, policy.inAppUserIds, p.title, p.detail, `${appBaseUrl()}/admin/capital/ops`);
   try {
     await svc.from("audit_logs").insert({
       action: "ops.failure_alert",
@@ -259,6 +370,7 @@ export async function notifyOpsFailure(svc: any, p: OpsAlertPayload): Promise<vo
         at: startedAt,
         slack: slack.ok ? "sent" : `skip:${slack.reason}`,
         email: email.ok ? "sent" : `skip:${email.reason}`,
+        in_app: policy.inAppUserIds.length,
       },
     });
   } catch (_) { /* ignore */ }

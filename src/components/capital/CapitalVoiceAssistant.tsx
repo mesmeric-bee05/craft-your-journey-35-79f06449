@@ -3,6 +3,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
 import { Mic, MicOff, Volume2, VolumeX, Send, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCulture } from "@/lib/culture/CultureProvider";
@@ -30,15 +41,29 @@ interface Turn {
   text: string;
 }
 
-export function CapitalVoiceAssistant({ businessId }: { businessId: string | undefined }) {
+type VoiceIntent = "confirm_details" | "retry" | "documents" | "status";
+
+interface Props {
+  businessId: string | undefined;
+  /** Opens the on-screen details review/confirm step. */
+  onConfirmDetails?: () => void;
+  /** Refreshes the owner's advance status. */
+  onRetry?: () => void;
+  /** Reveals the required-documents checklist. */
+  onShowDocuments?: () => void;
+}
+
+export function CapitalVoiceAssistant({ businessId, onConfirmDetails, onRetry, onShowDocuments }: Props) {
   const { t, pref, speechLang } = useCulture();
   const [turns, setTurns] = useState<Turn[]>([]);
   const [draft, setDraft] = useState("");
   const [listening, setListening] = useState(false);
   const [thinking, setThinking] = useState(false);
   const [speakEnabled, setSpeakEnabled] = useState(true);
+  const [pendingIntent, setPendingIntent] = useState<Exclude<VoiceIntent, "status" | "documents"> | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const supportsVoice = !!getRecognitionCtor();
+
 
   const speak = useCallback(
     (text: string) => {
@@ -82,16 +107,23 @@ export function CapitalVoiceAssistant({ businessId }: { businessId: string | und
           throw new Error(detail);
         }
         const answer = (data as { answer?: string })?.answer ?? "";
+        const intent = ((data as { intent?: VoiceIntent })?.intent ?? "status") as VoiceIntent;
         if (!answer) throw new Error("No answer returned");
         setTurns((prev) => [...prev, { role: "assistant", text: answer }]);
         speak(answer);
+
+        // Voice never mutates on its own: read-only intents run immediately,
+        // state-changing intents wait for an explicit on-screen confirmation.
+        if (intent === "documents") onShowDocuments?.();
+        else if (intent === "confirm_details" || intent === "retry") setPendingIntent(intent);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Voice assistant failed");
       } finally {
         setThinking(false);
       }
     },
-    [businessId, pref.locale, pref.tone, speak],
+    [businessId, pref.locale, pref.tone, speak, onShowDocuments],
+
   );
 
   const startListening = useCallback(() => {
@@ -206,7 +238,31 @@ export function CapitalVoiceAssistant({ businessId }: { businessId: string | und
             </div>
           ))}
         </div>
+
+        <AlertDialog open={pendingIntent !== null} onOpenChange={(o) => !o && setPendingIntent(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t.voiceConfirmTitle}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {pendingIntent === "retry" ? t.voiceConfirmRetry : t.voiceConfirmDetails}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t.voiceCancel}</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (pendingIntent === "retry") onRetry?.();
+                  else onConfirmDetails?.();
+                  setPendingIntent(null);
+                }}
+              >
+                {t.voiceConfirm}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </CardContent>
     </Card>
+
   );
 }

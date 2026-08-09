@@ -17,6 +17,23 @@ function sanitize(input: string): string {
     .slice(0, 500);
 }
 
+export type VoiceIntent = "confirm_details" | "retry" | "documents" | "status";
+
+/**
+ * Keyword intent detection across English, Kiswahili, Sheng' and Kenglish.
+ * Intents never mutate data on their own — the client always asks the owner to
+ * confirm on screen before any action runs.
+ */
+function detectIntent(q: string): VoiceIntent {
+  const s = q.toLowerCase();
+  if (/(confirm|thibitisha|hakikisha|check my details|review (my )?details|sahihi)/.test(s)) return "confirm_details";
+  if (/(retry|try again|jaribu tena|rudia|refresh|angalia upya)/.test(s)) return "retry";
+  if (/(document|documents|nyaraka|hati|papers|karatasi|requirement|inahitajika)/.test(s)) return "documents";
+  return "status";
+}
+
+
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const json = (body: unknown, status = 200) =>
@@ -41,6 +58,8 @@ Deno.serve(async (req) => {
     });
     if (statusError) return json({ error: statusError.message }, 400);
 
+    const intent = detectIntent(question);
+
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) return json({ error: "AI is not configured" }, 500);
 
@@ -53,7 +72,17 @@ Deno.serve(async (req) => {
       "Answer ONLY from the JSON data provided. If a figure is missing, say you don't have it yet.",
       "Amounts are Kenyan Shillings — say them as KES. Keep the answer under 70 words, spoken-style, no markdown, no bullet points.",
       "You cannot change data. If asked to retry a disbursement or submit an application, explain the exact button to tap on the Capital page.",
-    ].join("\n");
+      intent === "confirm_details"
+        ? "The owner asked to confirm their application details. Read back the requested amount, revenue share and application status, then say the app will ask them to confirm on screen."
+        : "",
+      intent === "documents"
+        ? "The owner asked which documents are required. List them briefly in one spoken sentence: business registration, M-Pesa or bank statements for the last 3 months, national ID of the owner, and a KRA PIN certificate."
+        : "",
+      intent === "retry"
+        ? "The owner asked to retry something. Explain that the app will refresh their status now, and that only the SmartReach team can retry an M-Pesa payout."
+        : "",
+    ].filter(Boolean).join("\n");
+
 
     const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -78,7 +107,7 @@ Deno.serve(async (req) => {
     const payload = await aiRes.json();
     const answer = payload?.choices?.[0]?.message?.content?.trim();
     if (!answer) return json({ error: "No answer generated" }, 502);
-    return json({ answer });
+    return json({ answer, intent });
   } catch (e) {
     console.error("[capital-voice] error", e);
     return json({ error: e instanceof Error ? e.message : "Unexpected error" }, 500);

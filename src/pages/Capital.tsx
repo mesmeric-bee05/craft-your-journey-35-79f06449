@@ -36,7 +36,7 @@ export default function Capital() {
   const { data: repayments = [] } = useAdvanceRepayments(advance?.id);
   const apply = useApplyForCapital();
   const record = useRecordRepayment();
-  const { data: advStatus } = useMyAdvanceStatus(bid);
+  const { data: advStatus, refetch: refetchStatus } = useMyAdvanceStatus(bid);
 
   const [applyOpen, setApplyOpen] = useState(false);
   const [amount, setAmount] = useState(0);
@@ -169,7 +169,8 @@ export default function Capital() {
         )}
 
         {advStatus?.has_activity && (
-          <Card className="p-6 space-y-4">
+          <Card id="capital-status" className="p-6 space-y-4">
+
             <div className="font-semibold">{t.statusHeading}</div>
             <ol className="space-y-2 text-sm">
               {[
@@ -268,7 +269,18 @@ export default function Capital() {
               else if (stage <= 1) window.scrollTo({ top: 0, behavior: "smooth" });
             }}
           />
-          <CapitalVoiceAssistant businessId={bid} />
+          <CapitalVoiceAssistant
+            businessId={bid}
+            onConfirmDetails={() => {
+              if (offer?.eligible && !advance) openApply();
+              else document.getElementById("capital-status")?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+            onRetry={() => { void refetchStatus(); }}
+            onShowDocuments={() =>
+              document.getElementById("capital-required-docs")?.scrollIntoView({ behavior: "smooth", block: "center" })
+            }
+          />
+
         </div>
 
 

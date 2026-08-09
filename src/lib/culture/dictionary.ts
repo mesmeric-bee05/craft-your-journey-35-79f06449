@@ -49,6 +49,8 @@ export interface CultureStrings {
   voiceAsk: string;
   voiceUnsupported: string;
   voiceConfirmTitle: string;
+  voiceConfirmRetry: string;
+  voiceConfirmDetails: string;
   voiceConfirm: string;
   voiceCancel: string;
   voiceGreeting: string;
@@ -124,6 +126,8 @@ const en: CultureStrings = {
   voiceAsk: "Ask",
   voiceUnsupported: "Voice input isn't supported on this browser — type your question instead.",
   voiceConfirmTitle: "Confirm this action",
+  voiceConfirmRetry: "Refresh your advance status now?",
+  voiceConfirmDetails: "Open your application details so you can check and confirm them?",
   voiceConfirm: "Confirm",
   voiceCancel: "Cancel",
   voiceGreeting: "Hello. Ask me anything about your advance.",
@@ -199,6 +203,8 @@ const sw: CultureStrings = {
   voiceAsk: "Uliza",
   voiceUnsupported: "Kipaza sauti hakitumiki kwenye kivinjari hiki — andika swali lako.",
   voiceConfirmTitle: "Thibitisha hatua hii",
+  voiceConfirmRetry: "Ungependa tuangalie upya hali ya mkopo wako sasa?",
+  voiceConfirmDetails: "Tufungue maelezo ya maombi yako uyathibitishe?",
   voiceConfirm: "Thibitisha",
   voiceCancel: "Ghairi",
   voiceGreeting: "Habari. Niulize kuhusu mkopo wako.",

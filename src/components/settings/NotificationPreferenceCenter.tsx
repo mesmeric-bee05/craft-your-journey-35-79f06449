@@ -28,6 +28,7 @@ export function NotificationPreferenceCenter() {
   const [prefs, setPrefs] = useState<OpsAlertPrefs>(DEFAULTS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [lastAlert, setLastAlert] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user?.id) {
@@ -46,6 +47,15 @@ export function NotificationPreferenceCenter() {
         | Partial<OpsAlertPrefs>
         | undefined;
       if (saved) setPrefs({ ...DEFAULTS, ...saved });
+      const { data: last } = await supabase
+        .from("notifications")
+        .select("created_at")
+        .eq("user_id", user.id)
+        .eq("type", "status_change")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!cancelled) setLastAlert(last?.created_at ?? null);
       setLoading(false);
     })();
     return () => {
@@ -139,6 +149,11 @@ export function NotificationPreferenceCenter() {
               ))}
             </RadioGroup>
           </div>
+
+          <p className="text-xs text-muted-foreground">
+            Last alert delivered to you:{" "}
+            {lastAlert ? new Date(lastAlert).toLocaleString() : "none yet"}
+          </p>
 
           <Button onClick={save} disabled={saving} className="gap-2">
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}

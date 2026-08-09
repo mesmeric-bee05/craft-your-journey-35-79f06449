@@ -28,31 +28,62 @@ const ANON_SELECT_ALLOWLIST = new Set<string>([
   "feedback_forms", "business_public_profiles", "faqs",
 ]);
 
+/**
+ * Supabase query/RPC builders are thenable but NOT Promises — calling
+ * `.catch()` directly on them throws "catch is not a function".
+ * Always await them inside this helper instead.
+ */
+async function safe<T>(fn: () => Promise<{ data: T | null; error?: unknown }>): Promise<T | null> {
+  try {
+    const { data, error } = await fn();
+    if (error) {
+      console.error("[security-rescan-runner] query error", error);
+      return null;
+    }
+    return data ?? null;
+  } catch (e) {
+    console.error("[security-rescan-runner] query threw", e);
+    return null;
+  }
+}
+
 async function gatherFindings(svc: any): Promise<Finding[]> {
   const findings: Finding[] = [];
 
-  // 1. Tables in public without RLS
-  const { data: noRls } = await svc.rpc("exec_sql_findings_no_rls" as any).catch(() => ({ data: null }));
-  // Fall back to direct queries against information_schema/pg_catalog via lightweight RPC if available;
-  // since we cannot create arbitrary helpers here, use pg_meta-style reads.
-  const { data: tables } = await svc
-    .from("pg_tables" as any)
-    .select("tablename, rowsecurity")
-    .eq("schemaname", "public")
-    .catch(() => ({ data: null }));
-  if (Array.isArray(tables)) {
-    for (const t of tables as any[]) {
-      if (t.rowsecurity === false) {
-        findings.push({
-          internal_id: `rls_disabled:${t.tablename}`,
-          name: `RLS disabled on public.${t.tablename}`,
-          description: "Row Level Security is not enabled on this table. Anonymous or authenticated users may read or write rows that should be restricted.",
-          severity: "error",
-          remediation_link: "https://supabase.com/docs/guides/auth/row-level-security",
-        });
-      }
+  // 1. Tables in public without RLS, plus anon-readable tables outside the allowlist.
+  const tables = await safe<Array<{ table_name: string; rls_enabled: boolean; anon_readable: boolean; policy_count: number }>>(
+    () => svc.rpc("security_scan_table_report"),
+  );
+  for (const t of tables ?? []) {
+    if (!t.rls_enabled) {
+      findings.push({
+        internal_id: `rls_disabled:${t.table_name}`,
+        name: `RLS disabled on public.${t.table_name}`,
+        description: "Row Level Security is not enabled on this table. Anonymous or authenticated users may read or write rows that should be restricted.",
+        severity: "error",
+        remediation_link: "https://supabase.com/docs/guides/auth/row-level-security",
+      });
+      continue;
+    }
+    if (t.policy_count === 0) {
+      findings.push({
+        internal_id: `no_policies:${t.table_name}`,
+        name: `public.${t.table_name} has RLS enabled but no policies`,
+        description: "The table is fully locked: no role can read or write it through the API. Add explicit policies or confirm this is intentional.",
+        severity: "info",
+      });
+    }
+    if (t.anon_readable && !ANON_SELECT_ALLOWLIST.has(t.table_name)) {
+      findings.push({
+        internal_id: `anon_readable:${t.table_name}`,
+        name: `public.${t.table_name} is readable by anonymous visitors`,
+        description: "A policy allows unauthenticated reads on this table. Confirm it contains no personal or business-sensitive data.",
+        severity: "warn",
+        remediation_link: "https://supabase.com/docs/guides/auth/row-level-security",
+      });
     }
   }
+
 
   // 2. Public storage buckets (avatars is intentional; flag everything else)
   const { data: buckets } = await svc.storage.listBuckets();
