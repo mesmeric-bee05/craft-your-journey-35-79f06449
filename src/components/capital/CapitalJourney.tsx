@@ -74,7 +74,7 @@ export function CapitalJourney({ currentStage, onAction }: Props) {
           })}
         </ol>
 
-        <div className="rounded-lg bg-muted/50 p-3">
+        <div id="capital-required-docs" className="rounded-lg bg-muted/50 p-3">
           <p className="text-sm font-medium flex items-center gap-2">
             <FileText className="h-4 w-4" aria-hidden="true" />
             {t.requiredDocs}
