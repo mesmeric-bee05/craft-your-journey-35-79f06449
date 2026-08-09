@@ -13,13 +13,14 @@ import { notifyCronFailure } from "../_shared/cron-alerts.ts";
 
 const JOB = "gsc-submit-sitemap";
 
-async function logRun(svc: any, status: "success" | "failure", extra: Record<string, unknown>) {
+async function logRun(svc: any, status: "success" | "failure" | "skipped", extra: Record<string, unknown>) {
   try {
     await svc.from("cron_job_runs").insert({
       job_name: JOB, finished_at: new Date().toISOString(), status, ...extra,
     });
   } catch (_) { /* ignore */ }
 }
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
