@@ -4986,6 +4986,15 @@ export type Database = {
         Args: { p_partner_id: string }
         Returns: string
       }
+      security_scan_table_report: {
+        Args: never
+        Returns: {
+          anon_readable: boolean
+          policy_count: number
+          rls_enabled: boolean
+          table_name: string
+        }[]
+      }
       snapshot_all_health_scores: { Args: never; Returns: number }
       submit_sacco_application: {
         Args: {
