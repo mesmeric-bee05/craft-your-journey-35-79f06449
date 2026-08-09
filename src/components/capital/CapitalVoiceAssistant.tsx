@@ -244,7 +244,7 @@ export function CapitalVoiceAssistant({ businessId, onConfirmDetails, onRetry, o
             <AlertDialogHeader>
               <AlertDialogTitle>{t.voiceConfirmTitle}</AlertDialogTitle>
               <AlertDialogDescription>
-                {pendingIntent === "retry" ? t.retryLabel ?? t.voiceConfirm : t.reviewDetails ?? t.voiceConfirm}
+                {pendingIntent === "retry" ? t.voiceConfirmRetry : t.voiceConfirmDetails}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
