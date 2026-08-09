@@ -227,7 +227,31 @@ export function CapitalVoiceAssistant({ businessId, onConfirmDetails, onRetry, o
             </div>
           ))}
         </div>
+
+        <AlertDialog open={pendingIntent !== null} onOpenChange={(o) => !o && setPendingIntent(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t.voiceConfirmTitle}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {pendingIntent === "retry" ? t.retryLabel ?? t.voiceConfirm : t.reviewDetails ?? t.voiceConfirm}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t.voiceCancel}</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (pendingIntent === "retry") onRetry?.();
+                  else onConfirmDetails?.();
+                  setPendingIntent(null);
+                }}
+              >
+                {t.voiceConfirm}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </CardContent>
     </Card>
+
   );
 }
