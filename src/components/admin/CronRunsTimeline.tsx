@@ -39,13 +39,29 @@ function downloadCsv(rows: CronRun[]) {
   URL.revokeObjectURL(url);
 }
 
-export function CronRunsTimeline() {
+const ALL_JOBS = [
+  "snapshot-health-scores",
+  "security-rescan-runner",
+  "gsc-submit-sitemap",
+  "seo-route-audit",
+];
+
+interface CronRunsTimelineProps {
+  /** Restrict the job filter (and results) to these job names. */
+  jobs?: string[];
+  title?: string;
+}
+
+export function CronRunsTimeline({ jobs, title = "Runs timeline" }: CronRunsTimelineProps = {}) {
+  const jobOptions = jobs ?? ALL_JOBS;
+  const scoped = !!jobs && jobs.length === 1;
   const [search, setSearch] = useState("");
-  const [jobName, setJobName] = useState<string>("all");
+  const [jobName, setJobName] = useState<string>(scoped ? jobs![0] : "all");
   const [status, setStatus] = useState<string>("all");
   const [sinceHours, setSinceHours] = useState<string>("168");
   const [page, setPage] = useState(0);
   const [expanded, setExpanded] = useState<string | null>(null);
+
 
   const filters = useMemo(() => ({
     jobName: jobName === "all" ? null : jobName,
