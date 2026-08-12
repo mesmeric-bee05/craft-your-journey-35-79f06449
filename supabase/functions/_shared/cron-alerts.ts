@@ -221,9 +221,13 @@ async function notifyInApp(svc: any, userIds: string[], title: string, message: 
 }
 
 export async function notifyCronFailure(svc: any, p: CronAlertPayload): Promise<void> {
+  // "skipped" runs are a setup gap (e.g. an unverified Search Console site),
+  // not a job failure — never page anyone for them.
+  if ((p.status as string) === "skipped") return;
   const policy = await resolveAlertPolicy(svc);
   if (policy.muted) return;
   if (await throttled(svc, "cron.failure_alert", p.jobName, policy.windowMinutes)) return;
+
 
   const [slack, email] = await Promise.all([
     policy.slack ? postSlack(p) : Promise.resolve({ ok: false, reason: "disabled_by_preference" }),
