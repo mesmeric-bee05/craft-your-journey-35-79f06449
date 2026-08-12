@@ -54,9 +54,8 @@ interface CronRunsTimelineProps {
 
 export function CronRunsTimeline({ jobs, title = "Runs timeline" }: CronRunsTimelineProps = {}) {
   const jobOptions = jobs ?? ALL_JOBS;
-  const scoped = !!jobs && jobs.length === 1;
   const [search, setSearch] = useState("");
-  const [jobName, setJobName] = useState<string>(scoped ? jobs![0] : "all");
+  const [jobName, setJobName] = useState<string>(jobs ? jobs[0] : "all");
   const [status, setStatus] = useState<string>("all");
   const [sinceHours, setSinceHours] = useState<string>("168");
   const [page, setPage] = useState(0);
@@ -81,7 +80,7 @@ export function CronRunsTimeline({ jobs, title = "Runs timeline" }: CronRunsTime
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-2">
         <CardTitle className="text-base flex items-center gap-2">
-          <History className="h-4 w-4" /> Runs timeline
+          <History className="h-4 w-4" /> {title}
         </CardTitle>
         <Button size="sm" variant="outline" onClick={() => downloadCsv(rows)} disabled={rows.length === 0}>
           <Download className="h-3 w-3 mr-2" /> Export CSV
@@ -97,9 +96,10 @@ export function CronRunsTimeline({ jobs, title = "Runs timeline" }: CronRunsTime
           <Select value={jobName} onValueChange={(v) => { setJobName(v); setPage(0); }}>
             <SelectTrigger><SelectValue placeholder="Job" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All jobs</SelectItem>
-              <SelectItem value="snapshot-health-scores">snapshot-health-scores</SelectItem>
-              <SelectItem value="security-rescan-runner">security-rescan-runner</SelectItem>
+              {!jobs && <SelectItem value="all">All jobs</SelectItem>}
+              {jobOptions.map((j) => (
+                <SelectItem key={j} value={j}>{j}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Select value={status} onValueChange={(v) => { setStatus(v); setPage(0); }}>
@@ -108,9 +108,11 @@ export function CronRunsTimeline({ jobs, title = "Runs timeline" }: CronRunsTime
               <SelectItem value="all">All statuses</SelectItem>
               <SelectItem value="success">Success</SelectItem>
               <SelectItem value="failure">Failure</SelectItem>
+              <SelectItem value="skipped">Skipped (setup needed)</SelectItem>
               <SelectItem value="running">Running</SelectItem>
             </SelectContent>
           </Select>
+
           <Select value={sinceHours} onValueChange={(v) => { setSinceHours(v); setPage(0); }}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
