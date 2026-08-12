@@ -54,6 +54,10 @@ export interface CultureStrings {
   voiceConfirm: string;
   voiceCancel: string;
   voiceGreeting: string;
+  voiceQuickStatus: string;
+  voiceQuickSync: string;
+  voiceQuickDocs: string;
+
   // notifications
   notifTitle: string;
   notifSubtitle: string;

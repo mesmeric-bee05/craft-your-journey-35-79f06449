@@ -41,7 +41,7 @@ interface Turn {
   text: string;
 }
 
-type VoiceIntent = "confirm_details" | "retry" | "documents" | "status";
+type VoiceIntent = "confirm_details" | "retry" | "documents" | "sync_status" | "status";
 
 interface Props {
   businessId: string | undefined;
