@@ -1645,6 +1645,24 @@ export type Database = {
         }
         Relationships: []
       }
+      cron_job_secrets: {
+        Row: {
+          created_at: string
+          job_name: string
+          secret: string
+        }
+        Insert: {
+          created_at?: string
+          job_name: string
+          secret?: string
+        }
+        Update: {
+          created_at?: string
+          job_name?: string
+          secret?: string
+        }
+        Relationships: []
+      }
       csat_responses: {
         Row: {
           assigned_agent_id: string | null
