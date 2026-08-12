@@ -8,7 +8,9 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://ai.gateway.lovable.dev https://*.lovable.app; font-src 'self' data:; manifest-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none';">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta name="referrer" content="strict-origin-when-cross-origin">
-    <!-- Canonical is managed per-route via react-helmet-async (SEO component) -->
+    <!-- Baseline canonical for crawlers that don't execute JS. Per-route pages
+         replace this via react-helmet-async (see src/components/seo/SEO.tsx). -->
+    <link rel="canonical" id="static-canonical" href="https://craft-your-journey-35.lovable.app/" />
 
     <!-- Google Search Console site verification (META method). -->
     <meta name="google-site-verification" content="Fa79hsrWE7WtXg1rtBe9GKAdsCYnaJu-xAGoghywuG8" />
@@ -38,6 +40,47 @@
     <meta name="apple-mobile-web-app-title" content="SmartReach" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="/pwa-192x192.png" />
+
+    <!-- Baseline structured data (visible to non-JS crawlers). -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://craft-your-journey-35.lovable.app/#organization",
+            "name": "SmartReach AI",
+            "url": "https://craft-your-journey-35.lovable.app/",
+            "logo": "https://craft-your-journey-35.lovable.app/pwa-192x192.png",
+            "description": "Africa's first SME Growth Operating System: unified social inbox, M-Pesa payments, inventory and AI marketing for Kenyan MSMEs.",
+            "areaServed": "KE",
+            "sameAs": ["https://twitter.com/SmartReachAI"]
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://craft-your-journey-35.lovable.app/#website",
+            "url": "https://craft-your-journey-35.lovable.app/",
+            "name": "SmartReach AI",
+            "inLanguage": "en-KE",
+            "publisher": { "@id": "https://craft-your-journey-35.lovable.app/#organization" }
+          },
+          {
+            "@type": "SoftwareApplication",
+            "name": "SmartReach AI",
+            "applicationCategory": "BusinessApplication",
+            "operatingSystem": "Web, Android, iOS",
+            "url": "https://craft-your-journey-35.lovable.app/",
+            "offers": {
+              "@type": "Offer",
+              "priceCurrency": "KES",
+              "price": "0",
+              "description": "Sokoni free tier"
+            },
+            "publisher": { "@id": "https://craft-your-journey-35.lovable.app/#organization" }
+          }
+        ]
+      }
+    </script>
   </head>
 
   <body>
