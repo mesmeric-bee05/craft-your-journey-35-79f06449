@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { SEO } from "@/components/seo/SEO";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,8 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Search, RefreshCw, ShieldCheck, FileCheck2, ExternalLink, Copy } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { RequireAdmin } from "@/components/auth/RequireAdmin";
 import { useSEOAuditRuns, useRunSEOAudit, useResubmitSitemap, type SEOAuditRun } from "@/hooks/useSEOAudit";
 import { useGSCStatus, useGSCAction } from "@/hooks/useGSCStatus";
 import { SEOFindingsTable } from "@/components/admin/SEOFindingsTable";
@@ -16,8 +14,6 @@ import { CronRunsTimeline } from "@/components/admin/CronRunsTimeline";
 import { toast } from "sonner";
 
 export default function AdminSEO() {
-  const { user, loading } = useAuth();
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const runs = useSEOAuditRuns();
   const gsc = useGSCStatus();
   const gscActions = useGSCAction();
@@ -27,20 +23,8 @@ export default function AdminSEO() {
   const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const { data } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" as any });
-      setIsAdmin(Boolean(data));
-    })();
-  }, [user]);
-
-  useEffect(() => {
     if (runs.data?.[0]?.id && !selectedRun) setSelectedRun(runs.data[0].id);
   }, [runs.data, selectedRun]);
-
-  if (loading) return null;
-  if (!user) return <Navigate to="/auth" replace />;
-  if (isAdmin === false) return <Navigate to="/dashboard" replace />;
 
   const lastRun: SEOAuditRun | undefined = runs.data?.[0];
   const verified = Array.isArray((gsc.data as any)?.verifications?.items) && (gsc.data as any).verifications.items.length > 0;
@@ -49,6 +33,7 @@ export default function AdminSEO() {
   return (
     <DashboardLayout>
       <SEO title="SEO monitor — SmartReach" description="Indexing status, audit results, and Google Search Console controls." path="/admin/seo" noindex />
+      <RequireAdmin>
       <div className="space-y-6 max-w-5xl mx-auto">
         <div>
           <h1 className="text-3xl font-display font-bold flex items-center gap-2"><Search className="h-7 w-7" />SEO Monitor</h1>
@@ -154,7 +139,7 @@ export default function AdminSEO() {
 
         <SEOFindingsTable runId={selectedRun} />
 
-        <CronRunsTimeline />
+        <CronRunsTimeline jobs={["gsc-submit-sitemap", "seo-route-audit"]} title="SEO job runs" />
       </div>
     </DashboardLayout>
   );

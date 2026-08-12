@@ -1,5 +1,3 @@
-import { useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { SEO } from "@/components/seo/SEO";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,8 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Activity, AlertTriangle, CheckCircle2, RefreshCw, Clock } from "lucide-react";
 import { useCronHealth, type CronHealth } from "@/hooks/useCronHealth";
 import { CronRunsTimeline } from "@/components/admin/CronRunsTimeline";
-import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { RequireAdmin } from "@/components/auth/RequireAdmin";
 
 function fmtDuration(min: number | null) {
   if (min == null) return "never";
@@ -48,25 +45,12 @@ function HealthTile({ h, onRun, pending }: { h: CronHealth; onRun: () => void; p
 }
 
 export default function AdminHealth() {
-  const { user, loading } = useAuth();
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
-  const { health, runs, trigger } = useCronHealth();
-
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const { data } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" as any });
-      setIsAdmin(Boolean(data));
-    })();
-  }, [user]);
-
-  if (loading) return null;
-  if (!user) return <Navigate to="/auth" replace />;
-  if (isAdmin === false) return <Navigate to="/dashboard" replace />;
+  const { health, trigger } = useCronHealth();
 
   return (
     <DashboardLayout>
       <SEO title="System health — SmartReach" description="Monitor scheduled jobs and alerts." path="/admin/health" noindex />
+      <RequireAdmin>
       <div className="space-y-6 max-w-5xl mx-auto">
         <div>
           <h1 className="text-3xl font-display font-bold flex items-center gap-2"><Activity className="h-7 w-7" />System Health</h1>
@@ -87,6 +71,7 @@ export default function AdminHealth() {
 
         <CronRunsTimeline />
       </div>
+      </RequireAdmin>
     </DashboardLayout>
   );
 }
