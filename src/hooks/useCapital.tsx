@@ -478,7 +478,28 @@ export interface MyAdvanceStatus {
     reference: string | null;
   }>;
   last_synced_at: string | null;
+  last_webhook_event: {
+    event_type: string | null;
+    status: string | null;
+    received_at: string | null;
+    processed_at: string | null;
+  } | null;
+  last_disbursement_event: {
+    status: string | null;
+    requested_at: string | null;
+    disbursed_at: string | null;
+    mpesa_reference: string | null;
+    error: string | null;
+  } | null;
+  last_repayment_cron: {
+    job_name: string;
+    status: string;
+    started_at: string;
+    finished_at: string | null;
+    rows_affected: number | null;
+  } | null;
 }
+
 
 export function useMyAdvanceStatus(businessId: string | undefined) {
   return useQuery({

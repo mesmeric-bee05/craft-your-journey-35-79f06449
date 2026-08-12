@@ -54,6 +54,10 @@ export interface CultureStrings {
   voiceConfirm: string;
   voiceCancel: string;
   voiceGreeting: string;
+  voiceQuickStatus: string;
+  voiceQuickSync: string;
+  voiceQuickDocs: string;
+
   // notifications
   notifTitle: string;
   notifSubtitle: string;
@@ -131,6 +135,9 @@ const en: CultureStrings = {
   voiceConfirm: "Confirm",
   voiceCancel: "Cancel",
   voiceGreeting: "Hello. Ask me anything about your advance.",
+  voiceQuickStatus: "How is my advance doing?",
+  voiceQuickSync: "When did it last sync?",
+  voiceQuickDocs: "What documents do I need?",
   notifTitle: "Notification preferences",
   notifSubtitle: "Choose how you hear about sync, disbursement and repayment events.",
   channelEmail: "Email",
@@ -208,6 +215,9 @@ const sw: CultureStrings = {
   voiceConfirm: "Thibitisha",
   voiceCancel: "Ghairi",
   voiceGreeting: "Habari. Niulize kuhusu mkopo wako.",
+  voiceQuickStatus: "Mkopo wangu unaendeleaje?",
+  voiceQuickSync: "Ulisasishwa lini mara ya mwisho?",
+  voiceQuickDocs: "Nahitaji nyaraka zipi?",
   notifTitle: "Mapendeleo ya taarifa",
   notifSubtitle: "Chagua unavyotaka kupata taarifa za usawazishaji, utoaji na marejesho.",
   channelEmail: "Barua pepe",
@@ -249,6 +259,9 @@ const sheng: CultureStrings = {
   voiceHint: "Uliza kuhusu doh, repayment ama sync ya mwisho.",
   voiceHold: "Hold useme",
   voiceGreeting: "Sasa. Niulize kuhusu doh yako.",
+  voiceQuickStatus: "Doh yangu iko aje?",
+  voiceQuickSync: "Ilisync lini mara ya mwisho?",
+  voiceQuickDocs: "Nahitaji ma-document gani?",
   notifTitle: "Settings za notification",
   notifSubtitle: "Chagua vipi unataka kujua kuhusu sync, doh na repayment.",
 };
@@ -273,6 +286,9 @@ const kenglish: CultureStrings = {
     { title: "Get funded and repay", body: "Funds zinaingia M-Pesa yako. We collect a small share daily mpaka umalize.", action: "Track my advance" },
   ],
   voiceGreeting: "Sasa. Ask me anything about your advance.",
+  voiceQuickStatus: "How is my advance doing?",
+  voiceQuickSync: "Ilisync lini last?",
+  voiceQuickDocs: "Which documents do I need?",
   voiceHint: "Ask about disbursement, repayments ama the last partner sync.",
 };
 

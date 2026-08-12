@@ -17,7 +17,7 @@ function sanitize(input: string): string {
     .slice(0, 500);
 }
 
-export type VoiceIntent = "confirm_details" | "retry" | "documents" | "status";
+export type VoiceIntent = "confirm_details" | "retry" | "documents" | "sync_status" | "status";
 
 /**
  * Keyword intent detection across English, Kiswahili, Sheng' and Kenglish.
@@ -27,10 +27,13 @@ export type VoiceIntent = "confirm_details" | "retry" | "documents" | "status";
 function detectIntent(q: string): VoiceIntent {
   const s = q.toLowerCase();
   if (/(confirm|thibitisha|hakikisha|check my details|review (my )?details|sahihi)/.test(s)) return "confirm_details";
+  if (/(last sync|synced|sync|webhook|last update|latest update|imesasishwa|usawazishaji|sasisho|update ya mwisho|ni lini)/.test(s))
+    return "sync_status";
   if (/(retry|try again|jaribu tena|rudia|refresh|angalia upya)/.test(s)) return "retry";
   if (/(document|documents|nyaraka|hati|papers|karatasi|requirement|inahitajika)/.test(s)) return "documents";
   return "status";
 }
+
 
 
 
@@ -81,7 +84,17 @@ Deno.serve(async (req) => {
       intent === "retry"
         ? "The owner asked to retry something. Explain that the app will refresh their status now, and that only the SmartReach team can retry an M-Pesa payout."
         : "",
+      intent === "sync_status"
+        ? [
+            "The owner asked when their advance last synced. Give ONE spoken answer covering, in this order and only if present in the data:",
+            "1) last_webhook_event — what partner event arrived, its status, and how recently (say it in relative time like 'about two hours ago');",
+            "2) last_repayment_cron — whether the nightly repayment collection ran and succeeded, and when;",
+            "3) last_disbursement_event — the disbursement status and M-Pesa reference if any, plus the outstanding balance from the advance.",
+            "If a piece is missing, say plainly that there is no partner activity yet for that part. Do not invent times.",
+          ].join(" ")
+        : "",
     ].filter(Boolean).join("\n");
+
 
 
     const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {

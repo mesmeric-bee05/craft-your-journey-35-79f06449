@@ -132,6 +132,15 @@ async function authorize(req: Request, svc: any): Promise<boolean> {
   const wantSecret = Deno.env.get("SECURITY_RESCAN_SECRET");
   if (wantSecret && req.headers.get("x-rescan-secret") === wantSecret) return true;
 
+  // pg_cron presents the per-job token stored in public.cron_job_secrets
+  // (service-role only, never exposed to the Data API roles).
+  const jobSecret = req.headers.get("x-job-secret");
+  if (jobSecret) {
+    const { data: row } = await svc
+      .from("cron_job_secrets").select("secret").eq("job_name", "security-rescan-runner").maybeSingle();
+    if (row?.secret && row.secret === jobSecret) return true;
+  }
+
   const auth = req.headers.get("Authorization") ?? "";
   const jwt = auth.startsWith("Bearer ") ? auth.slice(7) : null;
   if (!jwt) return false;

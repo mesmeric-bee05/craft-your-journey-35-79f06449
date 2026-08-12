@@ -6,7 +6,7 @@ export interface CronRun {
   job_name: string;
   started_at: string;
   finished_at: string | null;
-  status: "running" | "success" | "failure";
+  status: "running" | "success" | "failure" | "skipped";
   rows_affected: number | null;
   duration_ms: number | null;
   error_text: string | null;

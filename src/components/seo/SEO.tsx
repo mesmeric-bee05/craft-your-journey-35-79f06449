@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Helmet } from "react-helmet-async";
 
 const SITE = "https://craft-your-journey-35.lovable.app";
@@ -16,6 +17,13 @@ export function SEO({ title, description, path = "/", image, type = "website", n
   const url = `${SITE}${path.startsWith("/") ? path : `/${path}`}`;
   const desc = description?.slice(0, 158);
   const ldArray = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
+
+  // index.html ships a baseline canonical for non-JS crawlers; drop it once a
+  // route declares its own so a page never advertises two canonical URLs.
+  useEffect(() => {
+    document.getElementById("static-canonical")?.remove();
+  }, []);
+
 
   return (
     <Helmet>

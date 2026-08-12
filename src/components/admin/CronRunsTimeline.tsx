@@ -39,13 +39,28 @@ function downloadCsv(rows: CronRun[]) {
   URL.revokeObjectURL(url);
 }
 
-export function CronRunsTimeline() {
+const ALL_JOBS = [
+  "snapshot-health-scores",
+  "security-rescan-runner",
+  "gsc-submit-sitemap",
+  "seo-route-audit",
+];
+
+interface CronRunsTimelineProps {
+  /** Restrict the job filter (and results) to these job names. */
+  jobs?: string[];
+  title?: string;
+}
+
+export function CronRunsTimeline({ jobs, title = "Runs timeline" }: CronRunsTimelineProps = {}) {
+  const jobOptions = jobs ?? ALL_JOBS;
   const [search, setSearch] = useState("");
-  const [jobName, setJobName] = useState<string>("all");
+  const [jobName, setJobName] = useState<string>(jobs ? jobs[0] : "all");
   const [status, setStatus] = useState<string>("all");
   const [sinceHours, setSinceHours] = useState<string>("168");
   const [page, setPage] = useState(0);
   const [expanded, setExpanded] = useState<string | null>(null);
+
 
   const filters = useMemo(() => ({
     jobName: jobName === "all" ? null : jobName,
@@ -65,7 +80,7 @@ export function CronRunsTimeline() {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-2">
         <CardTitle className="text-base flex items-center gap-2">
-          <History className="h-4 w-4" /> Runs timeline
+          <History className="h-4 w-4" /> {title}
         </CardTitle>
         <Button size="sm" variant="outline" onClick={() => downloadCsv(rows)} disabled={rows.length === 0}>
           <Download className="h-3 w-3 mr-2" /> Export CSV
@@ -81,9 +96,10 @@ export function CronRunsTimeline() {
           <Select value={jobName} onValueChange={(v) => { setJobName(v); setPage(0); }}>
             <SelectTrigger><SelectValue placeholder="Job" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All jobs</SelectItem>
-              <SelectItem value="snapshot-health-scores">snapshot-health-scores</SelectItem>
-              <SelectItem value="security-rescan-runner">security-rescan-runner</SelectItem>
+              {!jobs && <SelectItem value="all">All jobs</SelectItem>}
+              {jobOptions.map((j) => (
+                <SelectItem key={j} value={j}>{j}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Select value={status} onValueChange={(v) => { setStatus(v); setPage(0); }}>
@@ -92,9 +108,11 @@ export function CronRunsTimeline() {
               <SelectItem value="all">All statuses</SelectItem>
               <SelectItem value="success">Success</SelectItem>
               <SelectItem value="failure">Failure</SelectItem>
+              <SelectItem value="skipped">Skipped (setup needed)</SelectItem>
               <SelectItem value="running">Running</SelectItem>
             </SelectContent>
           </Select>
+
           <Select value={sinceHours} onValueChange={(v) => { setSinceHours(v); setPage(0); }}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -118,8 +136,11 @@ export function CronRunsTimeline() {
                 onClick={() => setExpanded(expanded === r.id ? null : r.id)}
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <Badge variant={r.status === "success" ? "secondary" : r.status === "failure" ? "destructive" : "outline"}>
-                    {r.status}
+                  <Badge
+                    variant={r.status === "success" ? "secondary" : r.status === "failure" ? "destructive" : "outline"}
+                    className={r.status === "skipped" ? "border-amber-500 text-amber-600 dark:text-amber-400" : undefined}
+                  >
+                    {r.status === "skipped" ? "setup needed" : r.status}
                   </Badge>
                   <span className="font-mono text-xs truncate">{r.job_name}</span>
                 </div>
@@ -132,7 +153,11 @@ export function CronRunsTimeline() {
               {expanded === r.id && (
                 <div className="mt-2 space-y-2">
                   {r.error_text && (
-                    <pre className="text-xs p-2 rounded bg-destructive/10 text-destructive font-mono whitespace-pre-wrap break-all">
+                    <pre className={`text-xs p-2 rounded font-mono whitespace-pre-wrap break-all ${
+                      r.status === "skipped"
+                        ? "bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                        : "bg-destructive/10 text-destructive"
+                    }`}>
                       {r.error_text}
                     </pre>
                   )}

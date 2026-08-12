@@ -4,7 +4,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useBusiness } from "@/hooks/useBusiness";
 import {
   useCapitalOffer, useMyAdvance, useMyApplications, useAdvanceRepayments,
-  useApplyForCapital, useMyAdvanceStatus,
+  useApplyForCapital, useMyAdvanceStatus, type MyAdvanceStatus,
   useRecordRepayment,
 } from "@/hooks/useCapital";
 import { Card } from "@/components/ui/card";
@@ -18,13 +18,85 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
-import { Banknote, TrendingUp, Shield, AlertCircle } from "lucide-react";
+import { Banknote, TrendingUp, Shield, AlertCircle, Download } from "lucide-react";
+import { downloadCsv, downloadPdfReport, type ExportColumn } from "@/lib/opsExport";
 import { useCulture } from "@/lib/culture/CultureProvider";
 import { LanguageToneSwitcher } from "@/components/culture/LanguageToneSwitcher";
 import { CapitalJourney } from "@/components/capital/CapitalJourney";
 import { CapitalVoiceAssistant } from "@/components/capital/CapitalVoiceAssistant";
 
 const fmtKES = (n: number) => `KES ${Math.round(n).toLocaleString()}`;
+
+/** One flat row per event so an owner can keep their own copy of the record. */
+interface OwnerRow {
+  when: string;
+  item: string;
+  detail: string;
+  amount: string;
+  status: string;
+}
+
+const OWNER_EXPORT_COLUMNS: ExportColumn<OwnerRow>[] = [
+  { key: "when", label: "When", value: (r) => r.when },
+  { key: "item", label: "Item", value: (r) => r.item },
+  { key: "detail", label: "Detail", value: (r) => r.detail },
+  { key: "amount", label: "Amount (KES)", value: (r) => r.amount },
+  { key: "status", label: "Status", value: (r) => r.status },
+];
+
+function buildOwnerRows(status: MyAdvanceStatus): OwnerRow[] {
+  const rows: OwnerRow[] = [];
+  const app = status.application;
+  if (app) {
+    rows.push({
+      when: new Date(app.created_at).toISOString(),
+      item: "Application",
+      detail: `Requested at ${app.revenue_share_pct}% revenue share`,
+      amount: String(app.requested_amount_kes),
+      status: app.status,
+    });
+  }
+  const adv = status.advance;
+  if (adv) {
+    rows.push({
+      when: adv.disbursement_requested_at ?? "",
+      item: "Advance",
+      detail: `Total owed ${adv.total_owed_kes} · repaid ${adv.amount_repaid_kes}${
+        adv.mpesa_disbursement_ref ? ` · M-Pesa ${adv.mpesa_disbursement_ref}` : ""
+      }`,
+      amount: String(adv.principal_kes),
+      status: `${adv.status} / ${adv.disbursement_status}`,
+    });
+  }
+  for (const r of status.repayments) {
+    rows.push({
+      when: r.collected_at ?? r.scheduled_for ?? "",
+      item: "Repayment",
+      detail: `${r.source.replace(/_/g, " ")}${r.reference ? ` · ${r.reference}` : ""}`,
+      amount: String(r.amount_kes),
+      status: r.status,
+    });
+  }
+  if (status.last_webhook_event?.received_at) {
+    rows.push({
+      when: status.last_webhook_event.received_at,
+      item: "Last partner sync",
+      detail: status.last_webhook_event.event_type ?? "",
+      amount: "",
+      status: status.last_webhook_event.status ?? "",
+    });
+  }
+  if (status.last_repayment_cron) {
+    rows.push({
+      when: status.last_repayment_cron.started_at,
+      item: "Automated collection run",
+      detail: status.last_repayment_cron.job_name,
+      amount: "",
+      status: status.last_repayment_cron.status,
+    });
+  }
+  return rows;
+}
 
 export default function Capital() {
   const { business } = useBusiness();
@@ -249,6 +321,41 @@ export default function Capital() {
             <div className="text-xs text-muted-foreground">
               {t.lastSynced}:{" "}
               {advStatus.last_synced_at ? new Date(advStatus.last_synced_at).toLocaleString() : t.noPartnerActivity}
+              {advStatus.last_webhook_event?.event_type && (
+                <> · {advStatus.last_webhook_event.event_type} ({advStatus.last_webhook_event.status})</>
+              )}
+              {advStatus.last_repayment_cron && (
+                <>
+                  {" · "}collection run {advStatus.last_repayment_cron.status}{" "}
+                  {new Date(advStatus.last_repayment_cron.started_at).toLocaleString()}
+                </>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2"
+                onClick={() => downloadCsv(buildOwnerRows(advStatus), OWNER_EXPORT_COLUMNS, "my-capital-record")}
+              >
+                <Download className="h-3 w-3" aria-hidden="true" />
+                Download CSV
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2"
+                onClick={() =>
+                  downloadPdfReport(buildOwnerRows(advStatus), OWNER_EXPORT_COLUMNS, "my-capital-record", {
+                    title: "SmartReach Capital — my record",
+                    subtitle: business?.name ?? undefined,
+                  })
+                }
+              >
+                <Download className="h-3 w-3" aria-hidden="true" />
+                Download PDF
+              </Button>
             </div>
           </Card>
         )}

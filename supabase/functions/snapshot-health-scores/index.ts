@@ -48,15 +48,26 @@ Deno.serve(async (req) => {
 
   const start = Date.now();
   // Fail-closed: SNAPSHOT_HEALTH_SECRET must be configured and the caller must present it.
+  const svc = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+  // Fail-closed: the caller must present either the configured shared secret or
+  // the per-job token pg_cron reads from public.cron_job_secrets.
   const secret = Deno.env.get("SNAPSHOT_HEALTH_SECRET");
   const provided = req.headers.get("x-snapshot-secret");
-  if (!secret || provided !== secret) {
+  let allowed = Boolean(secret) && provided === secret;
+  if (!allowed) {
+    const jobSecret = req.headers.get("x-job-secret");
+    if (jobSecret) {
+      const { data: row } = await svc
+        .from("cron_job_secrets").select("secret").eq("job_name", "snapshot-health-scores").maybeSingle();
+      allowed = Boolean(row?.secret) && row!.secret === jobSecret;
+    }
+  }
+  if (!allowed) {
     return new Response(JSON.stringify({ error: "unauthorized" }), {
       status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-
-  const svc = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   try {
     const { data: businesses, error: bErr } = await svc.from("businesses").select("id");
