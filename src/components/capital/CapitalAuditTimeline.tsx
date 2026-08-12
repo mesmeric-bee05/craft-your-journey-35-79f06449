@@ -2,7 +2,16 @@ import { useCapitalAuditLog, type CapitalAuditEntry } from "@/hooks/useCapital";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { History } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { History, Download } from "lucide-react";
+import { downloadCsv, downloadPdfReport, type ExportColumn } from "@/lib/opsExport";
+
 
 const label = (a: string) =>
   ({
