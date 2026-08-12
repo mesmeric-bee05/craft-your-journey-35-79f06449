@@ -141,6 +141,7 @@ export default function AdminSEO() {
 
         <CronRunsTimeline jobs={["gsc-submit-sitemap", "seo-route-audit"]} title="SEO job runs" />
       </div>
+      </RequireAdmin>
     </DashboardLayout>
   );
 }
