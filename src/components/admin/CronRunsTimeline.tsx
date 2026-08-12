@@ -136,8 +136,11 @@ export function CronRunsTimeline({ jobs, title = "Runs timeline" }: CronRunsTime
                 onClick={() => setExpanded(expanded === r.id ? null : r.id)}
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <Badge variant={r.status === "success" ? "secondary" : r.status === "failure" ? "destructive" : "outline"}>
-                    {r.status}
+                  <Badge
+                    variant={r.status === "success" ? "secondary" : r.status === "failure" ? "destructive" : "outline"}
+                    className={r.status === "skipped" ? "border-amber-500 text-amber-600 dark:text-amber-400" : undefined}
+                  >
+                    {r.status === "skipped" ? "setup needed" : r.status}
                   </Badge>
                   <span className="font-mono text-xs truncate">{r.job_name}</span>
                 </div>
@@ -150,7 +153,11 @@ export function CronRunsTimeline({ jobs, title = "Runs timeline" }: CronRunsTime
               {expanded === r.id && (
                 <div className="mt-2 space-y-2">
                   {r.error_text && (
-                    <pre className="text-xs p-2 rounded bg-destructive/10 text-destructive font-mono whitespace-pre-wrap break-all">
+                    <pre className={`text-xs p-2 rounded font-mono whitespace-pre-wrap break-all ${
+                      r.status === "skipped"
+                        ? "bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                        : "bg-destructive/10 text-destructive"
+                    }`}>
                       {r.error_text}
                     </pre>
                   )}
