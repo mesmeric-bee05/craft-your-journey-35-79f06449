@@ -33,6 +33,16 @@ const badgeVariant = (a: string): "default" | "secondary" | "destructive" | "out
   return "secondary";
 };
 
+const EXPORT_COLUMNS: ExportColumn<CapitalAuditEntry>[] = [
+  { key: "created_at", label: "When", value: (r) => new Date(r.created_at).toISOString() },
+  { key: "action", label: "Action", value: (r) => label(r.action) },
+  { key: "action_code", label: "Action code", value: (r) => r.action },
+  { key: "entity_type", label: "Entity", value: (r) => r.entity_type },
+  { key: "entity_id", label: "Entity ID", value: (r) => r.entity_id },
+  { key: "actor", label: "Actor", value: (r) => r.actor_name ?? r.actor_email ?? r.actor_user_id ?? "system" },
+  { key: "metadata", label: "Details", value: (r) => (r.metadata ? JSON.stringify(r.metadata) : "") },
+];
+
 export function CapitalAuditTimeline({ applicationId }: { applicationId: string | undefined }) {
   const { data, isLoading, isError } = useCapitalAuditLog(applicationId);
 
@@ -50,8 +60,36 @@ export function CapitalAuditTimeline({ applicationId }: { applicationId: string 
     return <p className="text-sm text-muted-foreground">No audit entries yet.</p>;
   }
 
+  const base = `capital-application-${(applicationId ?? "unknown").slice(0, 8)}`;
+
   return (
     <div className="space-y-2">
+      <div className="flex justify-end">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline" className="gap-2">
+              <Download className="h-3 w-3" aria-hidden="true" />
+              Export history
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => downloadCsv(data, EXPORT_COLUMNS, base)}>
+              Download CSV
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() =>
+                downloadPdfReport(data, EXPORT_COLUMNS, base, {
+                  title: "SmartReach Capital — application history",
+                  subtitle: `Application ${applicationId ?? "—"}`,
+                  filters: [`${data.length} audit entr${data.length === 1 ? "y" : "ies"}`],
+                })
+              }
+            >
+              Download PDF
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
       {data.map((e: CapitalAuditEntry) => (
         <Card key={e.id} className="p-3 flex gap-3 items-start">
           <History className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
@@ -78,3 +116,4 @@ export function CapitalAuditTimeline({ applicationId }: { applicationId: string 
     </div>
   );
 }
+
