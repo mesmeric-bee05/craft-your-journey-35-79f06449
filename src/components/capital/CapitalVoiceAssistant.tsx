@@ -205,6 +205,23 @@ export function CapitalVoiceAssistant({ businessId, onConfirmDetails, onRetry, o
 
         {!supportsVoice && <p className="text-xs text-muted-foreground">{t.voiceUnsupported}</p>}
 
+        <div className="flex flex-wrap gap-2">
+          {[t.voiceQuickStatus, t.voiceQuickSync, t.voiceQuickDocs].map((q) => (
+            <Button
+              key={q}
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={!businessId || thinking}
+              onClick={() => void ask(q)}
+              className="text-xs h-7"
+            >
+              {q}
+            </Button>
+          ))}
+        </div>
+
+
         <form
           className="flex gap-2"
           onSubmit={(e) => {
