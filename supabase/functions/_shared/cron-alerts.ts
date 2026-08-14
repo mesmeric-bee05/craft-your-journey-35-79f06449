@@ -62,7 +62,7 @@ async function postSlack(p: CronAlertPayload): Promise<{ ok: boolean; reason?: s
           {
             type: "button",
             text: { type: "plain_text", text: "Open System Health" },
-            url: `${url}/admin/health`,
+            url: `${url}/admin/monitoring/health`,
           },
           {
             type: "button",
@@ -116,7 +116,7 @@ async function postEmail(p: CronAlertPayload): Promise<{ ok: boolean; reason?: s
           errorText: p.errorText.slice(0, 1500),
           startedAt: p.startedAt,
           durationMs: p.durationMs ?? null,
-          healthUrl: `${appBaseUrl()}/admin/health`,
+          healthUrl: `${appBaseUrl()}/admin/monitoring/health`,
           findingsUrl: `${appBaseUrl()}/security/findings`,
         },
       }),
@@ -238,7 +238,7 @@ export async function notifyCronFailure(svc: any, p: CronAlertPayload): Promise<
     policy.inAppUserIds,
     `Scheduled job failed: ${p.jobName}`,
     p.errorText,
-    `${appBaseUrl()}/admin/health`,
+    `${appBaseUrl()}/admin/monitoring/health`,
   );
   try {
     await svc.from("audit_logs").insert({
@@ -313,7 +313,7 @@ async function postOpsSlack(p: OpsAlertPayload): Promise<{ ok: boolean; reason?:
           {
             type: "button",
             text: { type: "plain_text", text: "System Health" },
-            url: `${url}/admin/health`,
+            url: `${url}/admin/monitoring/health`,
           },
           {
             type: "button",

@@ -90,8 +90,8 @@ interface BottomNavItem extends NavItem {
 
 const bottomNavItems: BottomNavItem[] = [
   { label: 'Settings', icon: Settings, href: '/settings' },
-  { label: 'System Health', icon: Zap, href: '/admin/health', adminOnly: true },
-  { label: 'SEO Monitor', icon: Search, href: '/admin/seo', adminOnly: true },
+  { label: 'System Health', icon: Zap, href: '/admin/monitoring/health', adminOnly: true },
+  { label: 'SEO Monitor', icon: Search, href: '/admin/monitoring/seo', adminOnly: true },
   { label: 'Capital Ops', icon: Banknote, href: '/admin/capital/ops', adminOnly: true },
   { label: 'Help Center', icon: HelpCircle, href: '/help' },
 ];

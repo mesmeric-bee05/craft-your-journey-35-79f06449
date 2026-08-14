@@ -42,6 +42,7 @@ import SecurityFindings from "./pages/SecurityFindings";
 import AdminHealth from "./pages/AdminHealth";
 import BestTimesToPostKenya from "./pages/resources/BestTimesToPostKenya";
 import AdminSEO from "./pages/AdminSEO";
+import AdminMonitoring from "./pages/admin/AdminMonitoring";
 import SaccoAdmin from "./pages/admin/SaccoAdmin";
 import SaccoDetail from "./pages/admin/SaccoDetail";
 import SaccosPublic from "./pages/partners/SaccosPublic";
@@ -114,6 +115,8 @@ const App = () => (
             <Route path="/security" element={<ProtectedRoute><SecurityDashboard /></ProtectedRoute>} />
             <Route path="/security/findings" element={<ProtectedRoute><SecurityFindings /></ProtectedRoute>} />
             <Route path="/bundles" element={<ProtectedRoute><Bundles /></ProtectedRoute>} />
+            <Route path="/admin/monitoring" element={<ProtectedRoute><AdminMonitoring /></ProtectedRoute>} />
+            <Route path="/admin/monitoring/:tab" element={<ProtectedRoute><AdminMonitoring /></ProtectedRoute>} />
             <Route path="/admin/health" element={<ProtectedRoute><AdminHealth /></ProtectedRoute>} />
             <Route path="/admin/seo" element={<ProtectedRoute><AdminSEO /></ProtectedRoute>} />
             <Route path="/admin/saccos" element={<ProtectedRoute><SaccoAdmin /></ProtectedRoute>} />
