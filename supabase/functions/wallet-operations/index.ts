@@ -211,6 +211,18 @@ serve(async (req: Request) => {
 
         const reference = generateReference('TRF');
 
+        // Atomically debit the sender. The conditional UPDATE inside wallet_debit
+        // guarantees the balance can never go negative under concurrent requests.
+        const { data: senderBalance, error: debitBalanceError } = await serviceClient
+          .rpc('wallet_debit', { p_wallet_id: wallet.id, p_amount: input.amount });
+
+        if (debitBalanceError) {
+          logError('WALLET_DEBIT_ERROR', debitBalanceError);
+          return badRequest('Insufficient balance', corsHeaders);
+        }
+
+        const newSenderBalance = Number(senderBalance);
+
         // Create debit transaction for sender
         const { data: debitTx, error: debitError } = await serviceClient
           .from('transactions')
@@ -261,23 +273,16 @@ serve(async (req: Request) => {
             },
           });
 
-        // Update sender wallet
-        await serviceClient
-          .from('wallets')
-          .update({
-            balance: wallet.balance - input.amount,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', wallet.id);
+        // Atomically credit the recipient
+        const { error: creditError } = await serviceClient
+          .rpc('wallet_credit', { p_wallet_id: recipientWallet.id, p_amount: input.amount });
 
-        // Update recipient wallet
-        await serviceClient
-          .from('wallets')
-          .update({
-            balance: recipientWallet.balance + input.amount,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', recipientWallet.id);
+        if (creditError) {
+          // Roll the sender's funds back so money is never destroyed
+          await serviceClient.rpc('wallet_credit', { p_wallet_id: wallet.id, p_amount: input.amount });
+          logError('WALLET_CREDIT_ERROR', creditError);
+          return internalError(corsHeaders);
+        }
 
         // Notify recipient
         await serviceClient
@@ -312,7 +317,7 @@ serve(async (req: Request) => {
               currency: wallet.currency,
               status: 'completed',
             },
-            new_balance: wallet.balance - input.amount,
+            new_balance: newSenderBalance,
           }),
           200,
           corsHeaders
@@ -339,6 +344,17 @@ serve(async (req: Request) => {
           return badRequest('Bank details required for bank transfer', corsHeaders);
         }
 
+        // Atomically place the hold before recording the withdrawal
+        const { data: heldBalance, error: holdError } = await serviceClient
+          .rpc('wallet_debit', { p_wallet_id: wallet.id, p_amount: input.amount });
+
+        if (holdError) {
+          logError('WALLET_HOLD_ERROR', holdError);
+          return badRequest('Insufficient balance', corsHeaders);
+        }
+
+        const newWithdrawBalance = Number(heldBalance);
+
         // Create withdrawal transaction
         const { data: transaction, error: txError } = await serviceClient
           .from('transactions')
@@ -362,18 +378,11 @@ serve(async (req: Request) => {
           .single();
 
         if (txError) {
+          // Release the hold if we could not persist the transaction
+          await serviceClient.rpc('wallet_credit', { p_wallet_id: wallet.id, p_amount: input.amount });
           logError('CREATE_WITHDRAWAL_TX_ERROR', txError);
           return internalError(corsHeaders);
         }
-
-        // Deduct from wallet immediately (hold)
-        await serviceClient
-          .from('wallets')
-          .update({
-            balance: wallet.balance - input.amount,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', wallet.id);
 
         logSecurityEvent('WITHDRAWAL_INITIATED', {
           userId: user!.id,
@@ -396,7 +405,7 @@ serve(async (req: Request) => {
             message: input.payment_method === 'mpesa' 
               ? 'Withdrawal initiated. You will receive the funds via M-Pesa shortly.'
               : 'Withdrawal initiated. Bank transfer will be processed within 1-3 business days.',
-            new_balance: wallet.balance - input.amount,
+            new_balance: newWithdrawBalance,
           }),
           200,
           corsHeaders
