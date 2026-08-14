@@ -6,6 +6,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { notifyCronFailure } from "../_shared/cron-alerts.ts";
+import { isAuthorizedJobCall, unauthorizedJobResponse } from "../_shared/job-auth.ts";
 
 const JOB = "seo-route-audit";
 const BASE = (Deno.env.get("PUBLIC_APP_URL") || "https://craft-your-journey-35.lovable.app").replace(/\/+$/, "");
@@ -99,6 +100,10 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const start = Date.now();
   const svc = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+  if (!(await isAuthorizedJobCall(svc, req, JOB))) {
+    return unauthorizedJobResponse(corsHeaders);
+  }
 
   const { data: runRow, error: runErr } = await svc.from("seo_audit_runs").insert({ status: "running" }).select("id").single();
   if (runErr) {
