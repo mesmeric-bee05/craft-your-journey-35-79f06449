@@ -5026,6 +5026,14 @@ export type Database = {
         }
         Returns: string
       }
+      wallet_credit: {
+        Args: { p_amount: number; p_wallet_id: string }
+        Returns: number
+      }
+      wallet_debit: {
+        Args: { p_amount: number; p_wallet_id: string }
+        Returns: number
+      }
     }
     Enums: {
       ai_content_type:
