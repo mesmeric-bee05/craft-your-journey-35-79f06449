@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
     if (sites.ok && !match) {
       const note =
         `Site ${SITE_URL} is not verified in the connected Google Search Console account. ` +
-        `Verify ownership in Search Console (or run the site verification action on /admin/seo), then this job will submit the sitemap automatically.`;
+        `Verify ownership in Search Console (or run the site verification action on /admin/monitoring/seo), then this job will submit the sitemap automatically.`;
       await logRun(svc, "skipped", {
         duration_ms: Date.now() - start,
         rows_affected: 0,
