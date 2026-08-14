@@ -176,7 +176,20 @@ export function useRejectApplication() {
   });
 }
 
+export interface CapitalAuditEntry {
+  id: string;
+  action: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+  actor_user_id: string | null;
+  actor_name: string | null;
+  actor_email: string | null;
+}
+
 export function useCapitalAuditLog(applicationId: string | undefined) {
+
   return useQuery({
     queryKey: ["capital-audit", applicationId],
     enabled: !!applicationId,
