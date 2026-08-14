@@ -3492,6 +3492,100 @@ export type Database = {
           },
         ]
       }
+      security_admin_notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          event_id: string | null
+          id: string
+          kind: string
+          read_at: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          kind: string
+          read_at?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          kind?: string
+          read_at?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "security_admin_notifications_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "security_audit_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      security_audit_events: {
+        Row: {
+          action: string
+          actor_label: string | null
+          actor_user_id: string | null
+          created_at: string
+          finding_id: string | null
+          finding_internal_id: string | null
+          id: string
+          metadata: Json
+          new_status: string | null
+          note: string | null
+          old_status: string | null
+          scanner_name: string | null
+        }
+        Insert: {
+          action: string
+          actor_label?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          finding_id?: string | null
+          finding_internal_id?: string | null
+          id?: string
+          metadata?: Json
+          new_status?: string | null
+          note?: string | null
+          old_status?: string | null
+          scanner_name?: string | null
+        }
+        Update: {
+          action?: string
+          actor_label?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          finding_id?: string | null
+          finding_internal_id?: string | null
+          id?: string
+          metadata?: Json
+          new_status?: string | null
+          note?: string | null
+          old_status?: string | null
+          scanner_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "security_audit_events_finding_id_fkey"
+            columns: ["finding_id"]
+            isOneToOne: false
+            referencedRelation: "security_findings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       security_check_runs: {
         Row: {
           check_type: string
@@ -4966,6 +5060,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      log_security_scan_trigger: {
+        Args: { p_job_name: string; p_note?: string }
+        Returns: string
+      }
       log_user_action: {
         Args: {
           p_action: string
@@ -4975,6 +5073,15 @@ export type Database = {
           p_metadata?: Json
         }
         Returns: string
+      }
+      notify_admins_security: {
+        Args: {
+          p_body: string
+          p_event_id: string
+          p_kind: string
+          p_title: string
+        }
+        Returns: undefined
       }
       record_capital_repayment:
         | {
