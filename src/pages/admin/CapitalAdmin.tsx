@@ -10,6 +10,7 @@ import {
 } from "@/hooks/useCapital";
 import { supabase } from "@/integrations/supabase/client";
 import { CapitalAuditTimeline } from "@/components/capital/CapitalAuditTimeline";
+import { ApplicationExportMenu } from "@/components/capital/ApplicationExportMenu";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -152,7 +153,10 @@ export default function CapitalAdmin() {
                     Applied {new Date(a.created_at).toLocaleString()} · signed "{a.esign_name ?? "—"}"
                   </div>
                 </div>
-                <Badge variant="outline" className="capitalize">{a.status.replace("_", " ")}</Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="capitalize">{a.status.replace("_", " ")}</Badge>
+                  <ApplicationExportMenu application={a} />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
