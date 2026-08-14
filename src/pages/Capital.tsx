@@ -5,7 +5,6 @@ import { useBusiness } from "@/hooks/useBusiness";
 import {
   useCapitalOffer, useMyAdvance, useMyApplications, useAdvanceRepayments,
   useApplyForCapital, useMyAdvanceStatus, type MyAdvanceStatus,
-  useRecordRepayment,
 } from "@/hooks/useCapital";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -107,7 +106,6 @@ export default function Capital() {
   const { data: apps = [] } = useMyApplications(bid);
   const { data: repayments = [] } = useAdvanceRepayments(advance?.id);
   const apply = useApplyForCapital();
-  const record = useRecordRepayment();
   const { data: advStatus, refetch: refetchStatus } = useMyAdvanceStatus(bid);
 
   const [applyOpen, setApplyOpen] = useState(false);
@@ -116,7 +114,6 @@ export default function Capital() {
   const [esign, setEsign] = useState("");
   const [terms, setTerms] = useState(false);
 
-  const [repayAmount, setRepayAmount] = useState("");
 
   const openApply = () => {
     if (!offer?.eligible) return;
@@ -209,21 +206,11 @@ export default function Capital() {
               </div>
               <Progress value={pctRepaid} />
             </div>
-            <div className="flex gap-2 items-end pt-2 border-t border-border/50">
-              <div className="flex-1">
-                <Label className="text-xs">{t.recordRepayment}</Label>
-                <Input type="number" value={repayAmount} onChange={(e) => setRepayAmount(e.target.value)} />
-              </div>
-              <Button
-                onClick={async () => {
-                  const n = Number(repayAmount);
-                  if (!n || n <= 0) return;
-                  await record.mutateAsync({ advance_id: advance.id, amount: n });
-                  setRepayAmount("");
-                }}
-                disabled={!repayAmount || record.isPending}
-              >{t.record}</Button>
-            </div>
+            <p className="text-xs text-muted-foreground pt-2 border-t border-border/50">
+              Repayments are collected automatically from your daily revenue share via M-Pesa. Verified
+              payments appear here within minutes — you never need to record them manually.
+            </p>
+
             {repayments.length > 0 && (
               <div className="pt-2">
                 <div className="text-sm font-semibold mb-2">{t.repaymentHistory}</div>

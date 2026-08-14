@@ -113,9 +113,15 @@ Deno.serve(async (req) => {
     const s = Deno.env.get(job.secretEnv);
     if (s) headers[job.secretHeader] = s;
   }
+  // Forward the per-job token so the target function can authorize this call
+  // (target functions are fail-closed and reject anonymous invocations).
+  const { data: jobSecretRow } = await svc
+    .from("cron_job_secrets").select("secret").eq("job_name", jobKey).maybeSingle();
+  if (jobSecretRow?.secret) headers["x-job-secret"] = jobSecretRow.secret;
   const anon = Deno.env.get("SUPABASE_ANON_KEY")!;
   headers["apikey"] = anon;
   headers["Authorization"] = `Bearer ${anon}`;
+
 
   const res = await fetch(`${url}/functions/v1/${job.fn}`, {
     method: "POST", headers, body: JSON.stringify({ trigger: "manual", actor: userId }),
