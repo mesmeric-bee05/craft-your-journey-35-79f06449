@@ -225,14 +225,9 @@ serve(async (req: Request) => {
       case 'wallet':
         // Direct wallet deduction for transfers
         if (input.type === 'transfer' || input.type === 'payment') {
-          // Deduct from sender wallet
-          const { error: deductError } = await serviceClient
-            .from('wallets')
-            .update({ 
-              balance: walletData.balance - input.amount,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', walletData.id);
+          // Atomically deduct from sender wallet (guards against concurrent spends)
+          const { data: newBalance, error: deductError } = await serviceClient
+            .rpc('wallet_debit', { p_wallet_id: walletData.id, p_amount: input.amount });
 
           if (deductError) {
             // Rollback transaction status
@@ -242,7 +237,7 @@ serve(async (req: Request) => {
               .eq('id', transaction.id);
 
             logError('WALLET_DEDUCT_ERROR', deductError);
-            return internalError(corsHeaders);
+            return badRequest('Insufficient wallet balance', corsHeaders);
           }
 
           // Mark transaction as completed
@@ -257,8 +252,9 @@ serve(async (req: Request) => {
           paymentResponse = {
             status: 'completed',
             message: 'Wallet payment processed successfully',
-            new_balance: walletData.balance - input.amount,
+            new_balance: Number(newBalance),
           };
+
         }
         break;
     }
