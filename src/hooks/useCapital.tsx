@@ -176,41 +176,6 @@ export function useRejectApplication() {
   });
 }
 
-export function useRecordRepayment() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (input: { advance_id: string; amount: number; reference?: string }) => {
-      const { error } = await supabase.rpc("record_capital_repayment", {
-        p_advance_id: input.advance_id,
-        p_amount: input.amount,
-        p_reference: input.reference ?? null,
-        p_source: "manual",
-        p_partner_id: null,
-        p_checkout_request_id: null,
-      });
-      if (error) throw error;
-    },
-    onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: ["capital-repayments", vars.advance_id] });
-      qc.invalidateQueries({ queryKey: ["capital-advance"] });
-      toast.success("Repayment recorded");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-}
-
-export interface CapitalAuditEntry {
-  id: string;
-  action: string;
-  entity_type: string | null;
-  entity_id: string | null;
-  metadata: Record<string, unknown>;
-  created_at: string;
-  actor_user_id: string | null;
-  actor_name: string | null;
-  actor_email: string | null;
-}
-
 export function useCapitalAuditLog(applicationId: string | undefined) {
   return useQuery({
     queryKey: ["capital-audit", applicationId],
@@ -285,7 +250,7 @@ export function useCapitalPartners() {
     queryKey: ["capital-partners"],
     queryFn: async () => {
       const { data, error } = await supabase.from("capital_partners")
-        .select("id, name, kind, webhook_url, is_active, last_event_at, webhook_secret_hash, created_at")
+        .select("id, name, kind, is_active, last_event_at, created_at")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data ?? [];

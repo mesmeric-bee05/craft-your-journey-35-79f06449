@@ -5,7 +5,6 @@ import { useBusiness } from "@/hooks/useBusiness";
 import {
   useCapitalOffer, useMyAdvance, useMyApplications, useAdvanceRepayments,
   useApplyForCapital, useMyAdvanceStatus, type MyAdvanceStatus,
-  useRecordRepayment,
 } from "@/hooks/useCapital";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -107,7 +106,6 @@ export default function Capital() {
   const { data: apps = [] } = useMyApplications(bid);
   const { data: repayments = [] } = useAdvanceRepayments(advance?.id);
   const apply = useApplyForCapital();
-  const record = useRecordRepayment();
   const { data: advStatus, refetch: refetchStatus } = useMyAdvanceStatus(bid);
 
   const [applyOpen, setApplyOpen] = useState(false);
@@ -116,7 +114,6 @@ export default function Capital() {
   const [esign, setEsign] = useState("");
   const [terms, setTerms] = useState(false);
 
-  const [repayAmount, setRepayAmount] = useState("");
 
   const openApply = () => {
     if (!offer?.eligible) return;
