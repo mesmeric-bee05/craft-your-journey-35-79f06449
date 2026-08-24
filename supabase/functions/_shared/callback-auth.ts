@@ -45,3 +45,13 @@ export function callbackUrlFor(functionName: string): string {
   const token = Deno.env.get("MPESA_CALLBACK_TOKEN") ?? "";
   return `${base}/functions/v1/${functionName}?token=${encodeURIComponent(token)}`;
 }
+
+/** Append the shared secret token to an operator-configured callback URL. */
+export function withCallbackToken(url?: string | null): string | null {
+  if (!url) return null;
+  const token = Deno.env.get("MPESA_CALLBACK_TOKEN");
+  if (!token) return url;
+  const u = new URL(url);
+  u.searchParams.set("token", token);
+  return u.toString();
+}
