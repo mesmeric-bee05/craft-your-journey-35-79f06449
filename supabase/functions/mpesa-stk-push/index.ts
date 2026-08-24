@@ -174,7 +174,7 @@ Deno.serve(async (req) => {
         PartyA: normalizedPhone,
         PartyB: shortcode,
         PhoneNumber: normalizedPhone,
-        CallBackURL: callbackUrl || `${supabaseUrl}/functions/v1/mpesa-callback`,
+        CallBackURL: withCallbackToken(callbackUrl) ?? callbackUrlFor("mpesa-callback"),
         AccountReference: reference,
         TransactionDesc: description || 'Payment',
       }),

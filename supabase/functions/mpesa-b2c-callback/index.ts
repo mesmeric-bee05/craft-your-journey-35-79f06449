@@ -10,6 +10,7 @@ import { getCorsHeaders, secureResponse } from "../_shared/security-headers.ts";
 import { rateLimit } from "../_shared/rate-limiter.ts";
 import { logError, logSecurityEvent } from "../_shared/errors.ts";
 import { parseJsonBody } from "../_shared/validators.ts";
+import { verifyCallbackSource } from "../_shared/callback-auth.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders("*");
@@ -21,6 +22,12 @@ Deno.serve(async (req) => {
       keyPrefix: "capital-b2c-cb",
     }, corsHeaders);
     if (!rl.allowed) return rl.response!;
+
+    const srcCheck = verifyCallbackSource(req);
+    if (!srcCheck.ok) {
+      logSecurityEvent("capital_b2c_callback_source_rejected", { reason: srcCheck.reason });
+      return secureResponse(JSON.stringify({ ResultCode: 1, ResultDesc: "Unauthorized" }), 401, corsHeaders);
+    }
 
     const { data: body, error: pe } = await parseJsonBody(req, corsHeaders);
     if (pe) return pe;
