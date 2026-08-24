@@ -16,6 +16,7 @@ import { createServiceClient } from "../_shared/auth.ts";
 import { rateLimit } from "../_shared/rate-limiter.ts";
 import { logError, logSecurityEvent } from "../_shared/errors.ts";
 import { parseJsonBody } from "../_shared/validators.ts";
+import { verifyCallbackSource } from "../_shared/callback-auth.ts";
 
 // Zod schema for M-Pesa callback body
 const MPesaCallbackItemSchema = z.object({
@@ -54,6 +55,16 @@ Deno.serve(async (req) => {
     if (!rateLimitResult.allowed) {
       logSecurityEvent('rate_limit_exceeded', { endpoint: 'mpesa-callback', type: 'ip' });
       return rateLimitResult.response!;
+    }
+
+    // Verify the callback really originates from Safaricom (secret token in URL + optional IP allowlist)
+    const srcCheck = verifyCallbackSource(req);
+    if (!srcCheck.ok) {
+      logSecurityEvent('mpesa_callback_source_rejected', { endpoint: 'mpesa-callback', reason: srcCheck.reason });
+      return secureResponse(
+        JSON.stringify({ ResultCode: 1, ResultDesc: 'Unauthorized' }),
+        401, corsHeaders
+      );
     }
 
     // Parse body with size limiting
@@ -153,10 +164,13 @@ Deno.serve(async (req) => {
           const { data: wallet } = await supabase
             .from('wallets').select('balance').eq('id', transaction.wallet_id).single();
           if (wallet) {
-            await supabase.from('wallets').update({
-              balance: Number(wallet.balance) + Number(transaction.amount),
-              updated_at: new Date().toISOString(),
-            }).eq('id', transaction.wallet_id);
+            const { error: creditError } = await supabase.rpc('wallet_credit', {
+              p_wallet_id: transaction.wallet_id,
+              p_amount: Number(transaction.amount),
+            });
+            if (creditError) {
+              logError('mpesa-callback', creditError, { step: 'wallet_credit', transactionId: transaction.id });
+            }
           }
         }
 

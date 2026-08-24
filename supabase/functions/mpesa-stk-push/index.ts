@@ -18,6 +18,7 @@ import { verifyBusinessMembership } from "../_shared/auth.ts";
 import { rateLimit, DEFAULT_LIMITS } from "../_shared/rate-limiter.ts";
 import { logError, logSecurityEvent, internalError, badRequest } from "../_shared/errors.ts";
 import { parseJsonBody, validateInput } from "../_shared/validators.ts";
+import { callbackUrlFor, withCallbackToken } from "../_shared/callback-auth.ts";
 
 const STKPushSchema = z.object({
   phone: z.string().min(9).max(15).regex(/^(?:\+254|254|0)?[17]\d{8}$/, 'Invalid Kenyan phone number'),
@@ -174,7 +175,7 @@ Deno.serve(async (req) => {
         PartyA: normalizedPhone,
         PartyB: shortcode,
         PhoneNumber: normalizedPhone,
-        CallBackURL: callbackUrl || `${supabaseUrl}/functions/v1/mpesa-callback`,
+        CallBackURL: withCallbackToken(callbackUrl) ?? callbackUrlFor("mpesa-callback"),
         AccountReference: reference,
         TransactionDesc: description || 'Payment',
       }),

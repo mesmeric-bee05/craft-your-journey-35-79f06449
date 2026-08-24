@@ -19,6 +19,7 @@ import { requireAdmin } from "../_shared/admin-auth.ts";
 import { rateLimit } from "../_shared/rate-limiter.ts";
 import { logError, logSecurityEvent } from "../_shared/errors.ts";
 import { parseJsonBody } from "../_shared/validators.ts";
+import { callbackUrlFor } from "../_shared/callback-auth.ts";
 import { notifyOpsFailure } from "../_shared/cron-alerts.ts";
 
 
@@ -141,7 +142,7 @@ Deno.serve(async (req) => {
     const token = await getAccessToken(key, secret, isSandbox);
     const base = isSandbox ? "https://sandbox.safaricom.co.ke" : "https://api.safaricom.co.ke";
 
-    const resultUrl = `${supabaseUrl}/functions/v1/mpesa-b2c-callback`;
+    const resultUrl = callbackUrlFor("mpesa-b2c-callback");
     const payload = {
       OriginatorConversationID: crypto.randomUUID(),
       InitiatorName: initiator,
