@@ -5086,6 +5086,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      notify_business_owners_security: {
+        Args: {
+          p_body: string
+          p_event_id: string
+          p_kind: string
+          p_title: string
+        }
+        Returns: undefined
+      }
       record_capital_repayment:
         | {
             Args: {
