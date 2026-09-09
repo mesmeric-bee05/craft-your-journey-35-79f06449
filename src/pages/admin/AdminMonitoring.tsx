@@ -3,15 +3,16 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { SEO } from "@/components/seo/SEO";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Activity, Search, ShieldCheck } from "lucide-react";
+import { Activity, Search, ShieldCheck, ListChecks } from "lucide-react";
 import { RequireAdmin } from "@/components/auth/RequireAdmin";
 import { SystemHealthPanel } from "@/components/admin/SystemHealthPanel";
 import { SEOMonitorPanel } from "@/components/admin/SEOMonitorPanel";
 import { SecurityAuditTrail } from "@/components/admin/SecurityAuditTrail";
 import { SecurityScanPanel } from "@/components/admin/SecurityScanPanel";
+import { RemainingWorkPanel } from "@/components/admin/RemainingWorkPanel";
 import { useSecurityNotifications } from "@/hooks/useSecurityAudit";
 
-const TABS = ["health", "seo", "security"] as const;
+const TABS = ["health", "seo", "security", "work"] as const;
 type TabKey = (typeof TABS)[number];
 
 const META: Record<TabKey, { title: string; description: string; heading: string }> = {
@@ -29,6 +30,11 @@ const META: Record<TabKey, { title: string; description: string; heading: string
     title: "Security audit — SmartReach",
     description: "Who triggered security scans and which findings changed status.",
     heading: "Security Audit",
+  },
+  work: {
+    title: "Remaining work — SmartReach",
+    description: "Checklist of planned commitments and what is still outstanding.",
+    heading: "Remaining Work",
   },
 };
 
@@ -80,6 +86,10 @@ export default function AdminMonitoring() {
               <h2 className="sr-only">{META.security.heading}</h2>
               <SecurityScanPanel />
               <SecurityAuditTrail />
+            </TabsContent>
+            <TabsContent value="work" className="mt-6">
+              <h2 className="sr-only">{META.work.heading}</h2>
+              <RemainingWorkPanel />
             </TabsContent>
           </Tabs>
         </div>
