@@ -5246,6 +5246,7 @@ export type Database = {
         | "assignment"
         | "mention"
         | "status_change"
+        | "security_alert"
       post_status: "draft" | "scheduled" | "publishing" | "published" | "failed"
       priority_level: "low" | "normal" | "high" | "urgent"
       product_category:
@@ -5527,6 +5528,7 @@ export const Constants = {
         "assignment",
         "mention",
         "status_change",
+        "security_alert",
       ],
       post_status: ["draft", "scheduled", "publishing", "published", "failed"],
       priority_level: ["low", "normal", "high", "urgent"],
