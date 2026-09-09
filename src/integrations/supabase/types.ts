@@ -5086,6 +5086,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      notify_business_owners_security: {
+        Args: {
+          p_body: string
+          p_event_id: string
+          p_kind: string
+          p_title: string
+        }
+        Returns: undefined
+      }
       record_capital_repayment:
         | {
             Args: {
@@ -5246,6 +5255,7 @@ export type Database = {
         | "assignment"
         | "mention"
         | "status_change"
+        | "security_alert"
       post_status: "draft" | "scheduled" | "publishing" | "published" | "failed"
       priority_level: "low" | "normal" | "high" | "urgent"
       product_category:
@@ -5527,6 +5537,7 @@ export const Constants = {
         "assignment",
         "mention",
         "status_change",
+        "security_alert",
       ],
       post_status: ["draft", "scheduled", "publishing", "published", "failed"],
       priority_level: ["low", "normal", "high", "urgent"],

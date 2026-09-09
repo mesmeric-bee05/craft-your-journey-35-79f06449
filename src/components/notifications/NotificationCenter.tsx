@@ -71,6 +71,8 @@ export function NotificationCenter() {
     // Navigate based on notification type
     if (notification.data?.conversation_id) {
       navigate(`/inbox?conversation=${notification.data.conversation_id}`);
+    } else if (notification.data?.link) {
+      navigate(notification.data.link);
     }
   };
 
