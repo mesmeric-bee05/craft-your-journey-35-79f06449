@@ -1,5 +1,5 @@
 import { formatDistanceToNow } from 'date-fns';
-import { MessageSquare, UserPlus, AtSign, RefreshCw } from 'lucide-react';
+import { MessageSquare, UserPlus, AtSign, RefreshCw, ShieldAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Notification, NotificationType } from '@/hooks/useNotifications';
 
@@ -8,6 +8,7 @@ const notificationConfig: Record<NotificationType, { icon: React.ComponentType<{
   assignment: { icon: UserPlus, color: 'text-purple-500 bg-purple-500/10' },
   mention: { icon: AtSign, color: 'text-orange-500 bg-orange-500/10' },
   status_change: { icon: RefreshCw, color: 'text-green-500 bg-green-500/10' },
+  security_alert: { icon: ShieldAlert, color: 'text-red-500 bg-red-500/10' },
 };
 
 interface NotificationItemProps {

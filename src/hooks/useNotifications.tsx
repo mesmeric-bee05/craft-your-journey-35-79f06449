@@ -7,7 +7,12 @@ import { useUserSettings } from '@/hooks/useUserSettings';
 import { toast } from 'sonner';
 import { logger } from '@/lib/logger';
 
-export type NotificationType = 'new_message' | 'assignment' | 'mention' | 'status_change';
+export type NotificationType =
+  | 'new_message'
+  | 'assignment'
+  | 'mention'
+  | 'status_change'
+  | 'security_alert';
 
 export interface Notification {
   id: string;
@@ -23,6 +28,11 @@ export interface Notification {
     previous_assignee?: string | null;
     old_status?: string;
     new_status?: string;
+    /** Security alerts: in-app destination and who the alert was written for. */
+    link?: string;
+    kind?: string;
+    audience?: 'admin' | 'business';
+    event_id?: string;
   };
   read_at: string | null;
   clicked_at: string | null;
