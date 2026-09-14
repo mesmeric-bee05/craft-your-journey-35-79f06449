@@ -94,6 +94,15 @@ Deno.serve(async (req) => {
       intent === "retry"
         ? "The owner asked to retry something. Explain that the app will refresh their status now, and that only the SmartReach team can retry an M-Pesa payout."
         : "",
+      intent === "repayment_summary"
+        ? [
+            "The owner asked for a repayment summary. Give ONE spoken answer covering, only if present in the data:",
+            "the advance amount and outstanding balance in KES, the revenue share percentage,",
+            "the most recent repayment with its amount, status and how recently it happened (relative time such as 'yesterday evening'),",
+            "the total repaid so far, and whether the nightly collection last ran successfully or failed.",
+            "If a figure is missing, say plainly you don't have it yet. Never invent amounts or times.",
+          ].join(" ")
+        : "",
       intent === "sync_status"
         ? [
             "The owner asked when their advance last synced. Give ONE spoken answer covering, in this order and only if present in the data:",
