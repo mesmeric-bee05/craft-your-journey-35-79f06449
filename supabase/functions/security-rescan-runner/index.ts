@@ -127,6 +127,37 @@ async function alertNewFindings(count: number) {
   } catch (_) { /* ignore */ }
 }
 
+/**
+ * Flushes the pending admin security digest (scan completions plus any finding
+ * status changes queued since the last send). Best-effort: a failed digest must
+ * never fail the scan itself.
+ */
+async function sendDigest(svc: any): Promise<{ ok: boolean; detail?: string }> {
+  const base = Deno.env.get("SUPABASE_URL");
+  if (!base) return { ok: false, detail: "no_supabase_url" };
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const rescanSecret = Deno.env.get("SECURITY_RESCAN_SECRET");
+  if (rescanSecret) headers["x-rescan-secret"] = rescanSecret;
+  else {
+    const { data: row } = await svc
+      .from("cron_job_secrets").select("secret").eq("job_name", "security-notify-email").maybeSingle();
+    if (!row?.secret) return { ok: false, detail: "no_digest_secret" };
+    headers["x-job-secret"] = row.secret;
+  }
+  try {
+    const res = await fetch(`${base}/functions/v1/security-notify-email`, { method: "POST", headers, body: "{}" });
+    const text = await res.text().catch(() => "");
+    if (!res.ok) {
+      console.error(`[security-rescan-runner] digest ${res.status}: ${text}`);
+      return { ok: false, detail: `digest_${res.status}` };
+    }
+    return { ok: true, detail: text.slice(0, 200) };
+  } catch (e) {
+    console.error("[security-rescan-runner] digest threw", e);
+    return { ok: false, detail: "digest_error" };
+  }
+}
+
 async function authorize(req: Request, svc: any): Promise<boolean> {
   // Fail-closed: must present a valid shared-secret OR a valid admin JWT.
   const wantSecret = Deno.env.get("SECURITY_RESCAN_SECRET");
