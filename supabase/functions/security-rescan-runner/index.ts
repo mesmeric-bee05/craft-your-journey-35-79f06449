@@ -246,8 +246,9 @@ Deno.serve(async (req) => {
       metadata: { new_findings: newCount, total_detected: findings.length },
     });
     await alertNewFindings(newCount);
+    const digest = await sendDigest(svc);
 
-    return new Response(JSON.stringify({ ok: true, total: findings.length, new: newCount }), {
+    return new Response(JSON.stringify({ ok: true, total: findings.length, new: newCount, digest }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
