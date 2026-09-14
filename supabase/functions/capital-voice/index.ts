@@ -17,7 +17,13 @@ function sanitize(input: string): string {
     .slice(0, 500);
 }
 
-export type VoiceIntent = "confirm_details" | "retry" | "documents" | "sync_status" | "status";
+export type VoiceIntent =
+  | "confirm_details"
+  | "retry"
+  | "documents"
+  | "sync_status"
+  | "repayment_summary"
+  | "status";
 
 /**
  * Keyword intent detection across English, Kiswahili, Sheng' and Kenglish.
@@ -29,6 +35,10 @@ function detectIntent(q: string): VoiceIntent {
   if (/(confirm|thibitisha|hakikisha|check my details|review (my )?details|sahihi)/.test(s)) return "confirm_details";
   if (/(last sync|synced|sync|webhook|last update|latest update|imesasishwa|usawazishaji|sasisho|update ya mwisho|ni lini)/.test(s))
     return "sync_status";
+  if (
+    /(repayment|repayments|repay|marejesho|kurejesha|malipo|installment|balance|deni|nilipe|nilipa|outstanding)/.test(s)
+  )
+    return "repayment_summary";
   if (/(retry|try again|jaribu tena|rudia|refresh|angalia upya)/.test(s)) return "retry";
   if (/(document|documents|nyaraka|hati|papers|karatasi|requirement|inahitajika)/.test(s)) return "documents";
   return "status";
