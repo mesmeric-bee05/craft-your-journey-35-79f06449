@@ -72,6 +72,9 @@ export default function AdminMonitoring() {
                 <ShieldCheck className="h-4 w-4" aria-hidden="true" /> Security audit
                 {unreadCount > 0 && <Badge variant="destructive">{unreadCount}</Badge>}
               </TabsTrigger>
+              <TabsTrigger value="work" className="gap-2">
+                <ListChecks className="h-4 w-4" aria-hidden="true" /> Remaining work
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="health" className="mt-6">

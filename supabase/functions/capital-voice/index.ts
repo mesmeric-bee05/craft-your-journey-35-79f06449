@@ -17,7 +17,13 @@ function sanitize(input: string): string {
     .slice(0, 500);
 }
 
-export type VoiceIntent = "confirm_details" | "retry" | "documents" | "sync_status" | "status";
+export type VoiceIntent =
+  | "confirm_details"
+  | "retry"
+  | "documents"
+  | "sync_status"
+  | "repayment_summary"
+  | "status";
 
 /**
  * Keyword intent detection across English, Kiswahili, Sheng' and Kenglish.
@@ -29,6 +35,10 @@ function detectIntent(q: string): VoiceIntent {
   if (/(confirm|thibitisha|hakikisha|check my details|review (my )?details|sahihi)/.test(s)) return "confirm_details";
   if (/(last sync|synced|sync|webhook|last update|latest update|imesasishwa|usawazishaji|sasisho|update ya mwisho|ni lini)/.test(s))
     return "sync_status";
+  if (
+    /(repayment|repayments|repay|marejesho|kurejesha|malipo|installment|balance|deni|nilipe|nilipa|outstanding)/.test(s)
+  )
+    return "repayment_summary";
   if (/(retry|try again|jaribu tena|rudia|refresh|angalia upya)/.test(s)) return "retry";
   if (/(document|documents|nyaraka|hati|papers|karatasi|requirement|inahitajika)/.test(s)) return "documents";
   return "status";
@@ -83,6 +93,15 @@ Deno.serve(async (req) => {
         : "",
       intent === "retry"
         ? "The owner asked to retry something. Explain that the app will refresh their status now, and that only the SmartReach team can retry an M-Pesa payout."
+        : "",
+      intent === "repayment_summary"
+        ? [
+            "The owner asked for a repayment summary. Give ONE spoken answer covering, only if present in the data:",
+            "the advance amount and outstanding balance in KES, the revenue share percentage,",
+            "the most recent repayment with its amount, status and how recently it happened (relative time such as 'yesterday evening'),",
+            "the total repaid so far, and whether the nightly collection last ran successfully or failed.",
+            "If a figure is missing, say plainly you don't have it yet. Never invent amounts or times.",
+          ].join(" ")
         : "",
       intent === "sync_status"
         ? [
