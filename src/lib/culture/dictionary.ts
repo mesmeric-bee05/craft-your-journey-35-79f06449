@@ -57,6 +57,7 @@ export interface CultureStrings {
   voiceQuickStatus: string;
   voiceQuickSync: string;
   voiceQuickDocs: string;
+  voiceQuickRepay: string;
 
   // notifications
   notifTitle: string;
@@ -138,6 +139,7 @@ const en: CultureStrings = {
   voiceQuickStatus: "How is my advance doing?",
   voiceQuickSync: "When did it last sync?",
   voiceQuickDocs: "What documents do I need?",
+  voiceQuickRepay: "Summarise my repayments.",
   notifTitle: "Notification preferences",
   notifSubtitle: "Choose how you hear about sync, disbursement and repayment events.",
   channelEmail: "Email",
@@ -218,6 +220,7 @@ const sw: CultureStrings = {
   voiceQuickStatus: "Mkopo wangu unaendeleaje?",
   voiceQuickSync: "Ulisasishwa lini mara ya mwisho?",
   voiceQuickDocs: "Nahitaji nyaraka zipi?",
+  voiceQuickRepay: "Nipe muhtasari wa marejesho yangu.",
   notifTitle: "Mapendeleo ya taarifa",
   notifSubtitle: "Chagua unavyotaka kupata taarifa za usawazishaji, utoaji na marejesho.",
   channelEmail: "Barua pepe",
@@ -262,6 +265,7 @@ const sheng: CultureStrings = {
   voiceQuickStatus: "Doh yangu iko aje?",
   voiceQuickSync: "Ilisync lini mara ya mwisho?",
   voiceQuickDocs: "Nahitaji ma-document gani?",
+  voiceQuickRepay: "Niambie repayment zangu ziko aje.",
   notifTitle: "Settings za notification",
   notifSubtitle: "Chagua vipi unataka kujua kuhusu sync, doh na repayment.",
 };
@@ -289,6 +293,7 @@ const kenglish: CultureStrings = {
   voiceQuickStatus: "How is my advance doing?",
   voiceQuickSync: "Ilisync lini last?",
   voiceQuickDocs: "Which documents do I need?",
+  voiceQuickRepay: "Summarise repayment zangu.",
   voiceHint: "Ask about disbursement, repayments ama the last partner sync.",
 };
 

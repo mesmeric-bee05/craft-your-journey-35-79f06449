@@ -41,7 +41,13 @@ interface Turn {
   text: string;
 }
 
-type VoiceIntent = "confirm_details" | "retry" | "documents" | "sync_status" | "status";
+type VoiceIntent =
+  | "confirm_details"
+  | "retry"
+  | "documents"
+  | "sync_status"
+  | "repayment_summary"
+  | "status";
 
 interface Props {
   businessId: string | undefined;
@@ -206,7 +212,7 @@ export function CapitalVoiceAssistant({ businessId, onConfirmDetails, onRetry, o
         {!supportsVoice && <p className="text-xs text-muted-foreground">{t.voiceUnsupported}</p>}
 
         <div className="flex flex-wrap gap-2">
-          {[t.voiceQuickStatus, t.voiceQuickSync, t.voiceQuickDocs].map((q) => (
+          {[t.voiceQuickStatus, t.voiceQuickRepay, t.voiceQuickSync, t.voiceQuickDocs].map((q) => (
             <Button
               key={q}
               type="button"
