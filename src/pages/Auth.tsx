@@ -1,19 +1,22 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthForm } from '@/components/auth/AuthForm';
 import { useAuth } from '@/hooks/useAuth';
+import { safeNextPath } from '@/lib/authRedirect';
 import { Zap } from 'lucide-react';
 
 export default function Auth() {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const next = safeNextPath(location.search);
 
   useEffect(() => {
     if (!loading && user) {
-      navigate('/dashboard');
+      navigate(next);
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, navigate, next]);
 
   if (loading) {
     return (
