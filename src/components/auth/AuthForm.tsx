@@ -94,7 +94,7 @@ export function AuthForm({ mode, onModeChange }: AuthFormProps) {
         // Audit logging is best-effort; don't block the user
       }
     } else {
-      navigate('/dashboard');
+      navigate(nextPath);
     }
   };
 
