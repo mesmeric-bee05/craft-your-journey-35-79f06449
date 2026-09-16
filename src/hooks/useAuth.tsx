@@ -7,9 +7,9 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, fullName?: string) => Promise<{ error: AuthError | null }>;
+  signUp: (email: string, password: string, fullName?: string, redirectPath?: string) => Promise<{ error: AuthError | null }>;
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
-  signInWithGoogle: () => Promise<{ error: AuthError | null }>;
+  signInWithGoogle: (redirectPath?: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -52,8 +52,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, fullName?: string) => {
-    const redirectUrl = `${window.location.origin}/`;
+  const signUp = async (email: string, password: string, fullName?: string, redirectPath?: string) => {
+    // A relative redirectPath (e.g. an OAuth consent URL) brings the user back
+    // to where they started instead of the app home.
+    const safePath = redirectPath && redirectPath.startsWith('/') && !redirectPath.startsWith('//') ? redirectPath : '/';
+    const redirectUrl = `${window.location.origin}${safePath}`;
     
     const { error } = await supabase.auth.signUp({
       email,
@@ -103,11 +106,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (redirectPath?: string) => {
+    const safePath = redirectPath && redirectPath.startsWith('/') && !redirectPath.startsWith('//') ? redirectPath : '/';
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/`,
+        redirectTo: `${window.location.origin}${safePath}`,
       },
     });
 

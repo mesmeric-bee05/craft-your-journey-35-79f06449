@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { safeNextPath } from '@/lib/authRedirect';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -51,6 +52,9 @@ export function AuthForm({ mode, onModeChange }: AuthFormProps) {
   const [passwordValue, setPasswordValue] = useState('');
   const { signIn, signUp, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const nextPath = safeNextPath(location.search);
+  
   
   // Password strength indicator for signup
   const passwordStrength = mode === 'signup' ? getPasswordStrength(passwordValue) : null;
@@ -90,7 +94,7 @@ export function AuthForm({ mode, onModeChange }: AuthFormProps) {
         // Audit logging is best-effort; don't block the user
       }
     } else {
-      navigate('/dashboard');
+      navigate(nextPath);
     }
   };
 
@@ -102,15 +106,15 @@ export function AuthForm({ mode, onModeChange }: AuthFormProps) {
       return;
     }
     setLoading(true);
-    const { error } = await signUp(data.email, data.password, data.fullName);
+    const { error } = await signUp(data.email, data.password, data.fullName, nextPath);
     setLoading(false);
     if (!error) {
-      navigate('/dashboard');
+      navigate(nextPath);
     }
   };
 
   const handleGoogleSignIn = async () => {
-    await signInWithGoogle();
+    await signInWithGoogle(nextPath);
   };
 
   return (

@@ -10,6 +10,7 @@ import { RequireAuth } from "@/components/auth/RequireAuth";
 import { RequireOnboarding } from "@/components/auth/RequireOnboarding";
 import { MFAChallenge } from "@/components/auth/MFAChallenge";
 import Auth from "./pages/Auth";
+import OAuthConsent from "./pages/OAuthConsent";
 import Dashboard from "./pages/Dashboard";
 import Onboarding from "./pages/Onboarding";
 import Inbox from "./pages/Inbox";
@@ -85,6 +86,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/feedback/:slug" element={<FeedbackPublic />} />
             <Route path="/biz/:slug" element={<BusinessPublic />} />
