@@ -106,15 +106,15 @@ export function AuthForm({ mode, onModeChange }: AuthFormProps) {
       return;
     }
     setLoading(true);
-    const { error } = await signUp(data.email, data.password, data.fullName);
+    const { error } = await signUp(data.email, data.password, data.fullName, nextPath);
     setLoading(false);
     if (!error) {
-      navigate('/dashboard');
+      navigate(nextPath);
     }
   };
 
   const handleGoogleSignIn = async () => {
-    await signInWithGoogle();
+    await signInWithGoogle(nextPath);
   };
 
   return (
