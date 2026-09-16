@@ -52,6 +52,9 @@ export function AuthForm({ mode, onModeChange }: AuthFormProps) {
   const [passwordValue, setPasswordValue] = useState('');
   const { signIn, signUp, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const nextPath = safeNextPath(location.search);
+  
   
   // Password strength indicator for signup
   const passwordStrength = mode === 'signup' ? getPasswordStrength(passwordValue) : null;
