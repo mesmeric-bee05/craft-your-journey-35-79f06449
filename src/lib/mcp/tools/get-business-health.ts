@@ -1,4 +1,4 @@
-import { defineTool } from "@lovable.dev/mcp-js";
+import { defineTool, ToolError } from "@lovable.dev/mcp-js";
 import { resolveBusinessId, supabaseForUser } from "../supabase";
 
 export default defineTool({
@@ -8,26 +8,25 @@ export default defineTool({
   inputSchema: {},
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async (_input, ctx) => {
-    if (!ctx.isAuthenticated()) {
-      return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
-    }
+    if (!ctx.isAuthenticated()) throw new ToolError("Not authenticated");
     const supabase = supabaseForUser(ctx);
     const businessId = await resolveBusinessId(supabase, ctx.getUserId()!);
-    if (!businessId) {
-      return { content: [{ type: "text", text: "No business found for this account." }], isError: true };
-    }
+    if (!businessId) throw new ToolError("No business found for this account.");
     const { data, error } = await supabase
       .from("business_health_score")
-      .select("*")
+      .select("overall, engagement_component, growth_component, inventory_component, voc_component, computed_at")
       .eq("business_id", businessId)
       .maybeSingle();
-    if (error) return { content: [{ type: "text", text: error.message }], isError: true };
-    if (!data) {
-      return { content: [{ type: "text", text: "No score has been calculated yet." }] };
-    }
-    return {
-      content: [{ type: "text", text: JSON.stringify(data) }],
-      structuredContent: { score: data },
+    if (error) throw new ToolError("Could not load the SmartReach score.");
+    if (!data) return { content: [{ type: "text", text: "No score has been calculated yet." }] };
+    const score = {
+      overall: Number(data.overall),
+      engagement: Number(data.engagement_component),
+      growth: Number(data.growth_component),
+      inventory: Number(data.inventory_component),
+      voice_of_customer: Number(data.voc_component),
+      computed_at: String(data.computed_at),
     };
+    return { content: [{ type: "text", text: JSON.stringify(score) }], structuredContent: { score } };
   },
 });

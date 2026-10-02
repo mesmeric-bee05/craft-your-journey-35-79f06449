@@ -6,7 +6,7 @@
 import { auth, defineMcp } from "npm:@lovable.dev/mcp-js@2.2.0";
 
 // src/lib/mcp/tools/list-customers.ts
-import { defineTool } from "npm:@lovable.dev/mcp-js@2.2.0";
+import { defineTool, ToolError } from "npm:@lovable.dev/mcp-js@2.2.0";
 import { z } from "npm:zod@^4.6.5";
 
 // src/lib/mcp/supabase.ts
@@ -62,6 +62,7 @@ async function resolveBusinessId(supabase, userId) {
 }
 
 // src/lib/mcp/tools/list-customers.ts
+var safeSearch = (s) => s.replace(/[%,()*\\:."']/g, " ").trim();
 var list_customers_default = defineTool({
   name: "list_customers",
   title: "List customers",
@@ -72,27 +73,33 @@ var list_customers_default = defineTool({
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ limit, search }, ctx) => {
-    if (!ctx.isAuthenticated()) {
-      return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
-    }
+    if (!ctx.isAuthenticated()) throw new ToolError("Not authenticated");
     const supabase = supabaseForUser(ctx);
     const businessId = await resolveBusinessId(supabase, ctx.getUserId());
-    if (!businessId) {
-      return { content: [{ type: "text", text: "No business found for this account." }], isError: true };
-    }
-    let query = supabase.from("customers").select("id, name, phone, email, tags, total_spent, last_contact_at, created_at").eq("business_id", businessId).order("created_at", { ascending: false }).limit(limit ?? 20);
-    if (search) query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%`);
+    if (!businessId) throw new ToolError("No business found for this account.");
+    let query = supabase.from("customers").select("id, name, phone, email, tags, last_contact_at, created_at").eq("business_id", businessId).order("created_at", { ascending: false }).limit(limit ?? 20);
+    const term = search ? safeSearch(search) : "";
+    if (term) query = query.or(`name.ilike.*${term}*,phone.ilike.*${term}*`);
     const { data, error } = await query;
-    if (error) return { content: [{ type: "text", text: error.message }], isError: true };
+    if (error) throw new ToolError("Could not load customers.");
+    const customers = (data ?? []).map((c) => ({
+      id: c.id,
+      name: c.name ?? null,
+      phone: c.phone ?? null,
+      email: c.email ?? null,
+      tags: (c.tags ?? []).map((t) => String(t)),
+      last_contact_at: c.last_contact_at ?? null,
+      created_at: c.created_at
+    }));
     return {
-      content: [{ type: "text", text: JSON.stringify(data ?? []) }],
-      structuredContent: { customers: data ?? [] }
+      content: [{ type: "text", text: JSON.stringify(customers) }],
+      structuredContent: { customers }
     };
   }
 });
 
 // src/lib/mcp/tools/list-products.ts
-import { defineTool as defineTool2 } from "npm:@lovable.dev/mcp-js@2.2.0";
+import { defineTool as defineTool2, ToolError as ToolError2 } from "npm:@lovable.dev/mcp-js@2.2.0";
 import { z as z2 } from "npm:zod@^4.6.5";
 var list_products_default = defineTool2({
   name: "list_products",
@@ -104,28 +111,31 @@ var list_products_default = defineTool2({
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ limit, lowStockOnly }, ctx) => {
-    if (!ctx.isAuthenticated()) {
-      return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
-    }
+    if (!ctx.isAuthenticated()) throw new ToolError2("Not authenticated");
     const supabase = supabaseForUser(ctx);
     const businessId = await resolveBusinessId(supabase, ctx.getUserId());
-    if (!businessId) {
-      return { content: [{ type: "text", text: "No business found for this account." }], isError: true };
-    }
-    const { data, error } = await supabase.from("products").select("id, name, sku, price, stock_quantity, reorder_level, category, is_active").eq("business_id", businessId).order("name", { ascending: true }).limit(limit ?? 25);
-    if (error) return { content: [{ type: "text", text: error.message }], isError: true };
-    const rows = (data ?? []).filter(
-      (p) => lowStockOnly ? Number(p.stock_quantity ?? 0) <= Number(p.reorder_level ?? 0) : true
-    );
+    if (!businessId) throw new ToolError2("No business found for this account.");
+    const { data, error } = await supabase.from("products").select("id, name, sku, price, stock_quantity, reorder_level, category, is_active").eq("business_id", businessId).order("name", { ascending: true }).limit(lowStockOnly ? 500 : limit ?? 25);
+    if (error) throw new ToolError2("Could not load products.");
+    const products = (data ?? []).filter((p) => !lowStockOnly || Number(p.stock_quantity ?? 0) <= Number(p.reorder_level ?? 0)).slice(0, limit ?? 25).map((p) => ({
+      id: String(p.id),
+      name: String(p.name ?? ""),
+      sku: p.sku == null ? null : String(p.sku),
+      price: Number(p.price ?? 0),
+      stock_quantity: Number(p.stock_quantity ?? 0),
+      reorder_level: Number(p.reorder_level ?? 0),
+      category: p.category == null ? null : String(p.category),
+      is_active: Boolean(p.is_active)
+    }));
     return {
-      content: [{ type: "text", text: JSON.stringify(rows) }],
-      structuredContent: { products: rows }
+      content: [{ type: "text", text: JSON.stringify(products) }],
+      structuredContent: { products }
     };
   }
 });
 
 // src/lib/mcp/tools/get-business-health.ts
-import { defineTool as defineTool3 } from "npm:@lovable.dev/mcp-js@2.2.0";
+import { defineTool as defineTool3, ToolError as ToolError3 } from "npm:@lovable.dev/mcp-js@2.2.0";
 var get_business_health_default = defineTool3({
   name: "get_business_health",
   title: "Get SmartReach score",
@@ -133,54 +143,98 @@ var get_business_health_default = defineTool3({
   inputSchema: {},
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async (_input, ctx) => {
-    if (!ctx.isAuthenticated()) {
-      return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
-    }
+    if (!ctx.isAuthenticated()) throw new ToolError3("Not authenticated");
     const supabase = supabaseForUser(ctx);
     const businessId = await resolveBusinessId(supabase, ctx.getUserId());
-    if (!businessId) {
-      return { content: [{ type: "text", text: "No business found for this account." }], isError: true };
-    }
-    const { data, error } = await supabase.from("business_health_score").select("*").eq("business_id", businessId).maybeSingle();
-    if (error) return { content: [{ type: "text", text: error.message }], isError: true };
-    if (!data) {
-      return { content: [{ type: "text", text: "No score has been calculated yet." }] };
-    }
-    return {
-      content: [{ type: "text", text: JSON.stringify(data) }],
-      structuredContent: { score: data }
+    if (!businessId) throw new ToolError3("No business found for this account.");
+    const { data, error } = await supabase.from("business_health_score").select("overall, engagement_component, growth_component, inventory_component, voc_component, computed_at").eq("business_id", businessId).maybeSingle();
+    if (error) throw new ToolError3("Could not load the SmartReach score.");
+    if (!data) return { content: [{ type: "text", text: "No score has been calculated yet." }] };
+    const score = {
+      overall: Number(data.overall),
+      engagement: Number(data.engagement_component),
+      growth: Number(data.growth_component),
+      inventory: Number(data.inventory_component),
+      voice_of_customer: Number(data.voc_component),
+      computed_at: String(data.computed_at)
     };
+    return { content: [{ type: "text", text: JSON.stringify(score) }], structuredContent: { score } };
   }
 });
 
 // src/lib/mcp/tools/create-customer.ts
-import { defineTool as defineTool4 } from "npm:@lovable.dev/mcp-js@2.2.0";
+import { defineTool as defineTool4, ToolError as ToolError4 } from "npm:@lovable.dev/mcp-js@2.2.0";
 import { z as z3 } from "npm:zod@^4.6.5";
+function normalizePhone(raw) {
+  const digits = raw.replace(/[^\d+]/g, "").replace(/(?!^)\+/g, "");
+  if (!digits) return null;
+  let d = digits.startsWith("+") ? digits.slice(1) : digits;
+  if (/^0[17]\d{8}$/.test(d)) d = "254" + d.slice(1);
+  else if (/^[17]\d{8}$/.test(d)) d = "254" + d;
+  if (!/^\d{7,15}$/.test(d)) return null;
+  return "+" + d;
+}
+var toJson = (r) => ({ id: r.id, name: r.name, phone: r.phone, email: r.email });
 var create_customer_default = defineTool4({
   name: "create_customer",
   title: "Create customer",
-  description: "Add a customer to the signed-in user's business.",
+  description: "Add a customer to the signed-in user's business. Safe to retry: an existing customer with the same phone or email is returned instead of creating a duplicate.",
   inputSchema: {
     name: z3.string().trim().min(1).max(120).describe("Customer name."),
-    phone: z3.string().trim().max(30).optional().describe("Phone number, e.g. +2547...."),
+    phone: z3.string().trim().max(30).optional().describe("Phone number, e.g. +2547... or 07..."),
     email: z3.string().trim().email().max(160).optional().describe("Email address."),
     notes: z3.string().trim().max(500).optional().describe("Optional internal notes.")
   },
-  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   handler: async ({ name, phone, email, notes }, ctx) => {
-    if (!ctx.isAuthenticated()) {
-      return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
-    }
+    if (!ctx.isAuthenticated()) throw new ToolError4("Not authenticated");
+    const normPhone = phone ? normalizePhone(phone) : null;
+    if (phone && !normPhone) throw new ToolError4("Phone number is not valid.");
+    const normEmail = email ? email.toLowerCase() : null;
+    if (!normPhone && !normEmail) throw new ToolError4("Provide a phone number or email so duplicates can be detected.");
     const supabase = supabaseForUser(ctx);
     const businessId = await resolveBusinessId(supabase, ctx.getUserId());
-    if (!businessId) {
-      return { content: [{ type: "text", text: "No business found for this account." }], isError: true };
+    if (!businessId) throw new ToolError4("No business found for this account.");
+    const findExisting = async () => {
+      if (normPhone) {
+        const { data: data2 } = await supabase.from("customers").select("id, name, phone, email").eq("business_id", businessId).eq("phone", normPhone).limit(1).maybeSingle();
+        if (data2) return data2;
+      }
+      if (normEmail) {
+        const { data: data2 } = await supabase.from("customers").select("id, name, phone, email").eq("business_id", businessId).ilike("email", normEmail.replace(/[%_\\]/g, "\\$&")).limit(1).maybeSingle();
+        if (data2) return data2;
+      }
+      return null;
+    };
+    const existing = await findExisting();
+    if (existing) {
+      return {
+        content: [{ type: "text", text: `Customer already exists: ${existing.name ?? ""} (${existing.id}). No duplicate created.` }],
+        structuredContent: { customer: toJson(existing), duplicate: true }
+      };
     }
-    const { data, error } = await supabase.from("customers").insert({ business_id: businessId, name, phone: phone ?? null, email: email ?? null, notes: notes ?? null }).select("id, name, phone, email").maybeSingle();
-    if (error) return { content: [{ type: "text", text: error.message }], isError: true };
+    const { data, error } = await supabase.from("customers").insert({
+      business_id: businessId,
+      name,
+      phone: normPhone,
+      email: normEmail,
+      notes: notes ?? null,
+      channel_type: normPhone ? "sms" : "email"
+    }).select("id, name, phone, email").maybeSingle();
+    if (error) {
+      const again = await findExisting();
+      if (again) {
+        return {
+          content: [{ type: "text", text: `Customer already exists (${again.id}).` }],
+          structuredContent: { customer: toJson(again), duplicate: true }
+        };
+      }
+      throw new ToolError4("Could not create the customer.");
+    }
+    const row = data;
     return {
-      content: [{ type: "text", text: `Created customer ${data?.name} (${data?.id}).` }],
-      structuredContent: { customer: data }
+      content: [{ type: "text", text: `Created customer ${row.name ?? ""} (${row.id}).` }],
+      structuredContent: { customer: toJson(row), duplicate: false }
     };
   }
 });
