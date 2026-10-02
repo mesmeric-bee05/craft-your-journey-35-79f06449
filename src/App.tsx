@@ -52,6 +52,7 @@ import CapitalAdmin from "./pages/admin/CapitalAdmin";
 import CapitalAuditPage from "./pages/admin/CapitalAuditPage";
 import CapitalOpsPage from "./pages/admin/CapitalOpsPage";
 import OfflineTest from "./pages/OfflineTest";
+import ConnectAssistant from "./pages/ConnectAssistant";
 import { OfflineIndicator } from "@/pwa/OfflineIndicator";
 
 const queryClient = new QueryClient({
@@ -127,6 +128,7 @@ const App = () => (
             <Route path="/admin/capital" element={<ProtectedRoute><CapitalAdmin /></ProtectedRoute>} />
             <Route path="/admin/capital/audit" element={<ProtectedRoute><CapitalAuditPage /></ProtectedRoute>} />
             <Route path="/admin/capital/ops" element={<ProtectedRoute><CapitalOpsPage /></ProtectedRoute>} />
+            <Route path="/settings/ai-assistant" element={<ProtectedRoute><ConnectAssistant /></ProtectedRoute>} />
             <Route path="/settings/offline-test" element={<ProtectedRoute><OfflineTest /></ProtectedRoute>} />
 
             <Route path="*" element={<NotFound />} />
