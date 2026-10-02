@@ -93,10 +93,11 @@
       {
         "name": "create_customer",
         "title": "Create customer",
-        "description": "Add a customer to the signed-in user's business.",
+        "description": "Add a customer to the signed-in user's business. Safe to retry: an existing customer with the same phone or email is returned instead of creating a duplicate.",
         "annotations": {
           "readOnlyHint": false,
           "destructiveHint": false,
+          "idempotentHint": true,
           "openWorldHint": false
         },
         "inputSchema": {
@@ -110,7 +111,7 @@
               "description": "Customer name."
             },
             "phone": {
-              "description": "Phone number, e.g. +2547....",
+              "description": "Phone number, e.g. +2547... or 07...",
               "type": "string",
               "maxLength": 30
             },

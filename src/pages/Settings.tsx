@@ -11,6 +11,8 @@ import { CannedResponsesSettings } from '@/components/settings/CannedResponsesSe
 import { TeamSettings } from '@/components/settings/TeamSettings';
 import { NotificationPreferenceCenter } from '@/components/settings/NotificationPreferenceCenter';
 import { User, Bell, Link2, Shield, Clock, Star, MessageSquare, Users, Building2, BellRing } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Bot } from 'lucide-react';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 export default function Settings() {
@@ -22,6 +24,9 @@ export default function Settings() {
           <p className="text-muted-foreground">
             Manage your account settings and preferences
           </p>
+          <Link to="/settings/ai-assistant" className="mt-2 inline-flex items-center gap-2 text-sm text-primary underline">
+            <Bot className="h-4 w-4" /> Connect your AI assistant
+          </Link>
         </div>
 
         <Tabs defaultValue="profile" className="space-y-6">
