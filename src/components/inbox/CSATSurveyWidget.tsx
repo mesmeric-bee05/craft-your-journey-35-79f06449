@@ -108,7 +108,7 @@ export function CSATSurveyWidget({
 
     const validation = csatSchema.safeParse({ rating, comment });
     if (!validation.success) {
-      toast({ title: 'Invalid input', description: validation.error.errors[0]?.message, variant: 'destructive' });
+      toast({ title: 'Invalid input', description: validation.error.issues[0]?.message, variant: 'destructive' });
       return;
     }
 

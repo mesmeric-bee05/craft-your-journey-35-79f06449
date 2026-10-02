@@ -43,7 +43,7 @@ export default function ResetPassword() {
 
     const result = passwordSchema.safeParse(password);
     if (!result.success) {
-      toast({ title: 'Invalid password', description: result.error.errors[0].message, variant: 'destructive' });
+      toast({ title: 'Invalid password', description: result.error.issues[0].message, variant: 'destructive' });
       return;
     }
 
