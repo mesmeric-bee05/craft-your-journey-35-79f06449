@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useState, useRef } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -79,6 +80,7 @@ export default function HelpCenter() {
           </div>
           <h1 className="text-3xl font-display font-bold text-foreground">How can we help you?</h1>
           <p className="text-muted-foreground mt-2">Search our knowledge base or chat with our AI assistant</p>
+          <Link to="/settings/ai-assistant" className="mt-3 inline-block text-sm text-primary underline">Connect your AI assistant</Link>
           <div className="relative mt-6 max-w-md mx-auto">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <Input
