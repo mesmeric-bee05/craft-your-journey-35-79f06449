@@ -83,7 +83,9 @@ export default defineTool({
       }
       throw new ToolError("Could not create the customer.");
     }
-    const row = data as Row;
+    // The database merges matching customers automatically and may return no new row.
+    const row = (data as Row | null) ?? (await findExisting());
+    if (!row) throw new ToolError("Could not create the customer.");
     return {
       content: [{ type: "text", text: `Created customer ${row.name ?? ""} (${row.id}).` }],
       structuredContent: { customer: toJson(row), duplicate: false },

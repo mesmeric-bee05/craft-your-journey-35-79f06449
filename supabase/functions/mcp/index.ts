@@ -231,7 +231,8 @@ var create_customer_default = defineTool4({
       }
       throw new ToolError4("Could not create the customer.");
     }
-    const row = data;
+    const row = data ?? await findExisting();
+    if (!row) throw new ToolError4("Could not create the customer.");
     return {
       content: [{ type: "text", text: `Created customer ${row.name ?? ""} (${row.id}).` }],
       structuredContent: { customer: toJson(row), duplicate: false }
