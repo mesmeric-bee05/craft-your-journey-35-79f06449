@@ -5077,6 +5077,15 @@ export type Database = {
         }
         Returns: string
       }
+      merge_customer_rows: {
+        Args: { _dup: string; _keep: string }
+        Returns: undefined
+      }
+      merge_customers: {
+        Args: { _dup: string; _keep: string }
+        Returns: string
+      }
+      normalize_ke_phone: { Args: { p: string }; Returns: string }
       notify_admins_security: {
         Args: {
           p_body: string

@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Plus, Search, Users, RefreshCw } from 'lucide-react';
 import { useCustomers, type Customer } from '@/hooks/useCustomers';
 import { CustomerCard } from '@/components/customers/CustomerCard';
+import { DuplicateCustomersPanel } from '@/components/customers/DuplicateCustomersPanel';
 import { CustomerStats } from '@/components/customers/CustomerStats';
 import { CustomerDNA } from '@/components/customers/CustomerDNA';
 import { AddEditCustomerDialog } from '@/components/customers/AddEditCustomerDialog';
@@ -116,6 +117,8 @@ export default function Customers() {
             </Select>
           )}
         </div>
+
+        <DuplicateCustomersPanel customers={customers} onMerged={refetch} />
 
         {/* Customer List */}
         {loading ? (
