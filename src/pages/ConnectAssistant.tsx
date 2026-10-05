@@ -68,6 +68,27 @@ export default function ConnectAssistant() {
           </p>
         </div>
 
+        <Card className="border-primary/40">
+          <CardHeader>
+            <CardTitle>Quick start</CardTitle>
+            <CardDescription>Copy the link, then follow three steps in your assistant.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm">
+            <CopyBox value={mcpUrl} label="Copy connection link (quick start)" />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <p className="font-medium">ChatGPT</p>
+                <Steps items={["Settings → Apps → turn on Developer mode.", "Create a new app, name it SmartReach AI and paste the link.", "Sign in to SmartReach and approve."]} />
+              </div>
+              <div>
+                <p className="font-medium">Claude</p>
+                <Steps items={["Settings → Connectors → Add custom connector.", "Name it SmartReach AI and paste the link.", "Click Connect, sign in and approve."]} />
+              </div>
+            </div>
+            <p className="text-muted-foreground">Test your connection: ask "List my customers".</p>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>Your connection link</CardTitle>
