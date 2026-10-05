@@ -246,6 +246,15 @@ Deno.serve(async (req) => {
       metadata: { new_findings: newCount, total_detected: findings.length },
     });
     await alertNewFindings(newCount);
+    // Recording the run fires the scan-completed trigger: audit event, admin bell + digest rows.
+    await svc.from("security_check_runs").insert({
+      check_type: "auto_rescan",
+      environment: "production",
+      status: newCount > 0 ? "fail" : "pass",
+      summary: `${findings.length} finding(s) detected, ${newCount} new or re-opened.`,
+      results: { total: findings.length, new: newCount },
+      ran_by: "automation",
+    });
     const digest = await sendDigest(svc);
 
     return new Response(JSON.stringify({ ok: true, total: findings.length, new: newCount, digest }), {
