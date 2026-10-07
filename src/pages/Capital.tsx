@@ -23,6 +23,7 @@ import { useCulture } from "@/lib/culture/CultureProvider";
 import { LanguageToneSwitcher } from "@/components/culture/LanguageToneSwitcher";
 import { CapitalJourney } from "@/components/capital/CapitalJourney";
 import { CapitalVoiceAssistant } from "@/components/capital/CapitalVoiceAssistant";
+import { CapitalVoiceGuide } from "@/components/capital/CapitalVoiceGuide";
 
 const fmtKES = (n: number) => `KES ${Math.round(n).toLocaleString()}`;
 
@@ -374,7 +375,7 @@ export default function Capital() {
               document.getElementById("capital-required-docs")?.scrollIntoView({ behavior: "smooth", block: "center" })
             }
           />
-
+          <CapitalVoiceGuide status={advStatus} />
         </div>
 
 
