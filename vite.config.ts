@@ -49,8 +49,10 @@ export default defineConfig(({ mode }) => ({
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,
-        navigateFallback: "/offline.html",
-        navigateFallbackDenylist: [/^\/~oauth/, /^\/api\//, /^\/functions\//],
+        // Page loads go to the network first (route below), so live pages such as the
+        // assistant approval screen are never swapped for the offline page.
+        navigateFallback: null,
+        navigateFallbackDenylist: [/^\/~oauth/, /^\/\.lovable\//, /^\/api\//, /^\/functions\//],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [
