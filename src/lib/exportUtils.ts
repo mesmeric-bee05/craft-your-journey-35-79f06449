@@ -67,7 +67,7 @@ export function generateTransactionCSV(
 export function escapeCSVValue(raw: unknown): string {
   let value = raw == null ? '' : String(raw);
   // Neutralise spreadsheet formulas (=, +, -, @, tab, CR) so cells open as plain text.
-  if (/^[=+\-@\t\r]/.test(value)) value = `'${value}`;
+  if (/^[=+\-@\t\r]/.test(value) && !/^-?\d+(\.\d+)?$/.test(value)) value = `'${value}`;
   if (value.includes(',') || value.includes('"') || value.includes('\n')) {
     return `"${value.replace(/"/g, '""')}"`;
   }
