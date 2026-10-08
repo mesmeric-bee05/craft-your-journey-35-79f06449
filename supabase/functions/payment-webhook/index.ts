@@ -5,6 +5,7 @@
  */
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { verifyCallbackSource } from "../_shared/callback-auth.ts";
 import { createServiceClient } from '../_shared/auth.ts';
 import { getCorsHeaders, secureResponse } from '../_shared/security-headers.ts';
 import { badRequest, internalError, logError, logSecurityEvent } from '../_shared/errors.ts';
@@ -118,6 +119,13 @@ serve(async (req: Request) => {
 
     switch (webhookSource) {
       case 'mpesa': {
+        // M-Pesa sends no signature; only callbacks carrying our secret callback token are trusted.
+        if (!verifyCallbackSource(req).ok) {
+          logSecurityEvent('WEBHOOK_REJECTED', { source: 'mpesa', reason: 'bad_callback_token' });
+          return new Response(JSON.stringify({ error: 'unauthorized' }), {
+            status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
         const mpesaValidation = MpesaCallbackSchema.safeParse(body);
         if (!mpesaValidation.success) {
           logError('MPESA_WEBHOOK_VALIDATION', mpesaValidation.error);

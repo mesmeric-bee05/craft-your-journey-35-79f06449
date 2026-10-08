@@ -34,6 +34,8 @@ function timingSafeEqual(a: string, b: string): boolean {
   return r === 0;
 }
 
+const escHtml = (v: string) => String(v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -130,7 +132,7 @@ Deno.serve(async (req) => {
           to: recipients,
           subject: title,
           text,
-          html: `<h2>${title}</h2><pre style="font-family:ui-monospace,monospace">${text}</pre>`,
+          html: `<h2>${escHtml(title)}</h2><pre style="font-family:ui-monospace,monospace">${escHtml(text)}</pre>`,
         }),
       });
       results.email = { ok: eRes.ok, status: eRes.status };
