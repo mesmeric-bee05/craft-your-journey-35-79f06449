@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,6 +60,15 @@ export function SecurityScanPanel() {
   const latest = scans.data?.latest ?? [];
   const lastScanAt = scans.data?.recent?.[0]?.created_at ?? null;
 
+  const [sendingTest, setSendingTest] = useState(false);
+  const sendTestDigest = async () => {
+    setSendingTest(true);
+    const { data, error } = await supabase.functions.invoke("security-notify-email", { body: { test: true } });
+    setSendingTest(false);
+    if (error || !data?.ok) toast.error(`Test digest failed: ${data?.error ?? error?.message ?? "unknown"}`);
+    else toast.success(`Test digest sent to ${data.to}`);
+  };
+
   const runScan = async () => {
     // Audit first so an abusive or failed dispatch is still attributable.
     try {
@@ -79,10 +91,15 @@ export function SecurityScanPanel() {
               {lastScanAt ? `Last scan completed ${new Date(lastScanAt).toLocaleString()}` : "No scan recorded yet"}
             </p>
           </div>
-          <Button size="sm" variant="outline" disabled={trigger.isPending} onClick={runScan} className="gap-2">
-            <RefreshCw className={`h-3 w-3 ${trigger.isPending ? "animate-spin" : ""}`} aria-hidden="true" />
-            Run scan now
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="ghost" disabled={sendingTest} onClick={sendTestDigest}>
+              {sendingTest ? "Sending…" : "Send test digest"}
+            </Button>
+            <Button size="sm" variant="outline" disabled={trigger.isPending} onClick={runScan} className="gap-2">
+              <RefreshCw className={`h-3 w-3 ${trigger.isPending ? "animate-spin" : ""}`} aria-hidden="true" />
+              Run scan now
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid sm:grid-cols-3 gap-3 text-sm">

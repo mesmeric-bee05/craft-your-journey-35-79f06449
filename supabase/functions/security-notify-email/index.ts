@@ -101,6 +101,24 @@ Deno.serve(async (req) => {
   if (!(await authorize(req, svc))) return json({ error: "unauthorized" }, 401);
 
   try {
+    // Manual test: an admin sends a sample digest to their own inbox.
+    const body = req.method === "POST" ? await req.clone().json().catch(() => ({})) : {};
+    if (body?.test === true) {
+      const jwt = (req.headers.get("Authorization") ?? "").replace(/^Bearer /, "");
+      const { data: u } = await svc.auth.getUser(jwt);
+      const to = u?.user?.email;
+      if (!to) return json({ error: "admin_sign_in_required" }, 401);
+      const { data: isAdmin } = await svc.rpc("has_role", { _user_id: u.user!.id, _role: "admin" });
+      if (!isAdmin) return json({ error: "forbidden" }, 403);
+      const out = await sendEmail(to, "SmartReach security digest — test", digestHtml([{
+        id: "test", user_id: u.user!.id, kind: "test", title: "Test digest",
+        body: "This is a test of your SmartReach security digest. No action needed.",
+        created_at: new Date().toISOString(),
+      } as Notification]));
+      await svc.from("audit_logs").insert({ user_id: u.user!.id, action: "security_digest_test", resource_type: "security", details: { ok: out.ok } }).then(() => {}, () => {});
+      return json(out.ok ? { ok: true, sent: 1, to } : { ok: false, error: out.error }, out.ok ? 200 : 502);
+    }
+
     const { data: pending, error } = await svc
       .from("security_admin_notifications")
       .select("id, user_id, kind, title, body, created_at")
