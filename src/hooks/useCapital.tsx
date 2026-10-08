@@ -491,6 +491,9 @@ export function useMyAdvanceStatus(businessId: string | undefined) {
       return data as unknown as MyAdvanceStatus;
     },
     staleTime: 30_000,
+    // Keep the spoken repayment summary current as repayments sync.
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   });
 }
 
