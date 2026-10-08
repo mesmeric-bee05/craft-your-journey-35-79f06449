@@ -1,3 +1,4 @@
+import { escapeCSVValue } from '@/lib/exportUtils';
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -120,7 +121,7 @@ export default function Reports() {
         if (error) throw error;
         csvContent = 'ID,Name,Email,Phone,Channel,Created,Last Contact,Tags\n';
         csvContent += (data || []).map(r =>
-          `${r.id},${(r.name || '').replace(/,/g, ';')},${r.email || ''},${r.phone || ''},${r.channel_type},${r.created_at},${r.last_contact_at || ''},${(r.tags || []).join(';')}`
+          [r.id, r.name, r.email, r.phone, r.channel_type, r.created_at, r.last_contact_at, (r.tags || []).join(';')].map(escapeCSVValue).join(',')
         ).join('\n');
         filename = `customers-report-${format(new Date(), 'yyyy-MM-dd')}.csv`;
       } else if (type === 'revenue') {
@@ -134,7 +135,7 @@ export default function Reports() {
         if (error) throw error;
         csvContent = 'ID,Type,Amount,Status,Method,Currency,Date,Description,Reference\n';
         csvContent += (data || []).map((r: any) =>
-          `${r.id},${r.type},${r.amount},${r.status},${r.payment_method || ''},${r.currency},${r.created_at},${(r.description || '').replace(/,/g, ';')},${r.reference || ''}`
+          [r.id, r.type, r.amount, r.status, r.payment_method, r.currency, r.created_at, r.description, r.reference].map(escapeCSVValue).join(',')
         ).join('\n');
         filename = `revenue-report-${format(new Date(), 'yyyy-MM-dd')}.csv`;
       } else if (type === 'inventory') {

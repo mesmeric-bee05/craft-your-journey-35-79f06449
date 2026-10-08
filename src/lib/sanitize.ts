@@ -12,7 +12,8 @@
 export function sanitizeSearchInput(input: string): string {
   if (!input) return '';
   // Escape PostgreSQL LIKE special characters: % _ \
-  return input.replace(/[%_\\]/g, '\\$&');
+  // Remove characters that carry meaning in PostgREST filter expressions, then escape LIKE wildcards.
+  return input.replace(/[,()*:."'`]/g, ' ').replace(/[%_\\]/g, '\\$&').trim();
 }
 
 /**

@@ -59,7 +59,7 @@ export function useStreamOverlays({ streamId }: UseStreamOverlaysProps = {}) {
         .eq('user_id', user.id)
         .order('z_index', { ascending: true });
 
-      if (streamId) {
+      if (streamId && /^[0-9a-f-]{36}$/i.test(streamId)) {
         query = query.or(`stream_id.eq.${streamId},stream_id.is.null`);
       }
 
