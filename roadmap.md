@@ -1,13 +1,14 @@
 # Roadmap
 
-## In progress
-- Security digest emails: Resend key + sender address still needed from the user (blocked on their input).
+## Open (needs the user)
+- Connect ChatGPT via the Quick start box on Connect your AI assistant, ask "List my customers".
+- Confirm the test security digest arrived (check spam).
+- Real M-Pesa confirmation test: needs a live payment from the user's phone.
+- Listen to the Capital voice guide in all four languages on a real device (browser voices vary).
 
 ## Done
-- Remaining Work tab trigger in admin monitoring.
-- Security scan now triggers the email digest automatically (runner deployed).
-- Capital voice: spoken repayment summary intent in all four language styles.
-
-## Open
-- Agent integrations (MCP): expose app tools over MCP with sign-in (OAuth) so assistants act as the signed-in user.
-- Full build + typecheck pass over the above.
+- Assistant tools tested on the live link as the owner: list, add, repeat add returns same customer, stays in own business.
+- "Send test digest" button in Admin monitoring → Security; test digest sent.
+- Repayment summary uses real Capital figures and refreshes every 30s.
+- Voice guide, search/spreadsheet protections published; security re-scan clean.
+- Remaining Work tab, digest after every scan, bell alerts, MCP integration.
