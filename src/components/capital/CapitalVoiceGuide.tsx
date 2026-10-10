@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, RotateCcw, Volume2, Square } from "lucide-react";
+import { ChevronLeft, ChevronRight, RotateCcw, RefreshCcw, Volume2, VolumeX, Square } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { useCulture } from "@/lib/culture/CultureProvider";
 import { LanguageToneSwitcher } from "@/components/culture/LanguageToneSwitcher";
 import type { CultureLocale } from "@/lib/culture/types";
@@ -120,29 +121,65 @@ export function buildRepaymentSummary(s: MyAdvanceStatus | null | undefined, loc
   return parts.join(" ");
 }
 
+/** Finds a voice for the language: exact (e.g. sw-KE), then same language. No English fallback here. */
 function pickVoice(lang: string): SpeechSynthesisVoice | undefined {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return undefined;
   const voices = window.speechSynthesis.getVoices();
-  const base = lang.split("-")[0];
-  return voices.find((v) => v.lang === lang) ?? voices.find((v) => v.lang.startsWith(base)) ?? voices.find((v) => v.lang.startsWith("en"));
+  const base = lang.split("-")[0].toLowerCase();
+  return voices.find((v) => v.lang === lang) ?? voices.find((v) => v.lang.toLowerCase().startsWith(base));
 }
+
+const UI: Record<CultureLocale, { voiceOn: string; voiceOff: string; restart: string; textOnly: string; englishVoice: string }> = {
+  en: { voiceOn: "Voice on", voiceOff: "Voice off", restart: "Restart", textOnly: "This language plays as text on this device.", englishVoice: "No voice for this language on this device — reading with an English voice." },
+  sw: { voiceOn: "Sauti imewashwa", voiceOff: "Sauti imezimwa", restart: "Anza upya", textOnly: "Lugha hii inaonyeshwa kwa maandishi kwenye kifaa hiki.", englishVoice: "Hakuna sauti ya Kiswahili kwenye kifaa hiki — inasomwa kwa sauti ya Kiingereza." },
+  sheng: { voiceOn: "Sauti on", voiceOff: "Sauti off", restart: "Anza upya", textOnly: "Hii lugha inakam kama text kwa hii device.", englishVoice: "Hakuna sauti ya Kiswahili hapa — inasomwa na sauti ya English." },
+  kenglish: { voiceOn: "Voice on", voiceOff: "Voice off", restart: "Restart", textOnly: "Hii language inaplay kama text kwa hii device.", englishVoice: "No voice ya hii language hapa — tunasoma na English voice." },
+};
 
 export function CapitalVoiceGuide({ status }: { status: MyAdvanceStatus | null | undefined }) {
   const { pref, speechLang } = useCulture();
   const p = P[pref.locale];
+  const ui = UI[pref.locale];
   const [step, setStep] = useState<number | null>(null);
   const [text, setText] = useState("");
+  const [voiceOn, setVoiceOn] = useState(() => localStorage.getItem("capital_voice_on") !== "0");
+  const [voicesReady, setVoicesReady] = useState(0);
   const supported = typeof window !== "undefined" && "speechSynthesis" in window;
+
+  useEffect(() => {
+    if (!supported) return;
+    const onChange = () => setVoicesReady((n) => n + 1);
+    window.speechSynthesis.addEventListener("voiceschanged", onChange);
+    onChange();
+    return () => window.speechSynthesis.removeEventListener("voiceschanged", onChange);
+  }, [supported]);
+
+  // Kiswahili / Sheng' fall back to any English voice; English / Kenglish need an English voice.
+  const voice = useMemo(() => {
+    if (!supported) return undefined;
+    return pickVoice(speechLang) ?? pickVoice("en-KE");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [speechLang, supported, voicesReady]);
+  const nativeVoice = useMemo(() => (supported ? pickVoice(speechLang) : undefined),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [speechLang, supported, voicesReady]);
+  const textOnly = !supported || !voice;
 
   const speak = (t: string) => {
     setText(t);
-    if (!supported) return;
+    if (!supported || !voiceOn || !voice) return;
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(t);
-    u.lang = speechLang;
-    const v = pickVoice(speechLang);
-    if (v) u.voice = v;
+    u.lang = voice.lang;
+    u.voice = voice;
     window.speechSynthesis.speak(u);
+  };
+
+  const toggleVoice = () => {
+    const next = !voiceOn;
+    setVoiceOn(next);
+    localStorage.setItem("capital_voice_on", next ? "1" : "0");
+    if (!next && supported) window.speechSynthesis.cancel();
   };
 
   // Re-read the current step in the new language; the step index is kept.
@@ -167,22 +204,32 @@ export function CapitalVoiceGuide({ status }: { status: MyAdvanceStatus | null |
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => go(0)}>{p.guide}</Button>
           <Button variant="secondary" onClick={() => { setStep(null); speak(summary); }}>{p.summary}</Button>
-          {supported && (
+          <Button variant="outline" onClick={toggleVoice} aria-pressed={voiceOn}>
+            {voiceOn ? <Volume2 className="mr-2 h-4 w-4" /> : <VolumeX className="mr-2 h-4 w-4" />}
+            {voiceOn ? ui.voiceOn : ui.voiceOff}
+          </Button>
+          {supported && voiceOn && (
             <Button variant="ghost" onClick={() => window.speechSynthesis.cancel()}>
               <Square className="mr-2 h-4 w-4" />{p.stop}
             </Button>
           )}
         </div>
+        {voiceOn && textOnly && <p className="text-xs text-muted-foreground" role="status">{ui.textOnly}</p>}
+        {voiceOn && !textOnly && !nativeVoice && <p className="text-xs text-muted-foreground" role="status">{ui.englishVoice}</p>}
         {step !== null && (
           <div className="space-y-3 rounded-md border p-3" aria-live="polite">
             <p className="text-xs text-muted-foreground">{p.step(step + 1, p.steps.length)}</p>
+            <Progress value={((step + 1) / p.steps.length) * 100} aria-label={p.step(step + 1, p.steps.length)} />
             <p className="text-sm">{p.steps[step]}</p>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="outline" disabled={step === 0} onClick={() => go(step - 1)}>
                 <ChevronLeft className="mr-1 h-4 w-4" />{p.back}
               </Button>
               <Button size="sm" variant="outline" onClick={() => speak(p.steps[step])}>
                 <RotateCcw className="mr-1 h-4 w-4" />{p.repeat}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => go(0)}>
+                <RefreshCcw className="mr-1 h-4 w-4" />{ui.restart}
               </Button>
               <Button size="sm" disabled={step === p.steps.length - 1} onClick={() => go(step + 1)}>
                 {p.next}<ChevronRight className="ml-1 h-4 w-4" />
