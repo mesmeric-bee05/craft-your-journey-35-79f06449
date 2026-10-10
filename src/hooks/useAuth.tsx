@@ -31,6 +31,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Update last login time when user signs in
         if (event === 'SIGNED_IN' && session?.user) {
+          const pending = sessionStorage.getItem('post_auth_next');
+          if (pending && pending.startsWith('/') && !pending.startsWith('//')) {
+            sessionStorage.removeItem('post_auth_next');
+            if (window.location.pathname + window.location.search !== pending) window.location.assign(pending);
+          }
           setTimeout(() => {
             supabase
               .from('profiles')
@@ -108,21 +113,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = async (redirectPath?: string) => {
     const safePath = redirectPath && redirectPath.startsWith('/') && !redirectPath.startsWith('//') ? redirectPath : '/';
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}${safePath}`,
-      },
-    });
-
-    if (error) {
-      toast({
-        title: 'Google sign in failed',
-        description: error.message,
-        variant: 'destructive',
-      });
+    // Managed Google sign-in only runs on Lovable hosting (or a connected custom domain).
+    if (/\.vercel\.app$|\.netlify\.app$/.test(window.location.hostname)) {
+      const message = 'Google sign-in works on https://craft-your-journey-35.lovable.app — use email sign-in here, or open that link.';
+      toast({ title: 'Google sign-in unavailable on this site', description: message, variant: 'destructive' });
+      return { error: { message } as AuthError };
     }
-
+    if (safePath !== '/') sessionStorage.setItem('post_auth_next', safePath);
+    const { lovable } = await import('@/integrations/lovable/index');
+    const result = await lovable.auth.signInWithOAuth('google', { redirect_uri: window.location.origin });
+    const error = (result.error ?? null) as AuthError | null;
+    if (error) {
+      toast({ title: 'Google sign in failed', description: error.message, variant: 'destructive' });
+    }
     return { error };
   };
 
