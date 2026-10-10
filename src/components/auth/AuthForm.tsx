@@ -81,6 +81,7 @@ export function AuthForm({ mode, onModeChange }: AuthFormProps) {
     setLoading(true);
     const { error } = await signIn(data.email, data.password);
     setLoading(false);
+    setSignInFailed(!!error);
     if (error) {
       // SECURITY: Log failed login attempt via audit log
       try {
