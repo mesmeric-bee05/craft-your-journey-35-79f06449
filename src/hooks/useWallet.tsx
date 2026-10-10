@@ -100,6 +100,19 @@ export function useWallet(): UseWalletReturn {
     fetchWallet();
   }, [fetchWallet]);
 
+  // Live balance: apply wallet row updates as soon as a payment is credited.
+  useEffect(() => {
+    if (!business?.id || !user?.id) return;
+    const ch = supabase
+      .channel(`wallet-${business.id}-${user.id}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'wallets', filter: `business_id=eq.${business.id}` }, (payload) => {
+        const row = payload.new as Wallet;
+        if (row.user_id === user.id) setWallet(row);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [business?.id, user?.id]);
+
   return {
     wallet,
     loading,

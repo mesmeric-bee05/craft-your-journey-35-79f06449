@@ -49,6 +49,7 @@ interface AuthFormProps {
 export function AuthForm({ mode, onModeChange }: AuthFormProps) {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [signInFailed, setSignInFailed] = useState(false);
   const [passwordValue, setPasswordValue] = useState('');
   const { signIn, signUp, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
@@ -81,6 +82,7 @@ export function AuthForm({ mode, onModeChange }: AuthFormProps) {
     setLoading(true);
     const { error } = await signIn(data.email, data.password);
     setLoading(false);
+    setSignInFailed(!!error);
     if (error) {
       // SECURITY: Log failed login attempt via audit log
       try {
@@ -212,7 +214,10 @@ export function AuthForm({ mode, onModeChange }: AuthFormProps) {
               {signInForm.formState.errors.password && (
                 <p className="text-sm text-destructive">{signInForm.formState.errors.password.message}</p>
               )}
-              <div className="flex justify-end">
+              <div className="flex items-center justify-between gap-2">
+                {signInFailed ? (
+                  <p className="text-xs text-muted-foreground">Can't remember it? Reset your password →</p>
+                ) : <span />}
                 <ForgotPasswordDialog />
               </div>
             </div>

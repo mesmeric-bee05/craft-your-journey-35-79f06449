@@ -92,6 +92,16 @@ export function useTransactions(): UseTransactionsReturn {
     fetchTransactions();
   }, [fetchTransactions]);
 
+  // Live updates when a payment confirmation changes a transaction (RLS still applies).
+  useEffect(() => {
+    if (!business?.id) return;
+    const ch = supabase
+      .channel(`tx-${business.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions', filter: `business_id=eq.${business.id}` }, () => { fetchTransactions(); })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [business?.id, fetchTransactions]);
+
   useEffect(() => {
     let filtered = [...transactions];
     if (activeFilters.type !== 'all') {
