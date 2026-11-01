@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
     const validation = validateInput(SendEmailSchema, body, corsHeaders);
     if (!validation.success) return validation.error!;
 
-    const { to, subject, body: emailBody, html, conversationId, replyTo } = validation.data!;
+    const { to, subject, body: emailBody, html: _html, conversationId, replyTo } = validation.data!;
 
     // If conversationId provided, verify access
     if (conversationId) {
