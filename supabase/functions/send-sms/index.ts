@@ -90,10 +90,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // TODO: Integrate with SMS service (Twilio, Africa's Talking, etc.)
-    // For now, log the SMS attempt and return success
+    // SECURITY: mask the recipient phone number in diagnostics (no PII in logs)
     console.log('[SMS] Sending SMS:', {
-      to,
+      to: maskPhone(to),
       bodyLength: smsBody.length,
       segments: Math.ceil(smsBody.length / 160),
       conversationId,

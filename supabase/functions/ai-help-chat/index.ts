@@ -89,9 +89,11 @@ serve(async (req) => {
 
     const { message, history } = validation.data!;
 
+    // SECURITY: Never trust caller-supplied roles — incoming history entries are
+    // flattened to 'user' so a client cannot forge assistant/system turns.
     const messages = [
       { role: 'system', content: SYSTEM_PROMPT },
-      ...history.slice(-10).map(h => ({ role: h.role, content: h.content })),
+      ...history.slice(-10).map(h => ({ role: 'user' as const, content: h.content })),
       { role: 'user', content: message },
     ];
 

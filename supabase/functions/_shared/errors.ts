@@ -106,8 +106,45 @@ export function internalError(
 }
 
 /**
+ * Contact-detail redaction helpers
+ *
+ * SECURITY: Personal contact details (emails, phone numbers) must never be
+ * written to diagnostic logs in clear text. Use these helpers anywhere a
+ * user-supplied contact value could reach console output.
+ */
+
+const EMAIL_PATTERN = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+const PHONE_PATTERN = /^(?:\+?\d[\d\s().-]{6,17}\d)$/;
+
+export function maskEmail(email: string): string {
+  const at = email.indexOf('@');
+  if (at <= 1) return `***${email.slice(Math.max(at, 0))}`;
+  return `${email[0]}***${email.slice(at)}`;
+}
+
+export function maskPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  return digits.length >= 4 ? `***${digits.slice(-4)}` : '***';
+}
+
+function redactValue(value: unknown): unknown {
+  if (typeof value === 'string') {
+    const maskedEmails = value.replace(EMAIL_PATTERN, (m) => maskEmail(m));
+    return PHONE_PATTERN.test(maskedEmails) ? maskPhone(maskedEmails) : maskedEmails;
+  }
+  if (Array.isArray(value)) return value.map(redactValue);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, redactValue(v)])
+    );
+  }
+  return value;
+}
+
+/**
  * Safely log errors with context
- * SECURITY: Only logs to server, never exposes to client
+ * SECURITY: Only logs to server, never exposes to client.
+ * Metadata is redacted: emails and phone numbers are masked before logging.
  */
 export function logError(
   context: string,
@@ -116,24 +153,25 @@ export function logError(
 ): void {
   const errorMessage = error instanceof Error ? error.message : String(error);
   const errorStack = error instanceof Error ? error.stack : undefined;
-  
+
   console.error(`[ERROR] ${context}:`, {
     message: errorMessage,
     stack: errorStack,
-    ...metadata,
+    ...(metadata ? (redactValue(metadata) as Record<string, unknown>) : {}),
     timestamp: new Date().toISOString(),
   });
 }
 
 /**
  * Log security-related events for audit
+ * SECURITY: metadata values are redacted (emails/phones masked) before logging.
  */
 export function logSecurityEvent(
   event: string,
   details: Record<string, unknown>
 ): void {
   console.log(`[SECURITY] ${event}:`, {
-    ...details,
+    ...(redactValue(details) as Record<string, unknown>),
     timestamp: new Date().toISOString(),
   });
 }

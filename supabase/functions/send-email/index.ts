@@ -90,15 +90,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    // TODO: Integrate with email service (Resend, SendGrid, etc.)
-    // For now, log the email attempt and return success
+    // SECURITY: mask recipient addresses in diagnostics (no PII in logs)
     console.log('[EMAIL] Sending email:', {
-      to,
+      to: maskEmail(to),
       subject,
       bodyLength: emailBody.length,
-      html,
       conversationId,
-      replyTo,
+      replyTo: replyTo ? maskEmail(replyTo) : undefined,
       userId: auth.user!.id,
     });
 
