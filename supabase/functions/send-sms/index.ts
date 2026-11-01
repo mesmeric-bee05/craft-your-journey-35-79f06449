@@ -17,7 +17,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth, verifyBusinessMembership } from "../_shared/auth.ts";
 import { rateLimit } from "../_shared/rate-limiter.ts";
 import { SendSmsSchema, validateInput, parseJsonBody } from "../_shared/validators.ts";
-import { logError, logSecurityEvent, internalError, forbidden, badRequest } from "../_shared/errors.ts";
+import { logError, logSecurityEvent, internalError, forbidden, badRequest, maskEmail, maskPhone } from "../_shared/errors.ts";
 import { getCorsHeaders, secureResponse } from "../_shared/security-headers.ts";
 
 Deno.serve(async (req) => {
