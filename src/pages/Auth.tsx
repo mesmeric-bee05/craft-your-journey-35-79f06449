@@ -10,7 +10,12 @@ export default function Auth() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const next = safeNextPath(location.search);
+  // Prefer an explicit ?next= param, then the blocked route saved in state.
+  const fromState = (location.state as { from?: { pathname?: string; search?: string } } | null)?.from;
+  const stateNext = fromState?.pathname?.startsWith('/') && !fromState.pathname.startsWith('//')
+    ? `${fromState.pathname}${fromState.search ?? ''}`
+    : undefined;
+  const next = safeNextPath(location.search, stateNext ?? '/dashboard');
 
   useEffect(() => {
     if (!loading && user) {

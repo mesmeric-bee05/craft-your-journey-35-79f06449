@@ -27,7 +27,14 @@ export function RequireAuth({ children }: RequireAuthProps) {
   }
 
   if (!user) {
-    return <Navigate to="/auth" state={{ from: location }} replace />;
+    const intended = `${location.pathname}${location.search}`;
+    return (
+      <Navigate
+        to={`/auth?next=${encodeURIComponent(intended)}`}
+        state={{ from: location }}
+        replace
+      />
+    );
   }
 
   // If MFA is enrolled but not verified for this session, redirect to challenge
