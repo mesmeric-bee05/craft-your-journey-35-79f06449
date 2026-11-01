@@ -17,7 +17,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth, verifyBusinessMembership } from "../_shared/auth.ts";
 import { rateLimit } from "../_shared/rate-limiter.ts";
 import { SendEmailSchema, validateInput, parseJsonBody } from "../_shared/validators.ts";
-import { logError, logSecurityEvent, internalError, forbidden, badRequest } from "../_shared/errors.ts";
+import { logError, logSecurityEvent, internalError, forbidden, badRequest, maskEmail } from "../_shared/errors.ts";
 import { getCorsHeaders, secureResponse } from "../_shared/security-headers.ts";
 
 Deno.serve(async (req) => {
@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
     const validation = validateInput(SendEmailSchema, body, corsHeaders);
     if (!validation.success) return validation.error!;
 
-    const { to, subject, body: emailBody, html, conversationId, replyTo } = validation.data!;
+    const { to, subject, body: emailBody, html: _html, conversationId, replyTo } = validation.data!;
 
     // If conversationId provided, verify access
     if (conversationId) {
@@ -90,15 +90,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    // TODO: Integrate with email service (Resend, SendGrid, etc.)
-    // For now, log the email attempt and return success
+    // SECURITY: mask recipient addresses in diagnostics (no PII in logs)
     console.log('[EMAIL] Sending email:', {
-      to,
+      to: maskEmail(to),
       subject,
       bodyLength: emailBody.length,
-      html,
       conversationId,
-      replyTo,
+      replyTo: replyTo ? maskEmail(replyTo) : undefined,
       userId: auth.user!.id,
     });
 

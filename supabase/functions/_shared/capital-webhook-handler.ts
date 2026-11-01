@@ -49,10 +49,18 @@ export async function handleCapitalEvent(
   if (!body.advance_id) return { ok: false, code: "advance_id_required" };
 
   const { data: advance } = await svc.from("capital_advances")
-    .select("id, business_id, status")
+    .select("id, business_id, status, partner_id")
     .eq("id", body.advance_id)
     .maybeSingle();
   if (!advance) return { ok: false, code: "advance_not_found" };
+
+  // Partner authority: an authenticated partner may only act on advances
+  // assigned to it. Never trust the request-supplied advance_id alone.
+  if (partnerId) {
+    if (!advance.partner_id || advance.partner_id !== partnerId) {
+      return { ok: false, code: "advance_not_authorized" };
+    }
+  }
 
   if (body.event === "repayment.recorded") {
     if (!body.amount_kes || body.amount_kes <= 0) {

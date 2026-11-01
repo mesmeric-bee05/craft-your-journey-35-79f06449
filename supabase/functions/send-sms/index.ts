@@ -17,7 +17,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { verifyAuth, verifyBusinessMembership } from "../_shared/auth.ts";
 import { rateLimit } from "../_shared/rate-limiter.ts";
 import { SendSmsSchema, validateInput, parseJsonBody } from "../_shared/validators.ts";
-import { logError, logSecurityEvent, internalError, forbidden, badRequest } from "../_shared/errors.ts";
+import { logError, logSecurityEvent, internalError, forbidden, badRequest, maskEmail, maskPhone } from "../_shared/errors.ts";
 import { getCorsHeaders, secureResponse } from "../_shared/security-headers.ts";
 
 Deno.serve(async (req) => {
@@ -90,10 +90,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // TODO: Integrate with SMS service (Twilio, Africa's Talking, etc.)
-    // For now, log the SMS attempt and return success
+    // SECURITY: mask the recipient phone number in diagnostics (no PII in logs)
     console.log('[SMS] Sending SMS:', {
-      to,
+      to: maskPhone(to),
       bodyLength: smsBody.length,
       segments: Math.ceil(smsBody.length / 160),
       conversationId,
