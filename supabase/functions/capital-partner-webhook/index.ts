@@ -205,7 +205,9 @@ Deno.serve(async (req) => {
           detail: `Event ${ev.event} for advance ${ev.advance_id} failed: ${outcome.code}`,
           context: { partner_id: partner.id, event_id: eventRowId, event: ev.event },
         });
-        const status = outcome.code === "advance_not_found" ? 404 : 400;
+        const status = outcome.code === "advance_not_found" ? 404
+          : outcome.code === "advance_not_authorized" ? 403
+          : 400;
         return secureResponse(
           JSON.stringify({ error: outcome.code, event_id: eventRowId }), status, corsHeaders
         );

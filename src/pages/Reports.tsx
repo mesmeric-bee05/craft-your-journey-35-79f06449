@@ -148,7 +148,7 @@ export default function Reports() {
         if (error) throw error;
         csvContent = 'ID,Name,SKU,Category,Stock,Reorder Level,Buying Price,Selling Price,Unit,Active\n';
         csvContent += (data || []).map(r =>
-          `${r.id},${(r.name || '').replace(/,/g, ';')},${r.sku || ''},${r.category},${r.current_stock},${r.reorder_level},${r.buying_price},${r.selling_price},${r.unit},${r.is_active}`
+          [r.id, r.name || '', r.sku || '', r.category, r.current_stock, r.reorder_level, r.buying_price, r.selling_price, r.unit, r.is_active].map(escapeCSVValue).join(',')
         ).join('\n');
         filename = `inventory-report-${format(new Date(), 'yyyy-MM-dd')}.csv`;
       } else if (type === 'team') {

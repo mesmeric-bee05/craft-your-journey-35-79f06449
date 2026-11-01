@@ -11,7 +11,9 @@ export interface ExportColumn<T> {
 }
 
 const escapeCsv = (v: unknown) => {
-  const s = v == null ? "" : String(v).replace(/"/g, '""');
+  let s = v == null ? "" : String(v).replace(/"/g, '""');
+  // Neutralise spreadsheet formulas (=, +, -, @, tab, CR) so cells open as plain text.
+  if (/^[=+\-@\t\r]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s)) s = `'${s}`;
   return /[",\n]/.test(s) ? `"${s}"` : s;
 };
 
