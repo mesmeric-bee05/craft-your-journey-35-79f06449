@@ -1,37 +1,16 @@
 /**
- * Capital Partner Webhook — HMAC-signed inbound events from lender partners.
+ * Capital Partner Webhook — timestamped HMAC-signed inbound events.
  *
- * Public endpoint (no JWT). Authentication via:
- *   Headers: X-Partner-Id: <uuid>, X-Signature: sha256=<hex>
- *   HMAC computed over the RAW request body using capital_partners.webhook_secret_hash's
- *   plaintext (stored only as sha256 hash server-side; partner supplies plaintext,
- *   we sha256 it and compare, timing-safe).
+ * Protocol:
+ *   X-Partner-Id: <uuid>
+ *   X-Timestamp: <unix seconds>
+ *   X-Signature: sha256=<hex HMAC-SHA256>
  *
- * Wait — hash comparison. We store SHA-256 of the plaintext secret. HMAC signing
- * requires the plaintext on both sides. So the partner keeps the plaintext locally
- * (returned once from rotate_capital_partner_secret), and we verify by:
- *   1) partner sends: sig = HMAC_SHA256(plaintext, body)
- *   2) we have: hash = sha256(plaintext)
- * That means we'd need plaintext to verify. Instead: partner signs body with
- * HMAC using the plaintext, and sends the plaintext hash in header X-Secret-Fingerprint.
- * We verify fingerprint matches stored hash (identifies caller) and additionally verify
- * signature by asking partner to sign body||fingerprint using the plaintext, then
- * we compare that we can derive... In practice we do the simplest safe pattern:
- * partner sends X-Signature = sha256(plaintext + "." + body_sha256), and we compare
- * to sha256(<stored hash reversed?>).  That's fragile.
- *
- * Pragmatic model:
- *   webhook_secret_hash stores sha256(plaintext).
- *   Partner sends X-Signature = sha256(plaintext + "\n" + rawBody).
- *   To verify we need plaintext; instead we require partner to send BOTH:
- *       X-Signature = sha256(plaintext + "\n" + rawBody)
- *       X-Fingerprint = sha256(plaintext)
- *   We match X-Fingerprint against stored hash (constant-time) to authenticate
- *   the partner. Signature integrity comes from the fingerprint binding + TLS.
- *   This is an interim model; upgrade to true HMAC by storing an encrypted secret
- *   in Supabase Vault later. Rate limits enforced.
+ * The partner derives the HMAC key once from the plaintext secret returned by
+ * rotate_capital_partner_secret: SHA-256(plaintext). The derived key is stored
+ * server-side as webhook_secret_hash and is never sent in a request. The signed
+ * message is `${timestamp}.${rawBody}` and timestamps expire after five minutes.
  */
-
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders, secureResponse } from "../_shared/security-headers.ts";
@@ -53,10 +32,13 @@ const Event = z.object({
   occurred_at: z.string().datetime().optional(),
 });
 
-async function sha256Hex(text: string): Promise<string> {
-  const data = new TextEncoder().encode(text);
-  const buf = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+async function hmacHex(keyText: string, message: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(keyText),
+    { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message));
+  return Array.from(new Uint8Array(signature)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 function timingSafeEqual(a: string, b: string): boolean {
@@ -80,9 +62,9 @@ Deno.serve(async (req) => {
 
   try {
     const partnerId = req.headers.get("x-partner-id");
-    const fingerprint = req.headers.get("x-fingerprint");
-    const signature = req.headers.get("x-signature");
-    if (!partnerId || !fingerprint || !signature) {
+    const timestamp = req.headers.get("x-timestamp");
+    const signature = req.headers.get("x-signature")?.replace(/^sha256=/i, "").toLowerCase();
+    if (!partnerId || !timestamp || !signature) {
       return secureResponse(JSON.stringify({ error: "Missing auth headers" }), 401, corsHeaders);
     }
 
@@ -112,22 +94,15 @@ Deno.serve(async (req) => {
       return secureResponse(JSON.stringify({ error: "Unauthorized" }), 401, corsHeaders);
     }
 
-    if (!timingSafeEqual(fingerprint, partner.webhook_secret_hash)) {
-      logSecurityEvent("capital_partner_bad_fingerprint", { partnerId });
-      await notifyOpsFailure(svc, {
-        source: "capital-partner-webhook",
-        code: "fingerprint_invalid",
-        title: "Capital webhook rejected: bad secret fingerprint",
-        detail: `Fingerprint mismatch for partner ${partner.name}.`,
-        context: { partner_id: partnerId },
-      });
-      return secureResponse(JSON.stringify({ error: "Unauthorized" }), 401, corsHeaders);
+    const timestampSeconds = Number(timestamp);
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    if (!Number.isInteger(timestampSeconds) || Math.abs(nowSeconds - timestampSeconds) > 300) {
+      logSecurityEvent("capital_partner_stale_timestamp", { partnerId });
+      return secureResponse(JSON.stringify({ error: "Stale webhook" }), 401, corsHeaders);
     }
-
     const rawBody = await req.text();
-    // Signature binds body to fingerprint: sha256(fingerprint + "\n" + rawBody)
-    const expected = await sha256Hex(`${fingerprint}\n${rawBody}`);
-    if (!timingSafeEqual(signature.replace(/^sha256=/, ""), expected)) {
+    const expected = await hmacHex(partner.webhook_secret_hash, `${timestamp}.${rawBody}`);
+    if (!timingSafeEqual(signature, expected)) {
       logSecurityEvent("capital_partner_bad_signature", { partnerId });
       await notifyOpsFailure(svc, {
         source: "capital-partner-webhook",
@@ -170,7 +145,7 @@ Deno.serve(async (req) => {
       partner_id: partner.id,
       event: ev.event,
       advance_id: ev.advance_id,
-      headers: { fingerprint, has_signature: true },
+      headers: { has_signature: true, signed_at: timestampSeconds },
       body: payload as Record<string, unknown>,
       sig_valid: true,
       status: "processing",

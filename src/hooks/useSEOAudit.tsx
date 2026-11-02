@@ -60,7 +60,9 @@ export function useRunSEOAudit() {
             const mins = Math.ceil((body.retryAfterSeconds ?? 3600) / 60);
             throw new Error(`Rate limit hit. Try again in ~${mins} min.`);
           }
-        } catch (_) {}
+        } catch (_) {
+          // The function error remains the authoritative failure response.
+        }
         throw error;
       }
       return data;
@@ -89,7 +91,9 @@ export function useResubmitSitemap() {
             const mins = Math.ceil((body.retryAfterSeconds ?? 3600) / 60);
             throw new Error(`Rate limit hit. Try again in ~${mins} min.`);
           }
-        } catch (_) {}
+        } catch (_) {
+          // The function error remains the authoritative failure response.
+        }
         throw error;
       }
       return data;

@@ -11,6 +11,8 @@ const REGISTER: Record<string, string> = {
 
 function sanitize(input: string): string {
   return input
+    // Intentional: remove ASCII control characters before prompt processing.
+    // eslint-disable-next-line no-control-regex
     .replace(/[\u0000-\u001f]+/g, " ")
     .replace(/(ignore|disregard)\s+(all\s+)?(previous|prior|above)\s+instructions?/gi, "[filtered]")
     .replace(/system\s*prompt/gi, "[filtered]")

@@ -13,6 +13,7 @@ import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 // Input validation schemas
 const CreateTicketWebhookSchema = z.object({
   event: z.literal('ticket.create'),
+  event_id: z.string().min(8).max(200),
   source: z.enum(['email', 'chat', 'api', 'form']),
   business_id: z.string().uuid(),
   user_email: z.string().email(),
@@ -31,7 +32,9 @@ const CreateTicketWebhookSchema = z.object({
 
 const UpdateTicketWebhookSchema = z.object({
   event: z.literal('ticket.update'),
+  event_id: z.string().min(8).max(200),
   ticket_id: z.string().uuid(),
+  business_id: z.string().uuid(),
   status: z.enum(['open', 'in_progress', 'waiting_response', 'resolved', 'closed']).optional(),
   priority: z.enum(['low', 'normal', 'high', 'urgent']).optional(),
   assigned_to: z.string().uuid().optional(),
@@ -40,7 +43,9 @@ const UpdateTicketWebhookSchema = z.object({
 
 const EscalateTicketWebhookSchema = z.object({
   event: z.literal('ticket.escalate'),
+  event_id: z.string().min(8).max(200),
   ticket_id: z.string().uuid(),
+  business_id: z.string().uuid(),
   reason: z.string().max(500),
   escalate_to: z.string().uuid().optional(),
 });
@@ -53,41 +58,28 @@ const WebhookSchema = z.discriminatedUnion('event', [
 
 type WebhookPayload = z.infer<typeof WebhookSchema>;
 
-// Verify webhook signature (if secret is configured)
-async function verifyWebhookSignature(
-  payload: string,
-  signature: string | null,
-  secret: string | null
-): Promise<boolean> {
-  // Fail-closed: require both a configured secret AND a signature header.
-  if (!secret || !signature) {
-    return false;
-  }
-
-  try {
-    const encoder = new TextEncoder();
-    const key = await crypto.subtle.importKey(
-      'raw',
-      encoder.encode(secret),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign']
-    );
-
-    const signatureBuffer = await crypto.subtle.sign(
-      'HMAC',
-      key,
-      encoder.encode(payload)
-    );
-
-    const expectedSignature = Array.from(new Uint8Array(signatureBuffer))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
-
-    return signature === expectedSignature || signature === `sha256=${expectedSignature}`;
-  } catch {
-    return false;
-  }
+// Verify a timestamped HMAC signature over `${timestamp}.${rawBody}`.
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return result === 0;
+}
+async function hmacHex(secret: string, message: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
+  );
+  const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(message));
+  return Array.from(new Uint8Array(signature)).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+async function verifyWebhookSignature(payload: string, signature: string | null, timestamp: string | null, secret: string | null): Promise<boolean> {
+  if (!secret || !signature || !timestamp) return false;
+  const timestampSeconds = Number(timestamp);
+  if (!Number.isInteger(timestampSeconds) || Math.abs(Math.floor(Date.now() / 1000) - timestampSeconds) > 300) return false;
+  const provided = signature.replace(/^sha256=/i, '').toLowerCase();
+  const expected = await hmacHex(secret, `${timestamp}.${payload}`);
+  return timingSafeEqual(provided, expected);
 }
 
 serve(async (req: Request) => {
@@ -108,12 +100,14 @@ serve(async (req: Request) => {
     
     // Verify webhook signature
     const signature = req.headers.get('x-webhook-signature');
+    const timestamp = req.headers.get('x-webhook-timestamp');
     const webhookSecret = Deno.env.get('SUPPORT_WEBHOOK_SECRET') || null;
     
-    const isValid = await verifyWebhookSignature(rawBody, signature, webhookSecret);
+    const isValid = await verifyWebhookSignature(rawBody, signature, timestamp, webhookSecret);
     if (!isValid) {
       logSecurityEvent('INVALID_WEBHOOK_SIGNATURE', {
-        signature,
+        hasSignature: !!signature,
+        hasTimestamp: !!timestamp,
         source: req.headers.get('x-webhook-source'),
       });
       return badRequest('Invalid webhook signature', corsHeaders);
@@ -133,6 +127,17 @@ serve(async (req: Request) => {
 
     const payload: WebhookPayload = validation.data;
     const serviceClient = createServiceClient();
+    const { data: inboundEvent, error: inboundEventError } = await serviceClient
+      .from('support_webhook_events')
+      .insert({ event_id: payload.event_id, payload: body })
+      .select('id')
+      .single();
+    if (inboundEventError) {
+      if (inboundEventError.code === '23505') {
+        return secureResponse(JSON.stringify({ success: true, duplicate: true, event_id: payload.event_id }), 200, corsHeaders);
+      }
+      throw inboundEventError;
+    }
 
     logSecurityEvent('SUPPORT_WEBHOOK_RECEIVED', {
       event: payload.event,
@@ -148,6 +153,22 @@ serve(async (req: Request) => {
         if (!user) {
           logError('USER_NOT_FOUND', { email: payload.user_email });
           return badRequest('User not found', corsHeaders);
+        }
+        const { data: membership } = await serviceClient
+          .from('business_members')
+          .select('id')
+          .eq('business_id', payload.business_id)
+          .eq('user_id', user.id)
+          .eq('is_active', true)
+          .maybeSingle();
+        const { data: owner } = await serviceClient
+          .from('businesses')
+          .select('id')
+          .eq('id', payload.business_id)
+          .eq('owner_id', user.id)
+          .maybeSingle();
+        if (!membership && !owner) {
+          return badRequest('User is not a member of the requested business', corsHeaders);
         }
 
         // Create the support ticket
@@ -240,6 +261,7 @@ serve(async (req: Request) => {
           priority: payload.priority,
         });
 
+        await serviceClient.from('support_webhook_events').update({ status: 'processed', processed_at: new Date().toISOString() }).eq('id', inboundEvent.id);
         return secureResponse(
           JSON.stringify({
             success: true,
@@ -260,6 +282,7 @@ serve(async (req: Request) => {
           .from('support_tickets')
           .select('*')
           .eq('id', payload.ticket_id)
+          .eq('business_id', payload.business_id)
           .maybeSingle();
 
         if (findError || !existingTicket) {
@@ -333,6 +356,7 @@ serve(async (req: Request) => {
             });
         }
 
+        await serviceClient.from('support_webhook_events').update({ status: 'processed', processed_at: new Date().toISOString() }).eq('id', inboundEvent.id);
         return secureResponse(
           JSON.stringify({
             success: true,
@@ -353,6 +377,7 @@ serve(async (req: Request) => {
           .from('support_tickets')
           .select('*')
           .eq('id', payload.ticket_id)
+          .eq('business_id', payload.business_id)
           .maybeSingle();
 
         if (findError || !ticket) {
@@ -432,6 +457,7 @@ serve(async (req: Request) => {
           escalateTo: payload.escalate_to,
         });
 
+        await serviceClient.from('support_webhook_events').update({ status: 'processed', processed_at: new Date().toISOString() }).eq('id', inboundEvent.id);
         return secureResponse(
           JSON.stringify({
             success: true,

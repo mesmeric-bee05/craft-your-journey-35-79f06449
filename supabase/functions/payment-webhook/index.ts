@@ -46,36 +46,30 @@ const GenericWebhookSchema = z.object({
   metadata: z.record(z.unknown()).optional(),
 });
 
-// Verify webhook signature using Web Crypto API
-async function verifySignature(
-  payload: string,
-  signature: string,
-  secret: string
-): Promise<boolean> {
-  try {
-    const encoder = new TextEncoder();
-    const key = await crypto.subtle.importKey(
-      'raw',
-      encoder.encode(secret),
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign']
-    );
-    
-    const signatureBuffer = await crypto.subtle.sign(
-      'HMAC',
-      key,
-      encoder.encode(payload)
-    );
-    
-    const expectedSignature = Array.from(new Uint8Array(signatureBuffer))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
-    
-    return signature === expectedSignature;
-  } catch {
-    return false;
-  }
+// Verify Stripe's timestamped signature over `${timestamp}.${rawBody}`.
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length != b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return result === 0;
+}
+async function hmacHex(secret: string, message: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
+  );
+  const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(message));
+  return Array.from(new Uint8Array(signature)).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+async function verifyStripeSignature(payload: string, header: string, secret: string): Promise<boolean> {
+  const parts = header.split(',').map((part) => part.trim());
+  const timestamp = parts.find((part) => part.startsWith('t='))?.slice(2);
+  const signatures = parts.filter((part) => part.startsWith('v1=')).map((part) => part.slice(3));
+  const timestampSeconds = Number(timestamp);
+  if (!timestamp || !Number.isInteger(timestampSeconds) || Math.abs(Math.floor(Date.now() / 1000) - timestampSeconds) > 300) return false;
+  if (signatures.length === 0) return false;
+  const expected = await hmacHex(secret, `${timestamp}.${payload}`);
+  return signatures.some((signature) => timingSafeEqual(signature.toLowerCase(), expected));
 }
 
 serve(async (req: Request) => {
@@ -116,6 +110,7 @@ serve(async (req: Request) => {
     let newStatus: 'completed' | 'failed' | 'pending' = 'pending';
     let externalReference: string | null = null;
     let amount: number | null = null;
+    let providerEventId: string | null = null;
 
     switch (webhookSource) {
       case 'mpesa': {
@@ -133,6 +128,7 @@ serve(async (req: Request) => {
         }
 
         const callback = mpesaValidation.data.Body.stkCallback;
+        providerEventId = callback.CheckoutRequestID || callback.MerchantRequestID;
         
         // Extract reference from CheckoutRequestID (format: MPESA-TXN-xxx)
         transactionReference = callback.CheckoutRequestID.replace('MPESA-', '');
@@ -163,9 +159,9 @@ serve(async (req: Request) => {
           logSecurityEvent('STRIPE_SIGNATURE_MISSING', { hasSecret: !!stripeSecret, hasSig: !!stripeSignature });
           return badRequest('Stripe signature required', corsHeaders);
         }
-        const isValid = await verifySignature(rawBody, stripeSignature.split('=')[1] || '', stripeSecret);
+        const isValid = await verifyStripeSignature(rawBody, stripeSignature, stripeSecret);
         if (!isValid) {
-          logSecurityEvent('STRIPE_SIGNATURE_INVALID', { signature: stripeSignature });
+          logSecurityEvent('STRIPE_SIGNATURE_INVALID', { hasSignature: true });
           return badRequest('Invalid signature', corsHeaders);
         }
 
@@ -175,6 +171,7 @@ serve(async (req: Request) => {
         }
 
         const event = stripeValidation.data;
+        providerEventId = event.id;
         const paymentIntent = event.data.object as Record<string, unknown>;
 
         const metadata = paymentIntent.metadata as Record<string, unknown> | undefined;
@@ -214,70 +211,44 @@ serve(async (req: Request) => {
       return badRequest('Transaction reference not found', corsHeaders);
     }
 
-    // Find the transaction
-    const { data: transaction, error: txError } = await serviceClient
-      .from('transactions')
-      .select('*, wallets(*)')
-      .eq('reference', transactionReference)
-      .maybeSingle();
-
-    if (txError || !transaction) {
-      logError('TRANSACTION_NOT_FOUND', { reference: transactionReference, error: txError });
-      return badRequest('Transaction not found', corsHeaders);
+    if (!providerEventId) {
+      return badRequest('Webhook event identifier not found', corsHeaders);
     }
-
-    // Idempotency check - don't reprocess completed/failed transactions
-    if (transaction.status === 'completed' || transaction.status === 'failed') {
-      logSecurityEvent('DUPLICATE_WEBHOOK', {
-        transactionId: transaction.id,
-        currentStatus: transaction.status,
-        newStatus,
-      });
-      return secureResponse(JSON.stringify({ 
-        received: true, 
-        message: 'Transaction already processed' 
-      }), 200, corsHeaders);
-    }
-
-    // Update transaction status
-    const { error: updateError } = await serviceClient
-      .from('transactions')
-      .update({
-        status: newStatus,
-        external_reference: externalReference,
-        completed_at: newStatus === 'completed' ? new Date().toISOString() : null,
-        metadata: {
-          ...transaction.metadata,
-          webhook_received_at: new Date().toISOString(),
-          webhook_source: webhookSource,
-        },
-      })
-      .eq('id', transaction.id);
-
-    if (updateError) {
-      logError('UPDATE_TRANSACTION_ERROR', updateError);
+    const { data: settlement, error: settlementError } = await serviceClient.rpc('apply_payment_webhook', {
+      p_provider: webhookSource,
+      p_event_id: providerEventId,
+      p_transaction_reference: transactionReference,
+      p_status: newStatus,
+      p_external_reference: externalReference,
+      p_amount: amount,
+      p_metadata: { webhook_received_at: new Date().toISOString(), webhook_source: webhookSource },
+      p_payload: body,
+    });
+    if (settlementError) {
+      logError('PAYMENT_WEBHOOK_SETTLEMENT_ERROR', settlementError);
       return internalError(corsHeaders);
     }
-
-    // Update wallet balance for successful deposits
-    if (newStatus === 'completed' && transaction.type === 'deposit' && transaction.wallet_id) {
-      const currentBalance = transaction.wallets?.balance || 0;
-      const depositAmount = amount || transaction.amount;
-
-      const { error: walletError } = await serviceClient
-        .from('wallets')
-        .update({
-          balance: currentBalance + depositAmount,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', transaction.wallet_id);
-
-      if (walletError) {
-        logError('UPDATE_WALLET_BALANCE_ERROR', walletError);
-        // Don't fail the webhook, log for manual reconciliation
-      }
+    const transaction = settlement as {
+      accepted?: boolean;
+      duplicate?: boolean;
+      error?: string;
+      transaction_id?: string;
+      business_id?: string;
+      user_id?: string;
+      type?: string;
+      currency?: string;
+      amount?: number;
+      previous_status?: string;
+      status?: string;
+    };
+    if (!transaction.accepted) {
+      logError('PAYMENT_WEBHOOK_REJECTED', { reference: transactionReference, error: transaction.error });
+      return badRequest(transaction.error || 'Payment webhook rejected', corsHeaders);
     }
-
+    if (transaction.duplicate) {
+      logSecurityEvent('DUPLICATE_WEBHOOK', { provider: webhookSource, eventId: providerEventId });
+      return secureResponse(JSON.stringify({ received: true, duplicate: true }), 200, corsHeaders);
+    }
     // Create notification for user
     await serviceClient
       .from('notifications')
@@ -289,19 +260,19 @@ serve(async (req: Request) => {
           ? `Payment ${transaction.type} Successful` 
           : `Payment ${transaction.type} Failed`,
         body: newStatus === 'completed'
-          ? `${transaction.currency} ${transaction.amount.toLocaleString()} has been ${transaction.type === 'deposit' ? 'added to' : 'processed from'} your wallet`
-          : `Your ${transaction.type} of ${transaction.currency} ${transaction.amount.toLocaleString()} could not be processed`,
+          ? `${transaction.currency} ${Number(transaction.amount ?? 0).toLocaleString()} has been ${transaction.type === 'deposit' ? 'added to' : 'processed from'} your wallet`
+          : `Your ${transaction.type} of ${transaction.currency} ${Number(transaction.amount ?? 0).toLocaleString()} could not be processed`,
         data: {
-          transaction_id: transaction.id,
+          transaction_id: transaction.transaction_id,
           reference: transactionReference,
           status: newStatus,
         },
       });
 
     logSecurityEvent('PAYMENT_WEBHOOK_PROCESSED', {
-      transactionId: transaction.id,
+      transactionId: transaction.transaction_id,
       reference: transactionReference,
-      previousStatus: transaction.status,
+      previousStatus: transaction.previous_status,
       newStatus,
       source: webhookSource,
     });
@@ -309,7 +280,7 @@ serve(async (req: Request) => {
     return secureResponse(
       JSON.stringify({
         success: true,
-        transaction_id: transaction.id,
+        transaction_id: transaction.transaction_id,
         status: newStatus,
       }),
       200,

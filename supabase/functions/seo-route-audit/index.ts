@@ -117,11 +117,15 @@ Deno.serve(async (req) => {
     try {
       const { data: profiles } = await svc.from("business_public_profiles" as never).select("slug").eq("is_published", true).limit(50);
       for (const p of (profiles ?? []) as any[]) if (p.slug) dynamic.push(`/biz/${p.slug}`);
-    } catch (_) {}
+    } catch (_) {
+      // Public-profile routes are optional; continue with the static set.
+    }
     try {
       const { data: forms } = await svc.from("feedback_forms" as never).select("slug").eq("is_active", true).limit(50);
       for (const f of (forms ?? []) as any[]) if (f.slug) dynamic.push(`/feedback/${f.slug}`);
-    } catch (_) {}
+    } catch (_) {
+      // Feedback routes are optional; continue with the static set.
+    }
 
     const routes = Array.from(new Set([...STATIC_ROUTES, ...dynamic]));
     const allFindings: Finding[] = [];

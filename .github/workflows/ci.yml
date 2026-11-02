@@ -1,0 +1,93 @@
+name: SmartReach CI and staging verification
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: smartreach-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Install, lint, typecheck, build, and verify routes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies from frozen lockfile
+        run: bun install --frozen-lockfile
+      - name: Lint
+        run: bun run lint
+      - name: Typecheck
+        run: bun run typecheck
+      - name: Production build
+        run: bun run build
+      - name: Verify route manifest and build output
+        run: bun run verify:routes
+      - name: Upload production build for inspection
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smartreach-dist-${{ github.sha }}
+          path: dist/
+          if-no-files-found: warn
+          retention-days: 7
+
+  staging-smoke:
+    name: Verify deployed staging shell and security headers
+    if: github.event_name != 'pull_request'
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      STAGING_URL: ${{ secrets.STAGING_URL }}
+      SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SECURITY_ALERT_SHARED_SECRET: ${{ secrets.SECURITY_ALERT_SHARED_SECRET }}
+      SECURITY_CHECK_ENV: staging
+      GITHUB_SHA: ${{ github.sha }}
+      GITHUB_RUN_ID: ${{ github.run_id }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_SERVER_URL: ${{ github.server_url }}
+      GITHUB_ACTOR: ${{ github.actor }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies from frozen lockfile
+        run: bun install --frozen-lockfile
+      - name: Require staging URL on protected branches
+        run: test -n "$STAGING_URL" || { echo "::error::STAGING_URL repository secret is required for main/workflow_dispatch"; exit 1; }
+      - name: Run public staging smoke checks
+        run: bun run verify:staging -- "$STAGING_URL"
+      - name: Verify strict security headers
+        run: bun scripts/check-security-headers.ts "$STAGING_URL" --strict
+      - name: Upload staging diagnostics
+        if: always()
+        run: |
+          {
+            echo "commit=$GITHUB_SHA"
+            echo "staging_url=$STAGING_URL"
+            date -u
+          } > staging-verification.txt
+      - name: Publish staging diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-verification-${{ github.sha }}
+          path: staging-verification.txt
+          retention-days: 14
