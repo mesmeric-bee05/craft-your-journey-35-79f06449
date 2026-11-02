@@ -145,9 +145,9 @@ export function useGlobalSearch(): UseGlobalSearchReturn {
     }
   }, [business?.id]);
 
-  const clearResults = () => {
+  const clearResults = useCallback(() => {
     setResults([]);
-  };
+  }, []);
 
   return {
     results,
