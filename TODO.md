@@ -26,6 +26,8 @@
 - [ ] Add deterministic Edge Function tests for webhook replay, stale signatures, malformed signatures, duplicate deliveries, amount mismatch, and concurrent payment delivery.
 - [ ] Verify migration version/schema drift against the deployed staging database before release.
 
+The repository now includes an offline `verify:webhooks` contract gate covering signature and amount-mismatch invariants. Live staging execution is still required for concurrent delivery, RLS behavior, and deployed migration verification.
+
 ## Advanced feature roadmap, not current production scope
 
 - [ ] Phase agentic AI as suggestion-first, then approval-based tool use, then limited autonomy after safety evidence and user trust data.

@@ -35,6 +35,8 @@ jobs:
         run: bun run build
       - name: Verify route manifest and build output
         run: bun run verify:routes
+      - name: Verify webhook signing and settlement contracts
+        run: bun run verify:webhooks
       - name: Upload production build for inspection
         if: always()
         uses: actions/upload-artifact@v4

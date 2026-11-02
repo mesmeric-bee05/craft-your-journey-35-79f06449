@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --pretty false",
     "verify:routes": "node scripts/verify-routes.mjs",
-    "verify:staging": "node scripts/verify-staging.mjs"
+    "verify:staging": "node scripts/verify-staging.mjs",
+    "verify:webhooks": "node scripts/verify-webhook-contracts.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

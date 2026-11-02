@@ -84,6 +84,16 @@ BEGIN
   END IF;
 
   v_previous_status := v_tx.status::text;
+  IF p_amount IS NOT NULL AND p_amount <> v_tx.amount THEN
+    UPDATE public.payment_webhook_events
+    SET status = 'failed', error = 'amount_mismatch', processed_at = now()
+    WHERE id = v_event_id;
+    RETURN jsonb_build_object(
+      'accepted', false,
+      'error', 'amount_mismatch',
+      'transaction_id', v_tx.id
+    );
+  END IF;
   IF v_tx.status::text IN ('completed', 'failed') THEN
     UPDATE public.payment_webhook_events
     SET status = 'processed', error = 'transaction_already_final', processed_at = now()

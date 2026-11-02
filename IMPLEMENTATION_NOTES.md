@@ -10,6 +10,8 @@ All page modules are now loaded through route-level `React.lazy` imports behind 
 
 Webhook and database hardening was added through `supabase/migrations/20261102211000_webhook_hardening.sql` and the corresponding Edge Function changes. Payment settlement is now atomic and idempotent; Stripe signatures use timestamped verification; support webhooks use timestamped signatures, event deduplication, and tenant checks; and capital partner webhooks reject stale or forgeable fingerprint requests.
 
+The payment settlement RPC now rejects provider-reported amounts that do not exactly match the recorded transaction amount before changing status or crediting a wallet. `npm run verify:webhooks` provides a deterministic 12-check offline regression gate for signature, replay, uniqueness, amount-mismatch, and legacy-protocol controls.
+
 A CI pipeline now performs frozen-lockfile installation, lint, typecheck, production build, route-manifest validation, artifact upload, staging smoke checks, and strict deployed security-header checks. The existing security workflow was updated so main/scheduled runs do not silently pass when authenticated security jobs are skipped.
 
 ## Validation

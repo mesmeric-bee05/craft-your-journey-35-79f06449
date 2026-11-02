@@ -313,6 +313,7 @@ serve(async (req: Request) => {
           .from('support_tickets')
           .update(updates)
           .eq('id', payload.ticket_id)
+          .eq('business_id', payload.business_id)
           .select()
           .single();
 
@@ -403,7 +404,8 @@ serve(async (req: Request) => {
         const { error: updateError } = await serviceClient
           .from('support_tickets')
           .update(updates)
-          .eq('id', payload.ticket_id);
+          .eq('id', payload.ticket_id)
+          .eq('business_id', payload.business_id);
 
         if (updateError) {
           logError('ESCALATE_TICKET_ERROR', updateError);
