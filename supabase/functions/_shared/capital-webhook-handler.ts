@@ -112,23 +112,24 @@ export async function handleCapitalEvent(
       action: "capital.advance.written_off",
       entity_type: "capital_advance",
       entity_id: body.advance_id,
-      metadata: { partner_id: partnerId, reference: body.reference ?? null },
+      metadata: { partner_id: partnerId, reference },
     });
     return { ok: true, code: "written_off" };
   }
 
-  if (body.event === "advance.status" && body.status) {
+  if (body.event === "advance.status") {
+    if (!status) return { ok: false, code: "status_not_allowed" };
     await svc.from("capital_advances")
-      .update({ status: body.status })
+      .update({ status })
       .eq("id", body.advance_id);
     await svc.from("capital_audit").insert({
       business_id: advance.business_id,
       action: "capital.advance.status",
       entity_type: "capital_advance",
       entity_id: body.advance_id,
-      metadata: { partner_id: partnerId, new_status: body.status },
+      metadata: { partner_id: partnerId, new_status: status },
     });
-    return { ok: true, code: "status_updated", detail: { status: body.status } };
+    return { ok: true, code: "status_updated", detail: { status } };
   }
 
   return { ok: false, code: "unhandled_event" };
