@@ -91,9 +91,14 @@ export function useContracts() {
 
   const updateContract = useMutation({
     mutationFn: async ({ id, metadata, ...updates }: Partial<Contract> & { id: string }) => {
+      // SECURITY: financial terms (rate, total_paid) are guarded server-side
+      // and must never be sent from the client on a generic update.
+      const safeUpdates = { ...updates } as Record<string, unknown>;
+      delete safeUpdates.rate;
+      delete safeUpdates.total_paid;
       const { data, error } = await supabase
         .from('contracts')
-        .update(updates as never)
+        .update(safeUpdates as never)
         .eq('id', id)
         .select()
         .single();

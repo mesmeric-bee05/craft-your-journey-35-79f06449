@@ -20,6 +20,25 @@ export interface CapitalEventOutcome {
   detail?: Record<string, unknown>;
 }
 
+const ALLOWED_ADVANCE_STATUSES = new Set(["active", "repaid", "defaulted"]);
+
+/**
+ * SECURITY: partner-supplied free text ends up in audit records that admins
+ * download as CSV. Strip spreadsheet-formula and control characters so a
+ * crafted reference can never execute as a formula when the export is opened.
+ */
+export function sanitizeEventText(value: string | undefined | null): string | null {
+  if (!value) return null;
+  const cleaned = value
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(/[=+@]/g, " ")
+    .replace(/^-+/, "")
+    .trim()
+    .slice(0, 120);
+  return cleaned || null;
+}
+
 /** Deterministic dedupe key for an inbound partner delivery. */
 export async function computeDedupeKey(
   partnerId: string,
@@ -48,6 +67,12 @@ export async function handleCapitalEvent(
 ): Promise<CapitalEventOutcome> {
   if (!body.advance_id) return { ok: false, code: "advance_id_required" };
 
+  // SECURITY: sanitize partner free text before it reaches audit records and
+  // the repayment ledger; only allowlisted statuses are ever applied.
+  const reference = sanitizeEventText(body.reference);
+  const status = body.status && ALLOWED_ADVANCE_STATUSES.has(body.status) ? body.status : null;
+
+
   const { data: advance } = await svc.from("capital_advances")
     .select("id, business_id, status, partner_id")
     .eq("id", body.advance_id)
@@ -69,7 +94,7 @@ export async function handleCapitalEvent(
     const { data, error } = await svc.rpc("record_capital_repayment", {
       p_advance_id: body.advance_id,
       p_amount: body.amount_kes,
-      p_reference: body.reference ?? null,
+      p_reference: reference,
       p_source: "partner",
       p_partner_id: partnerId,
       p_checkout_request_id: null,
@@ -87,23 +112,24 @@ export async function handleCapitalEvent(
       action: "capital.advance.written_off",
       entity_type: "capital_advance",
       entity_id: body.advance_id,
-      metadata: { partner_id: partnerId, reference: body.reference ?? null },
+      metadata: { partner_id: partnerId, reference },
     });
     return { ok: true, code: "written_off" };
   }
 
-  if (body.event === "advance.status" && body.status) {
+  if (body.event === "advance.status") {
+    if (!status) return { ok: false, code: "status_not_allowed" };
     await svc.from("capital_advances")
-      .update({ status: body.status })
+      .update({ status })
       .eq("id", body.advance_id);
     await svc.from("capital_audit").insert({
       business_id: advance.business_id,
       action: "capital.advance.status",
       entity_type: "capital_advance",
       entity_id: body.advance_id,
-      metadata: { partner_id: partnerId, new_status: body.status },
+      metadata: { partner_id: partnerId, new_status: status },
     });
-    return { ok: true, code: "status_updated", detail: { status: body.status } };
+    return { ok: true, code: "status_updated", detail: { status } };
   }
 
   return { ok: false, code: "unhandled_event" };

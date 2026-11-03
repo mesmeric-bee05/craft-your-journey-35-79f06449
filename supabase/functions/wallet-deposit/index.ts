@@ -131,6 +131,29 @@ Deno.serve(async (req) => {
     const reference = newReference();
     const normalizedPhone = normalizeKenyanPhone(phone);
 
+    // SECURITY: bind the STK recipient to the caller's registered profile phone
+    // so a signed-in user can never prompt payments to a third party's phone.
+    const { data: profile } = await supabase!
+      .from("profiles")
+      .select("phone")
+      .eq("id", user!.id)
+      .maybeSingle();
+    const registeredPhone = profile?.phone ? normalizeKenyanPhone(profile.phone as string) : null;
+    if (!registeredPhone) {
+      return badRequest(
+        "Add a phone number to your profile before requesting an M-Pesa deposit",
+        corsHeaders
+      );
+    }
+    if (normalizedPhone !== registeredPhone) {
+      logSecurityEvent("wallet_deposit_phone_mismatch", { userId: user!.id, businessId });
+      return secureResponse(
+        JSON.stringify({ error: { code: "PHONE_MISMATCH", message: "Deposits can only be sent to your registered phone number" } }),
+        403, corsHeaders
+      );
+    }
+
+
     const { data: transaction, error: txError } = await adminClient
       .from("transactions")
       .insert({

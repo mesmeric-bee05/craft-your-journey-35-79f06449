@@ -56,14 +56,26 @@ function appBaseUrl(): string {
   return Deno.env.get("APP_BASE_URL") ?? "https://craft-your-journey-35.lovable.app";
 }
 
+// SECURITY: notification titles/bodies come from admin-editable finding data.
+// Escape every interpolated value so a crafted finding name cannot inject
+// deceptive markup or links into digest emails sent to other admins.
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function digestHtml(rows: Notification[]): string {
   const base = appBaseUrl();
   const items = rows
     .map(
       (r) =>
-        `<li style="margin-bottom:10px"><strong>${r.title}</strong><br/>` +
-        `<span style="color:#555">${r.body ?? ""}</span><br/>` +
-        `<span style="color:#888;font-size:12px">${new Date(r.created_at).toUTCString()}</span></li>`,
+        `<li style="margin-bottom:10px"><strong>${escapeHtml(r.title)}</strong><br/>` +
+        `<span style="color:#555">${escapeHtml(r.body ?? "")}</span><br/>` +
+        `<span style="color:#888;font-size:12px">${escapeHtml(new Date(r.created_at).toUTCString())}</span></li>`,
     )
     .join("");
   return `
