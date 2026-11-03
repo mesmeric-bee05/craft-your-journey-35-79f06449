@@ -36,6 +36,13 @@
       "when": 1793531457471,
       "tag": "0004_tighten_wallet_membership_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793684276817,
+      "tag": "0005_guard_score_contract_financials_and_ticket_membership",
+      "breakpoints": true
     }
   ]
 }
