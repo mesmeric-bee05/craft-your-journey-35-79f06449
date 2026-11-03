@@ -121,13 +121,34 @@ export function buildRepaymentSummary(s: MyAdvanceStatus | null | undefined, loc
   return parts.join(" ");
 }
 
-/** Finds a voice for the language: exact (e.g. sw-KE), then same language. No English fallback here. */
+/** Finds the clearest available voice for the language: exact (e.g. sw-KE), then same language. */
 function pickVoice(lang: string): SpeechSynthesisVoice | undefined {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return undefined;
   const voices = window.speechSynthesis.getVoices();
+  if (!voices.length) return undefined;
   const base = lang.split("-")[0].toLowerCase();
-  return voices.find((v) => v.lang === lang) ?? voices.find((v) => v.lang.toLowerCase().startsWith(base));
+  // Highest-quality engines first; skip the low-quality "compact"/"espeak" fallbacks.
+  const quality = /natural|neural|enhanced|premium|google|siri|wavenet|journey/i;
+  const lowGrade = /compact|espeak|robot|pico/i;
+  const score = (v: SpeechSynthesisVoice, exact: boolean) =>
+    (exact ? 8 : 0) +
+    (v.lang.toLowerCase() === lang.toLowerCase() ? 4 : 0) +
+    (quality.test(v.name) ? 3 : 0) +
+    (lowGrade.test(v.name) ? -4 : 0) +
+    (v.localService ? 1 : 0);
+  const exact = voices.filter((v) => v.lang === lang || v.lang.toLowerCase() === lang.toLowerCase());
+  const sameBase = voices.filter((v) => v.lang.toLowerCase().startsWith(base));
+  const best = (list: SpeechSynthesisVoice[]) =>
+    [...list].sort((a, b) => score(b, false) - score(a, false))[0];
+  return best(exact) ?? best(sameBase);
 }
+
+// Natural pacing per language: Kiswahili/Sheng' read slightly slower so the
+// mixed Sheng' and Kenglish wording stays easy to follow.
+const VOICE_TUNE: Record<string, { rate: number; pitch: number }> = {
+  "en-KE": { rate: 0.97, pitch: 1 },
+  "sw-KE": { rate: 0.9, pitch: 1 },
+};
 
 const UI: Record<CultureLocale, { voiceOn: string; voiceOff: string; restart: string; textOnly: string; englishVoice: string }> = {
   en: { voiceOn: "Voice on", voiceOff: "Voice off", restart: "Restart", textOnly: "This language plays as text on this device.", englishVoice: "No voice for this language on this device — reading with an English voice." },
@@ -169,10 +190,19 @@ export function CapitalVoiceGuide({ status }: { status: MyAdvanceStatus | null |
     setText(t);
     if (!supported || !voiceOn || !voice) return;
     window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(t);
-    u.lang = voice.lang;
-    u.voice = voice;
-    window.speechSynthesis.speak(u);
+    // Speak sentence-sized chunks: long utterances get cut off on some
+    // Android/Chrome devices, and short chunks sound crisper and clearer.
+    const tune = VOICE_TUNE[speechLang] ?? VOICE_TUNE["en-KE"];
+    const chunks = t.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
+    chunks.forEach((chunk, i) => {
+      const u = new SpeechSynthesisUtterance(chunk);
+      u.lang = voice.lang;
+      u.voice = voice;
+      u.rate = tune.rate;
+      u.pitch = tune.pitch;
+      u.volume = 1;
+      window.speechSynthesis.speak(u);
+    });
   };
 
   const toggleVoice = () => {
