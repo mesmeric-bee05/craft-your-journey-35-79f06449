@@ -97,8 +97,8 @@ export function useAIContent(): UseAIContentReturn {
           language: params.language || 'en',
           tone: params.tone || 'professional',
           platform: params.platform,
-          businessId: business.id,
-          userId: user.id,
+          // Note: no businessId/userId here — the generator's strict schema
+          // rejects unknown fields and derives identity from the JWT.
         },
       });
 
