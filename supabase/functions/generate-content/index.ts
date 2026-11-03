@@ -93,8 +93,17 @@ serve(async (req) => {
         systemPrompt += `Write professional marketing content suitable for African businesses.`;
     }
 
-    // Add tone instructions
-    systemPrompt += ` Tone: ${tone}.`;
+    // SECURITY: tone/platform values are never interpolated into the prompt.
+    // Caller-selected values map to fixed, server-owned instruction strings.
+    const TONE_INSTRUCTIONS: Record<string, string> = {
+      professional: 'Use a professional, confident tone.',
+      casual: 'Use a relaxed, conversational tone.',
+      friendly: 'Use a warm, friendly tone.',
+      formal: 'Use a formal, respectful tone.',
+      humorous: 'Use a light, humorous tone that stays respectful.',
+      urgent: 'Use an urgent, action-driving tone.',
+    };
+    systemPrompt += ` ${TONE_INSTRUCTIONS[tone] ?? TONE_INSTRUCTIONS.professional}`;
 
     // Add language instructions
     if (language === 'sw') {
@@ -105,9 +114,17 @@ serve(async (req) => {
       systemPrompt += ` Write in English.`;
     }
 
-    // Add platform-specific instructions
+    // Add platform-specific instructions (fixed strings only)
+    const PLATFORM_INSTRUCTIONS: Record<string, string> = {
+      whatsapp: 'Optimize for WhatsApp: short lines, easy to forward, works without images.',
+      instagram: 'Optimize for Instagram: visual-first copy with emoji and tight hooks.',
+      facebook: 'Optimize for Facebook: conversational copy that invites comments and shares.',
+      tiktok: 'Optimize for TikTok: punchy, trend-aware copy for short video captions.',
+      twitter: 'Optimize for Twitter/X: concise copy that fits the character limit.',
+      email: 'Optimize for email: clear subject line and scannable body.',
+    };
     if (platform) {
-      systemPrompt += ` Optimize for ${platform}.`;
+      systemPrompt += ` ${PLATFORM_INSTRUCTIONS[platform] ?? 'Optimize for the selected platform.'}`;
     }
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
