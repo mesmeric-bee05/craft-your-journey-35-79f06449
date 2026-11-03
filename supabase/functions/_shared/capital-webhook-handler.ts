@@ -20,6 +20,25 @@ export interface CapitalEventOutcome {
   detail?: Record<string, unknown>;
 }
 
+const ALLOWED_ADVANCE_STATUSES = new Set(["active", "repaid", "defaulted"]);
+
+/**
+ * SECURITY: partner-supplied free text ends up in audit records that admins
+ * download as CSV. Strip spreadsheet-formula and control characters so a
+ * crafted reference can never execute as a formula when the export is opened.
+ */
+export function sanitizeEventText(value: string | undefined | null): string | null {
+  if (!value) return null;
+  const cleaned = value
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(/[=+@]/g, " ")
+    .replace(/^-+/, "")
+    .trim()
+    .slice(0, 120);
+  return cleaned || null;
+}
+
 /** Deterministic dedupe key for an inbound partner delivery. */
 export async function computeDedupeKey(
   partnerId: string,

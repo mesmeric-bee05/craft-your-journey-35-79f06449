@@ -104,6 +104,52 @@ serve(async (req) => {
       );
     }
 
+    // SECURITY: verify any related-record references actually belong to this
+    // business, so a member cannot link cross-tenant conversation/message/
+    // customer IDs into privileged sentiment records.
+    const badRef = (field: string) =>
+      new Response(
+        JSON.stringify({ error: `Invalid ${field} reference for this business` }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    if (parsed.data.conversation_id) {
+      const { data: conv } = await userClient
+        .from("conversations")
+        .select("id")
+        .eq("id", parsed.data.conversation_id)
+        .eq("business_id", parsed.data.business_id)
+        .maybeSingle();
+      if (!conv) return badRef("conversation_id");
+    }
+    if (parsed.data.message_id) {
+      const { data: msg } = await userClient
+        .from("messages")
+        .select("id, conversation_id")
+        .eq("id", parsed.data.message_id)
+        .maybeSingle();
+      const msgConvId = msg?.conversation_id as string | undefined;
+      if (!msg || !msgConvId) return badRef("message_id");
+      if (parsed.data.conversation_id && msgConvId !== parsed.data.conversation_id) {
+        return badRef("message_id");
+      }
+      const { data: conv } = await userClient
+        .from("conversations")
+        .select("id")
+        .eq("id", msgConvId)
+        .eq("business_id", parsed.data.business_id)
+        .maybeSingle();
+      if (!conv) return badRef("message_id");
+    }
+    if (parsed.data.customer_id) {
+      const { data: cust } = await userClient
+        .from("customers")
+        .select("id")
+        .eq("id", parsed.data.customer_id)
+        .eq("business_id", parsed.data.business_id)
+        .maybeSingle();
+      if (!cust) return badRef("customer_id");
+    }
+
     // Call Lovable AI Gateway
     const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
