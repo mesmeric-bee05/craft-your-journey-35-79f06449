@@ -201,7 +201,6 @@ export function CapitalVoiceGuide({ status }: { status: MyAdvanceStatus | null |
       u.rate = tune.rate;
       u.pitch = tune.pitch;
       u.volume = 1;
-      if (i < chunks.length - 1) u.text = `${chunk}. `; // brief natural pause between sentences
       window.speechSynthesis.speak(u);
     });
   };
