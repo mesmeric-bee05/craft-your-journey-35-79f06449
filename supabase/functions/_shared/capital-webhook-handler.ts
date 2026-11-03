@@ -67,6 +67,12 @@ export async function handleCapitalEvent(
 ): Promise<CapitalEventOutcome> {
   if (!body.advance_id) return { ok: false, code: "advance_id_required" };
 
+  // SECURITY: sanitize partner free text before it reaches audit records and
+  // the repayment ledger; only allowlisted statuses are ever applied.
+  const reference = sanitizeEventText(body.reference);
+  const status = body.status && ALLOWED_ADVANCE_STATUSES.has(body.status) ? body.status : null;
+
+
   const { data: advance } = await svc.from("capital_advances")
     .select("id, business_id, status, partner_id")
     .eq("id", body.advance_id)
@@ -88,7 +94,7 @@ export async function handleCapitalEvent(
     const { data, error } = await svc.rpc("record_capital_repayment", {
       p_advance_id: body.advance_id,
       p_amount: body.amount_kes,
-      p_reference: body.reference ?? null,
+      p_reference: reference,
       p_source: "partner",
       p_partner_id: partnerId,
       p_checkout_request_id: null,
