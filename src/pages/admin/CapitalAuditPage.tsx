@@ -27,11 +27,14 @@ const ACTIONS = [
 function toCsv(rows: Array<Record<string, unknown>>): string {
   const cols = ["created_at", "action", "entity_type", "entity_id", "business_id", "actor_user_id", "metadata"];
   const header = cols.join(",");
+  // Neutralize spreadsheet formulas: partner-supplied audit metadata is
+  // quoted and any leading formula character is defused before download.
   const body = rows.map((r) =>
     cols.map((c) => {
       const v = r[c] ?? "";
       const s = typeof v === "string" ? v : JSON.stringify(v);
-      return `"${s.replace(/"/g, '""')}"`;
+      const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+      return `"${safe.replace(/"/g, '""')}"`;
     }).join(",")
   ).join("\n");
   return `${header}\n${body}`;

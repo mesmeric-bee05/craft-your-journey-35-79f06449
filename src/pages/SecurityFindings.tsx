@@ -86,8 +86,15 @@ function FindingDrawer({ f, onClose, onSave }: { f: SecurityFinding | null; onCl
 
 function exportCsv(rows: SecurityFinding[]) {
   const header = ["scanner", "name", "severity", "status", "detected_at", "resolved_at", "note"];
+  // Neutralize spreadsheet formulas so admin-editable text can never execute
+  // as a formula when the export is opened.
+  const cell = (v: unknown) => {
+    let s = v == null ? "" : String(v);
+    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+    return JSON.stringify(s);
+  };
   const csv = [header.join(",")].concat(
-    rows.map((r) => [r.scanner_name, JSON.stringify(r.name), r.severity, r.status, r.detected_at, r.resolved_at ?? "", JSON.stringify(r.resolution_note ?? "")].join(",")),
+    rows.map((r) => [cell(r.scanner_name), cell(r.name), cell(r.severity), cell(r.status), cell(r.detected_at), cell(r.resolved_at ?? ""), cell(r.resolution_note ?? "")].join(",")),
   ).join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
