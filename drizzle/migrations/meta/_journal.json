@@ -43,6 +43,13 @@
       "when": 1793684276817,
       "tag": "0005_guard_score_contract_financials_and_ticket_membership",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793794077896,
+      "tag": "0006_capital_application_tamper_guard",
+      "breakpoints": true
     }
   ]
 }
