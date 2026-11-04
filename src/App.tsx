@@ -26,6 +26,7 @@ const Settings = lazy(() => import("./pages/Settings"));
 const LiveStudio = lazy(() => import("./pages/LiveStudio"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Payments = lazy(() => import("./pages/Payments"));
+const Till = lazy(() => import("./pages/Till"));
 const HelpCenter = lazy(() => import("./pages/HelpCenter"));
 const Inventory = lazy(() => import("./pages/Inventory"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -121,6 +122,7 @@ const App = () => (
                   <Route path="/live" element={<ProtectedRoute><LiveStudio /></ProtectedRoute>} />
                   <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
                   <Route path="/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
+                  <Route path="/till" element={<ProtectedRoute><Till /></ProtectedRoute>} />
                   <Route path="/help" element={<ProtectedRoute><HelpCenter /></ProtectedRoute>} />
                   <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
                   <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
