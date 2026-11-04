@@ -26,6 +26,7 @@ const Settings = lazy(() => import("./pages/Settings"));
 const LiveStudio = lazy(() => import("./pages/LiveStudio"));
 const Analytics = lazy(() => import("./pages/Analytics"));
 const Payments = lazy(() => import("./pages/Payments"));
+const Till = lazy(() => import("./pages/Till"));
 const HelpCenter = lazy(() => import("./pages/HelpCenter"));
 const Inventory = lazy(() => import("./pages/Inventory"));
 const NotFound = lazy(() => import("./pages/NotFound"));
