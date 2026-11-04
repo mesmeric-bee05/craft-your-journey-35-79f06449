@@ -6,6 +6,7 @@ import {
   Sparkles,
   Users,
   Wallet,
+  Landmark,
   BarChart3,
   Settings,
   HelpCircle,
