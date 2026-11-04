@@ -73,6 +73,7 @@ const mainNavItems: NavItem[] = [
   { label: 'Automations', icon: Workflow, href: '/automations' },
   { label: 'Inventory', icon: Package, href: '/inventory' },
   { label: 'Bundles', icon: Layers, href: '/bundles' },
+  { label: 'Till', icon: Landmark, href: '/till' },
   { label: 'Payments', icon: Wallet, href: '/payments' },
   { label: 'Analytics', icon: BarChart3, href: '/analytics' },
   { label: 'Feedback', icon: Heart, href: '/feedback' },
