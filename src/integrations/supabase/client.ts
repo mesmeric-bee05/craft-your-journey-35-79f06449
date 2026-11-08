@@ -3,8 +3,23 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { brokeredPreviewStorage } from './previewAuthStorage';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const configuredUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
+const configuredPublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
+
+/** Keep public routes renderable when deployment configuration is incomplete. */
+export const isSupabaseConfigured = Boolean(configuredUrl && configuredPublishableKey);
+if (!isSupabaseConfigured && import.meta.env.PROD) {
+  console.error(
+    '[SmartReach] Missing VITE_SUPABASE_URL or VITE_SUPABASE_PUBLISHABLE_KEY. ' +
+      'Public pages can render, but authentication and data features are disabled until deployment configuration is supplied.',
+  );
+}
+
+// Supabase requires constructor values even when the app is running in a
+// public-only, misconfigured state. Auth/data operations are guarded in
+// useAuth, so these sentinels prevent module evaluation from blanking the app.
+const SUPABASE_URL = configuredUrl || 'https://smartreach-misconfigured.invalid';
+const SUPABASE_PUBLISHABLE_KEY = configuredPublishableKey || 'smartreach-misconfigured';
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";

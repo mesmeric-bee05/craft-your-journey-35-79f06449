@@ -1,6 +1,6 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { User, Session, AuthError } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import { isSupabaseConfigured, supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
@@ -14,6 +14,11 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const configurationError = () =>
+  ({
+    name: 'SmartReachConfigurationError',
+    message: 'Authentication is temporarily unavailable because the deployment is missing its Supabase configuration.',
+  }) as AuthError;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -22,6 +27,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setLoading(false);
+      return;
+    }
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -58,6 +67,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signUp = async (email: string, password: string, fullName?: string, redirectPath?: string) => {
+    if (!isSupabaseConfigured) {
+      const error = configurationError();
+      toast({ title: 'Sign up unavailable', description: error.message, variant: 'destructive' });
+      return { error };
+    }
     // A relative redirectPath (e.g. an OAuth consent URL) brings the user back
     // to where they started instead of the app home.
     const safePath = redirectPath && redirectPath.startsWith('/') && !redirectPath.startsWith('//') ? redirectPath : '/';
@@ -91,6 +105,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
+    if (!isSupabaseConfigured) {
+      const error = configurationError();
+      toast({ title: 'Sign in unavailable', description: error.message, variant: 'destructive' });
+      return { error };
+    }
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -112,6 +131,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithGoogle = async (redirectPath?: string) => {
+    if (!isSupabaseConfigured) {
+      const error = configurationError();
+      toast({ title: 'Sign in unavailable', description: error.message, variant: 'destructive' });
+      return { error };
+    }
     const safePath = redirectPath && redirectPath.startsWith('/') && !redirectPath.startsWith('//') ? redirectPath : '/';
     // Managed Google sign-in only runs on Lovable hosting (or a connected custom domain).
     if (/\.vercel\.app$|\.netlify\.app$/.test(window.location.hostname)) {
@@ -130,6 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    if (!isSupabaseConfigured) return;
     await supabase.auth.signOut();
     toast({
       title: 'Signed out',
