@@ -3,8 +3,13 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { brokeredPreviewStorage } from './previewAuthStorage';
 
-const configuredUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
-const configuredPublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
+// Publishable keys are designed for browser use; RLS remains the security boundary.
+// These fallbacks keep the Lovable deployment functional if its Vite environment
+// injection is temporarily unavailable. The database password is never used here.
+const DEFAULT_SUPABASE_URL = 'https://kvvaaupclqzjelgcsrbe.supabase.co';
+const DEFAULT_SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_pp-xftmu7z3qCDeDUMOFBw_SLCwGS6H';
+const configuredUrl = import.meta.env.VITE_SUPABASE_URL?.trim() || DEFAULT_SUPABASE_URL;
+const configuredPublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() || DEFAULT_SUPABASE_PUBLISHABLE_KEY;
 
 /** Keep public routes renderable when deployment configuration is incomplete. */
 export const isSupabaseConfigured = Boolean(configuredUrl && configuredPublishableKey);
