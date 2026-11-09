@@ -108,9 +108,9 @@ export function AuthForm({ mode, onModeChange }: AuthFormProps) {
       return;
     }
     setLoading(true);
-    const { error } = await signUp(data.email, data.password, data.fullName, nextPath);
+    const { error, session } = await signUp(data.email, data.password, data.fullName, nextPath);
     setLoading(false);
-    if (!error) {
+    if (!error && session) {
       navigate(nextPath);
     }
   };

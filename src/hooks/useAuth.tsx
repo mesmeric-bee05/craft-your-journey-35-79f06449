@@ -7,7 +7,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, fullName?: string, redirectPath?: string) => Promise<{ error: AuthError | null }>;
+  signUp: (email: string, password: string, fullName?: string, redirectPath?: string) => Promise<{ error: AuthError | null; session: Session | null }>;
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signInWithGoogle: (redirectPath?: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
@@ -70,14 +70,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!isSupabaseConfigured) {
       const error = configurationError();
       toast({ title: 'Sign up unavailable', description: error.message, variant: 'destructive' });
-      return { error };
+      return { error, session: null };
     }
     // A relative redirectPath (e.g. an OAuth consent URL) brings the user back
     // to where they started instead of the app home.
     const safePath = redirectPath && redirectPath.startsWith('/') && !redirectPath.startsWith('//') ? redirectPath : '/';
     const redirectUrl = `${window.location.origin}${safePath}`;
     
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -94,6 +94,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: error.message,
         variant: 'destructive',
       });
+    } else if (!data.session) {
+      toast({
+        title: 'Check your email',
+        description: 'Your account was created. Confirm your email address before signing in.',
+      });
     } else {
       toast({
         title: 'Account created!',
@@ -101,7 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     }
 
-    return { error };
+    return { error, session: data.session };
   };
 
   const signIn = async (email: string, password: string) => {
@@ -119,6 +124,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let message = error.message;
       if (error.message.includes('Invalid login credentials')) {
         message = 'Invalid email or password. Please try again.';
+      } else if (error.message.toLowerCase().includes('email not confirmed')) {
+        message = 'Please confirm your email address before signing in.';
+      } else if (error.message.toLowerCase().includes('rate limit')) {
+        message = 'Too many sign-in attempts. Please wait a moment and try again.';
       }
       toast({
         title: 'Sign in failed',
