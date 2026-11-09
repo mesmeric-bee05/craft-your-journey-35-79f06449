@@ -1,12 +1,12 @@
-import { lazy, Suspense, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CultureProvider } from "@/lib/culture/CultureProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
-import { AuthProvider } from "@/hooks/useAuth";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { RequireAuth } from "@/components/auth/RequireAuth";
 import { RequireOnboarding } from "@/components/auth/RequireOnboarding";
 import { OfflineIndicator } from "@/pwa/OfflineIndicator";
@@ -88,6 +88,30 @@ const ProtectedRoute = ({ children }: { children: ReactNode }) => (
   </RequireAuth>
 );
 
+/** Handles provider callbacks that arrive at `/` with a Supabase hash. */
+const AuthCallbackGuard = () => {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const isRecovery = params.get('type') === 'recovery';
+    const hasOAuthCallback = Boolean(params.get('access_token') || params.get('code'));
+
+    if (isRecovery && location.pathname !== '/reset-password') {
+      navigate(`/reset-password${window.location.search}${window.location.hash}`, { replace: true });
+      return;
+    }
+
+    if (!loading && user && hasOAuthCallback && location.pathname === '/') {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [loading, user, location.pathname, navigate]);
+
+  return null;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
@@ -98,6 +122,7 @@ const App = () => (
             <Sonner />
             <OfflineIndicator />
             <BrowserRouter>
+              <AuthCallbackGuard />
               <Suspense fallback={<RouteLoading />}>
                 <Routes>
                   <Route path="/" element={<Index />} />
