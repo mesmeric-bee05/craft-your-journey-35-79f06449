@@ -29,11 +29,14 @@ export default function ResetPassword() {
       }
     });
 
-    // Also check hash fragment for type=recovery
-    const hash = window.location.hash;
-    if (hash.includes('type=recovery')) {
+    // Supabase may consume the hash before this route's listener is registered.
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    if (hashParams.get('type') === 'recovery' || new URLSearchParams(window.location.search).get('type') === 'recovery') {
       setIsRecovery(true);
     }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session && hashParams.get('type') === 'recovery') setIsRecovery(true);
+    });
 
     return () => subscription.unsubscribe();
   }, []);

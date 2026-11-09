@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getPublicAppOrigin } from '@/lib/publicAppUrl';
 import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
@@ -28,7 +29,7 @@ export function ForgotPasswordDialog() {
     setLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${getPublicAppOrigin()}/reset-password`,
       });
       if (error) throw error;
       setSent(true);

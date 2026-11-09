@@ -1,6 +1,7 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { User, Session, AuthError } from '@supabase/supabase-js';
 import { isSupabaseConfigured, supabase } from '@/integrations/supabase/client';
+import { getPublicAppOrigin } from '@/lib/publicAppUrl';
 import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
@@ -154,7 +155,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     if (safePath !== '/') sessionStorage.setItem('post_auth_next', safePath);
     const { lovable } = await import('@/integrations/lovable/index');
-    const result = await lovable.auth.signInWithOAuth('google', { redirect_uri: window.location.origin });
+    const callbackUrl = `${getPublicAppOrigin()}/auth?next=${encodeURIComponent(safePath)}`;
+    const result = await lovable.auth.signInWithOAuth('google', { redirect_uri: callbackUrl });
     const error = (result.error ?? null) as AuthError | null;
     if (error) {
       toast({ title: 'Google sign in failed', description: error.message, variant: 'destructive' });
