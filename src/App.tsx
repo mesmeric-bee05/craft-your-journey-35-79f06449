@@ -98,14 +98,18 @@ const AuthCallbackGuard = () => {
     const params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
     const isRecovery = params.get('type') === 'recovery';
     const hasOAuthCallback = Boolean(params.get('access_token') || params.get('code'));
+    const pendingDestination = sessionStorage.getItem('post_auth_next');
+    const hasPendingOAuth = Boolean(pendingDestination && pendingDestination.startsWith('/') && !pendingDestination.startsWith('//'));
 
     if (isRecovery && location.pathname !== '/reset-password') {
       navigate(`/reset-password${window.location.search}${window.location.hash}`, { replace: true });
       return;
     }
 
-    if (!loading && user && hasOAuthCallback && location.pathname === '/') {
-      navigate('/dashboard', { replace: true });
+    if (!loading && user && (hasOAuthCallback || hasPendingOAuth) && location.pathname === '/') {
+      const destination = hasPendingOAuth ? pendingDestination! : '/dashboard';
+      sessionStorage.removeItem('post_auth_next');
+      navigate(destination, { replace: true });
     }
   }, [loading, user, location.pathname, navigate]);
 

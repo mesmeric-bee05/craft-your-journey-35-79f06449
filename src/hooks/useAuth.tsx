@@ -153,7 +153,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       toast({ title: 'Google sign-in unavailable on this site', description: message, variant: 'destructive' });
       return { error: { message } as AuthError };
     }
-    if (safePath !== '/') sessionStorage.setItem('post_auth_next', safePath);
+    // Keep this marker even for the root destination. Some OAuth providers
+    // consume the callback hash before React can inspect it; the app-level
+    // callback guard uses this marker to finish the redirect reliably.
+    sessionStorage.setItem('post_auth_next', safePath);
     const { lovable } = await import('@/integrations/lovable/index');
     const callbackUrl = `${getPublicAppOrigin()}/auth?next=${encodeURIComponent(safePath)}`;
     const result = await lovable.auth.signInWithOAuth('google', { redirect_uri: callbackUrl });
