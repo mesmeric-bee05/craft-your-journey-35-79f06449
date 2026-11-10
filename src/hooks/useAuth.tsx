@@ -76,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // A relative redirectPath (e.g. an OAuth consent URL) brings the user back
     // to where they started instead of the app home.
     const safePath = redirectPath && redirectPath.startsWith('/') && !redirectPath.startsWith('//') ? redirectPath : '/';
-    const redirectUrl = `${window.location.origin}${safePath}`;
+    const redirectUrl = `${getPublicAppOrigin()}${safePath}`;
     
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -147,11 +147,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error };
     }
     const safePath = redirectPath && redirectPath.startsWith('/') && !redirectPath.startsWith('//') ? redirectPath : '/';
-    // Managed Google sign-in only runs on Lovable hosting (or a connected custom domain).
+    // Managed Google sign-in must start on the canonical Lovable deployment.
+    // Preview deployments do not have a stable OAuth allow-list entry.
     if (/\.vercel\.app$|\.netlify\.app$/.test(window.location.hostname)) {
-      const message = 'Google sign-in works on https://craft-your-journey-35.lovable.app — use email sign-in here, or open that link.';
-      toast({ title: 'Google sign-in unavailable on this site', description: message, variant: 'destructive' });
-      return { error: { message } as AuthError };
+      sessionStorage.setItem('post_auth_next', safePath);
+      window.location.assign(`${getPublicAppOrigin()}/auth?next=${encodeURIComponent(safePath)}`);
+      return { error: null };
     }
     // Keep this marker even for the root destination. Some OAuth providers
     // consume the callback hash before React can inspect it; the app-level

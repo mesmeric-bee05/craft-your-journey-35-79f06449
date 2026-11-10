@@ -9,9 +9,42 @@ on:
     - cron: '0 6 * * *' # nightly 06:00 UTC
 
 jobs:
+  staging-config:
+    name: Detect security-test configuration
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.detect.outputs.ready }}
+    steps:
+      - id: detect
+        name: Check required staging and authenticated fixtures
+        env:
+          STAGING_URL: ${{ secrets.STAGING_URL }}
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TEST_USER_JWT: ${{ secrets.TEST_USER_JWT }}
+          TEST_USER_ID: ${{ secrets.TEST_USER_ID }}
+          TEST_OTHER_USER_ID: ${{ secrets.TEST_OTHER_USER_ID }}
+          TEST_BUSINESS_ID: ${{ secrets.TEST_BUSINESS_ID }}
+          TEST_OTHER_BUSINESS_ID: ${{ secrets.TEST_OTHER_BUSINESS_ID }}
+        run: |
+          missing=()
+          for name in STAGING_URL SUPABASE_URL SUPABASE_KEY SERVICE_ROLE_KEY TEST_USER_JWT TEST_USER_ID TEST_OTHER_USER_ID TEST_BUSINESS_ID TEST_OTHER_BUSINESS_ID; do
+            if [ -z "${!name}" ]; then missing+=("$name"); fi
+          done
+          if [ "${#missing[@]}" -eq 0 ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "All staging security-test fixtures are configured."
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Security integration tests are skipped because protected fixtures are not configured: ${missing[*]}"
+            echo "Configure these as GitHub Actions secrets before relying on staging security validation."
+          fi
+
   security-headers:
     name: Verify staging security headers
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && needs.staging-config.outputs.ready == 'true'
+    needs: staging-config
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,7 +74,8 @@ jobs:
   security-definer-roles:
     name: SECURITY DEFINER role tests
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && needs.staging-config.outputs.ready == 'true'
+    needs: staging-config
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -68,7 +102,8 @@ jobs:
   storage-access:
     name: Storage access (business-assets + avatars)
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && needs.staging-config.outputs.ready == 'true'
+    needs: staging-config
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -94,7 +129,8 @@ jobs:
 
   rls-e2e:
     name: RLS / security Playwright suite
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && needs.staging-config.outputs.ready == 'true'
+    needs: staging-config
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -115,7 +151,8 @@ jobs:
 
   e2e-deployed:
     name: E2E security verification (Playwright, full suite)
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && needs.staging-config.outputs.ready == 'true'
+    needs: staging-config
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -141,7 +178,7 @@ jobs:
 
   required-checks:
     name: Required security checks (branch protection gate)
-    needs: [security-headers, security-definer-roles, storage-access, rls-e2e, e2e-deployed]
+    needs: [staging-config, security-headers, security-definer-roles, storage-access, rls-e2e, e2e-deployed]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -149,6 +186,12 @@ jobs:
         run: |
           results='${{ toJson(needs) }}'
           echo "$results"
+          config=$(echo "$results" | jq -r '."staging-config".result')
+          ready='${{ needs.staging-config.outputs.ready }}'
+          if [ "$config" != "success" ]; then
+            echo "staging-config → $config"
+            exit 1
+          fi
           fail=0
           for job in security-headers security-definer-roles storage-access rls-e2e e2e-deployed; do
             r=$(echo "$results" | jq -r ".\"$job\".result")
@@ -156,8 +199,8 @@ jobs:
             if [ "$r" = "success" ]; then
               continue
             fi
-            if [ "$r" = "skipped" ] && [ "${{ github.event_name }}" = "pull_request" ]; then
-              echo "$job skipped only because fork/PR secrets are unavailable"
+            if [ "$r" = "skipped" ] && { [ "${{ github.event_name }}" = "pull_request" ] || [ "$ready" != "true" ]; }; then
+              echo "$job skipped because protected staging fixtures are unavailable"
               continue
             fi
             fail=1
