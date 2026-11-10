@@ -10,6 +10,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { RequireAuth } from "@/components/auth/RequireAuth";
 import { RequireOnboarding } from "@/components/auth/RequireOnboarding";
 import { OfflineIndicator } from "@/pwa/OfflineIndicator";
+import { getPublicAppOrigin } from "@/lib/publicAppUrl";
 
 const MFAChallenge = lazy(() =>
   import("./components/auth/MFAChallenge").then(({ MFAChallenge }) => ({ default: MFAChallenge })),
@@ -98,6 +99,13 @@ const AuthCallbackGuard = () => {
     const params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
     const isRecovery = params.get('type') === 'recovery';
     const hasOAuthCallback = Boolean(params.get('access_token') || params.get('code'));
+    const isAuthCallback = isRecovery || hasOAuthCallback;
+    const canonicalOrigin = getPublicAppOrigin();
+    if (isAuthCallback && window.location.origin !== canonicalOrigin) {
+      const callbackPath = isRecovery ? '/reset-password' : '/auth';
+      window.location.replace(`${canonicalOrigin}${callbackPath}${window.location.search}${window.location.hash}`);
+      return;
+    }
     const pendingDestination = sessionStorage.getItem('post_auth_next');
     const hasPendingOAuth = Boolean(pendingDestination && pendingDestination.startsWith('/') && !pendingDestination.startsWith('//'));
 
