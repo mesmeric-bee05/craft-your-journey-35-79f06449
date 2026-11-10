@@ -115,6 +115,22 @@ export function useMessages(conversationId: string | null): UseMessagesReturn {
     if (!conversationId || !user || !content.trim()) return;
 
     try {
+      const { data: conversation, error: conversationError } = await supabase
+        .from('conversations')
+        .select('channel_type')
+        .eq('id', conversationId)
+        .maybeSingle();
+      if (conversationError) throw conversationError;
+
+      if (conversation?.channel_type === 'telegram' && !isInternal) {
+        const { error: telegramError } = await supabase.functions.invoke('telegram-send', {
+          body: { conversation_id: conversationId, content: content.trim() },
+        });
+        if (telegramError) throw telegramError;
+        await fetchMessages();
+        return;
+      }
+
       const { error } = await supabase.from('messages').insert({
         conversation_id: conversationId,
         sender_type: 'agent',

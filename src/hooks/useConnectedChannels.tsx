@@ -50,6 +50,18 @@ export function useConnectedChannels() {
     if (!business?.id) return;
 
     try {
+      if (channelType === 'telegram') {
+        const { data, error } = await supabase.functions.invoke('telegram-connect', {
+          body: { business_id: business.id, channel_name: channelName || 'Telegram' },
+        });
+        if (error) throw error;
+        const connected = data?.channel as ConnectedChannel | undefined;
+        if (!connected) throw new Error('Telegram connection did not return a channel');
+        setChannels(prev => [...prev.filter(c => c.channel_type !== 'telegram'), connected]);
+        toast({ title: 'Telegram connected successfully' });
+        return;
+      }
+
       const { data, error } = await supabase
         .from('social_channels')
         .insert({
