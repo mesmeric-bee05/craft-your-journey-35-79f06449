@@ -36,12 +36,23 @@ Deno.serve(async (req) => {
       status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
+    // SECURITY: the destination chat is derived ONLY from the customer record that
+    // telegram-webhook bound when the inbound message arrived. conversation.metadata
+    // is writable by business members, so it must never decide where a message goes.
     const metadata = (conversation.metadata || {}) as Record<string, unknown>;
-    let chatId = typeof metadata.telegram_chat_id === "string" ? metadata.telegram_chat_id : null;
-    if (!chatId) {
-      const { data: customer } = await auth.supabase.from("customers").select("external_id").eq("id", conversation.customer_id).maybeSingle();
-      const externalId = customer?.external_id || "";
-      if (externalId.startsWith("telegram:")) chatId = externalId.slice("telegram:".length);
+    const { data: customer } = await auth.supabase
+      .from("customers")
+      .select("external_id")
+      .eq("id", conversation.customer_id)
+      .maybeSingle();
+    const externalId = customer?.external_id || "";
+    const chatId = externalId.startsWith("telegram:") ? externalId.slice("telegram:".length) : null;
+    if (typeof metadata.telegram_chat_id === "string" && chatId && metadata.telegram_chat_id !== chatId) {
+      logSecurityEvent("telegram_chat_redirect_blocked", {
+        conversationId: conversation.id,
+        businessId: conversation.business_id,
+        userId: auth.user.id,
+      });
     }
     if (!chatId) return badRequest("Telegram chat is not mapped to this conversation", corsHeaders);
 
