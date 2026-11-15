@@ -1,0 +1,4 @@
+        csvContent = 'ID,Channel,Status,Priority,Created,Last Message,Subject\n';
+        csvContent += (data || []).map(r =>
+          [r.id, r.channel_type, r.status, r.priority, r.created_at, r.last_message_at, r.subject].map(escapeCSVValue).join(',')
+        ).join('\n');
