@@ -16,6 +16,7 @@ import {
   Search,
   ChevronDown,
   Zap,
+  Shield,
   Video,
   Share2,
   Package,
@@ -76,6 +77,7 @@ const mainNavItems: NavItem[] = [
   { label: 'Bundles', icon: Layers, href: '/bundles' },
   { label: 'Till', icon: Landmark, href: '/till' },
   { label: 'Payments', icon: Wallet, href: '/payments' },
+  { label: 'Capital', icon: Banknote, href: '/capital' },
   { label: 'Analytics', icon: BarChart3, href: '/analytics' },
   { label: 'Feedback', icon: Heart, href: '/feedback' },
   { label: 'Reports', icon: FileText, href: '/reports' },
@@ -92,6 +94,7 @@ interface BottomNavItem extends NavItem {
 
 const bottomNavItems: BottomNavItem[] = [
   { label: 'Settings', icon: Settings, href: '/settings' },
+  { label: 'Security', icon: Shield, href: '/security' },
   { label: 'System Health', icon: Zap, href: '/admin/monitoring/health', adminOnly: true },
   { label: 'SEO Monitor', icon: Search, href: '/admin/monitoring/seo', adminOnly: true },
   { label: 'Capital Ops', icon: Banknote, href: '/admin/capital/ops', adminOnly: true },
