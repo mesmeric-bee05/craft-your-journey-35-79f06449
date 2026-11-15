@@ -199,7 +199,7 @@ export const REMAINING_WORK: WorkItem[] = [
     title: "Offline-first PWA with IndexedDB outbox and offline fallback",
     area: "Platform",
     status: "done",
-    link: "/offline-test",
+    link: "/settings/offline-test",
     source: "offline-first-pwa",
   },
   {
