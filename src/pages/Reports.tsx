@@ -107,7 +107,7 @@ export default function Reports() {
         if (error) throw error;
         csvContent = 'ID,Channel,Status,Priority,Created,Last Message,Subject\n';
         csvContent += (data || []).map(r =>
-          `${r.id},${r.channel_type},${r.status},${r.priority},${r.created_at},${r.last_message_at || ''},${(r.subject || '').replace(/,/g, ';')}`
+          [r.id, r.channel_type, r.status, r.priority, r.created_at, r.last_message_at, r.subject].map(escapeCSVValue).join(',')
         ).join('\n');
         filename = `conversations-report-${format(new Date(), 'yyyy-MM-dd')}.csv`;
       } else if (type === 'customers') {
@@ -160,7 +160,7 @@ export default function Reports() {
         if (error) throw error;
         csvContent = 'Member ID,Role,Active,Joined\n';
         csvContent += (data || []).map(r =>
-          `${r.user_id},${r.role},${r.is_active},${r.joined_at || ''}`
+          [r.user_id, r.role, r.is_active, r.joined_at].map(escapeCSVValue).join(',')
         ).join('\n');
         filename = `team-report-${format(new Date(), 'yyyy-MM-dd')}.csv`;
       }
@@ -172,6 +172,7 @@ export default function Reports() {
       link.download = filename;
       link.click();
       URL.revokeObjectURL(url);
+
       toast.success(`${reportConfigs[type].title} exported successfully`);
     } catch (err: any) {
       toast.error(`Export failed: ${err.message}`);
