@@ -136,7 +136,7 @@ Deno.serve(async (req) => {
     const { data: profile } = await supabase!
       .from("profiles")
       .select("phone")
-      .eq("id", user!.id)
+      .eq("user_id", user!.id)
       .maybeSingle();
     const registeredPhone = profile?.phone ? normalizeKenyanPhone(profile.phone as string) : null;
     if (!registeredPhone) {
