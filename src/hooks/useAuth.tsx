@@ -147,23 +147,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error };
     }
     const safePath = redirectPath && redirectPath.startsWith('/') && !redirectPath.startsWith('//') ? redirectPath : '/';
-    // Managed Google sign-in must start on the canonical Lovable deployment.
-    // Preview deployments do not have a stable OAuth allow-list entry.
-    if (/\.vercel\.app$|\.netlify\.app$/.test(window.location.hostname)) {
-      sessionStorage.setItem('post_auth_next', safePath);
-      window.location.assign(`${getPublicAppOrigin()}/auth?next=${encodeURIComponent(safePath)}`);
-      return { error: null };
-    }
     // Keep this marker even for the root destination. Some OAuth providers
     // consume the callback hash before React can inspect it; the app-level
     // callback guard uses this marker to finish the redirect reliably.
     sessionStorage.setItem('post_auth_next', safePath);
-    const { lovable } = await import('@/integrations/lovable/index');
-    const callbackUrl = `${getPublicAppOrigin()}/auth?next=${encodeURIComponent(safePath)}`;
-    const result = await lovable.auth.signInWithOAuth('google', { redirect_uri: callbackUrl });
-    const error = (result.error ?? null) as AuthError | null;
+    // Preview deployments have no stable OAuth allow-list entry, so start the
+    // flow on the canonical deployment.
+    if (/\.vercel\.app$|\.netlify\.app$/.test(window.location.hostname)) {
+      window.location.assign(`${getPublicAppOrigin()}/auth?next=${encodeURIComponent(safePath)}`);
+      return { error: null };
+    }
+    // Supabase-native Google OAuth. The provider is configured in Supabase and
+    // the callback returns straight to this deployment, so a provider that is
+    // not enabled yet surfaces an actionable message instead of silently
+    // dropping the user back on the landing page.
+    const isLocalDev = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(window.location.origin);
+    const callbackOrigin = isLocalDev ? window.location.origin : getPublicAppOrigin();
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${callbackOrigin}/auth?next=${encodeURIComponent(safePath)}`,
+        queryParams: { prompt: 'select_account' },
+      },
+    });
     if (error) {
-      toast({ title: 'Google sign in failed', description: error.message, variant: 'destructive' });
+      const providerDisabled = /provider is not enabled|unsupported provider/i.test(error.message);
+      toast({
+        title: 'Google sign in unavailable',
+        description: providerDisabled
+          ? 'Google sign-in has not been enabled for this deployment yet. Please sign in with your email and password.'
+          : error.message,
+        variant: 'destructive',
+      });
     }
     return { error };
   };
