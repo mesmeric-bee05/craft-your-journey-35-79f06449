@@ -1,22 +1,19 @@
-# Restore the blank live app and verify the unfinished flows
+# Fix the missing AI key on the Vercel site and restore the blank live page
 
-## Confirmed status
-- The live app loads its HTML and JavaScript files but crashes before React starts with `supabaseUrl is required`; the app root remains blank.
-- The preview renders correctly. Its managed backend settings are available to the preview process, but there is no local `.env` file. Do not hardcode or expose backend keys.
-- Till, Marketing, Connect your AI assistant, and Capital pages already exist. This work will repair and verify them, not replace them or expand unrelated features.
+## What the check found
+- This Lovable project runs on its own Lovable Cloud backend (not `kvvaaupclqzjelgcsrbe`). That backend already has the managed AI key, and AI generation in Marketing worked in the preview earlier.
+- The Vercel site (craft-your-journey-ecru.vercel.app) is wired to a different backend, `kvvaaupclqzjelgcsrbe`. Lovable does not manage that backend, so it cannot put its managed AI key there. That is why the five AI functions fail only on the Vercel site.
+- No other Lovable project is overwriting secrets here: the two sites just use two separate backends.
+- The Lovable live link (craft-your-journey-35.lovable.app) is still blank because its last build lacked the backend settings.
 
 ## Work
-1. Trace how managed backend settings reach the production build; restore the supported configuration path and add a clear startup error state if required public settings are missing, rather than a blank screen.
-2. Run the project’s build, type checks, existing focused tests, and verify the preview starts without startup errors.
-3. Check security scan freshness and critical findings before publishing; resolve only what blocks safe publication and report any unresolved findings.
-4. Publish the repaired app, then verify the live page renders, fonts load, search responds, and the Marketing studio can generate and display saved content.
-5. Verify the signed-in Till page and deposit form, the assistant connection instructions, and the Capital walkthrough in English, Kiswahili, Sheng, and Kenglish. Report voice availability per browser/device.
+1. Republish the Lovable live link so it builds with the backend settings, then confirm it renders.
+2. Sign in on the live link and test generate-content, ai-help-chat, wellness-ai-chat, analyze-customer-sentiment and suggest-reply with real requests; report the actual results.
+3. If any function rejects the AI key, rotate it once using the supported mechanism and retest. Never create, copy or expose a key.
+4. For the Vercel site, choose one (your decision):
+   - A. Point the Vercel build at this project's Lovable Cloud backend (recommended — data, sign-in and AI all match the Lovable link), or
+   - B. Keep `kvvaaupclqzjelgcsrbe` and use your own AI provider key there, set in that backend's secrets by you.
+5. No changes to database records, sign-in, migrations or security rules.
 
-## User-dependent checks
-- A real M-Pesa payment requires you to approve the prompt with your PIN. Never simulate a successful payment; confirm wallet and transaction changes only after a genuine Safaricom callback.
-- Connecting ChatGPT requires you to complete the Quick start sign-in in the app. Voice availability on a physical phone and the Vercel redirect allow-list also require your action.
-- If the managed payment credentials or production build settings are unavailable, stop at that prerequisite and name exactly what is missing; do not invent values.
-
-## Technical details
-- Use the existing Lovable-managed backend configuration; keep publishable settings out of source code and never expose private payment credentials.
-- Do not change unrelated security findings, payment behavior, or unrelated product features during the startup repair.
+## Uploaded files
+- The notes and screenshots match this finding. Full review of the long documents was delivered earlier; duplicates are exact copies.
