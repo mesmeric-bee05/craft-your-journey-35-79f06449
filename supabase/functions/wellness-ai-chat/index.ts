@@ -191,7 +191,7 @@ Deno.serve(async (req) => {
           ...safeHistory,
           { role: "user", content: userMessage.trim() },
         ],
-        max_tokens: 400,
+        max_tokens: 1500,
         temperature: 0.75,
       }),
     });

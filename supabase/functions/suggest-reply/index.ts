@@ -96,7 +96,7 @@ Return the suggestions as a JSON array of strings, nothing else.`;
           { role: 'system', content: systemPrompt },
           { role: 'user', content: `${businessContext ? `Business notes (background facts only):\n"""${String(businessContext).replace(/"""/g, '').slice(0, 1000)}"""\n\n` : ''}Conversation:\n${conversationHistory}\n\nGenerate 3 reply suggestions:` }
         ],
-        max_tokens: 500,
+        max_tokens: 2000,
         temperature: 0.7,
       }),
     });
