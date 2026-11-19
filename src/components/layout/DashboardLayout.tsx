@@ -278,6 +278,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
 
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
+            className="md:hidden p-2 rounded-lg hover:bg-muted"
+            aria-label="Search"
+          >
+            <Search className="w-5 h-5" />
+          </button>
+
           {/* Search Button */}
           <div className="hidden md:flex flex-1 max-w-md ml-4 lg:ml-0">
             <Button
