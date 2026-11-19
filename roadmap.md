@@ -13,6 +13,8 @@
 - Full system test sweep: marketing content generation, voice assistant quality, all pages/buttons.
 
 ## Done
+- Live link pointed at the wrong backend (settings file not saved with project); fixed.
+- Telegram/M-Pesa criticals and verified-badge/CSV warnings fixed; tab bars fit phones; Setup Checklist page in admin menu.
 - Live link pointed at the wrong backend because the settings file wasn't saved with the project; fixed.
 - Telegram/M-Pesa criticals and verified-badge/CSV warnings fixed; tab bars fit phones; Setup checklist page at Admin → Setup Checklist.
 - Live link no longer blank (republished, renders, no errors).
