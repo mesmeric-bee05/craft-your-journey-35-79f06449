@@ -86,7 +86,7 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
   }, [navigate, onOpenChange]);
 
   return (
-    <CommandDialog open={open} onOpenChange={onOpenChange}>
+    <CommandDialog open={open} onOpenChange={onOpenChange} shouldFilter={false}>
       <CommandInput
         placeholder="Search conversations, customers, campaigns..."
         value={query}
