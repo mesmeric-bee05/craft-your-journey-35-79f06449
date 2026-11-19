@@ -8,7 +8,18 @@ import { LanguageToneSwitcher } from "@/components/culture/LanguageToneSwitcher"
 import type { CultureLocale } from "@/lib/culture/types";
 import type { MyAdvanceStatus } from "@/hooks/useCapital";
 
-const kes = (n: number) => `KES ${Math.round(n).toLocaleString("en-KE")}`;
+// Spoken amounts: "KES" is read letter-by-letter by most voices, so say shillings.
+let spokenLocale: CultureLocale = "en";
+const kes = (n: number) => {
+  const v = Math.round(n).toLocaleString("en-KE");
+  return spokenLocale === "sw" || spokenLocale === "sheng" ? `shilingi ${v}` : `${v} shillings`;
+};
+const STATUS: Record<CultureLocale, Record<string, string>> = {
+  en: { paid: "paid", pending: "pending", failed: "failed" },
+  sw: { paid: "imelipwa", pending: "inasubiri", failed: "imeshindwa" },
+  sheng: { paid: "imelipwa", pending: "iko pending", failed: "imefail" },
+  kenglish: { paid: "paid", pending: "bado pending", failed: "imefail" },
+};
 const when = (iso: string | null | undefined, locale: CultureLocale) =>
   iso ? new Date(iso).toLocaleString(locale === "sw" || locale === "sheng" ? "sw-KE" : "en-KE", { dateStyle: "medium", timeStyle: "short" }) : null;
 
@@ -107,6 +118,7 @@ const P: Record<CultureLocale, Phrases> = {
 /** Builds the spoken repayment summary from real figures only. */
 export function buildRepaymentSummary(s: MyAdvanceStatus | null | undefined, locale: CultureLocale): string {
   const p = P[locale];
+  spokenLocale = locale;
   const a = s?.advance;
   if (!a) return p.noAdvance;
   const parts = [
@@ -115,7 +127,7 @@ export function buildRepaymentSummary(s: MyAdvanceStatus | null | undefined, loc
   ];
   const last = [...(s?.repayments ?? [])].sort((x, y) =>
     (y.collected_at ?? y.scheduled_for ?? "").localeCompare(x.collected_at ?? x.scheduled_for ?? ""))[0];
-  parts.push(last ? p.last(kes(last.amount_kes), last.status, when(last.collected_at ?? last.scheduled_for, locale) ?? "—") : p.noRepay);
+  parts.push(last ? p.last(kes(last.amount_kes), STATUS[locale][last.status] ?? last.status, when(last.collected_at ?? last.scheduled_for, locale) ?? "—") : p.noRepay);
   const cron = s?.last_repayment_cron;
   parts.push(cron ? p.cron(cron.status === "success", when(cron.finished_at ?? cron.started_at, locale) ?? "—") : p.noCron);
   return parts.join(" ");

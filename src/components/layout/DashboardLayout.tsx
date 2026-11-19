@@ -34,6 +34,7 @@ import {
   MapPin,
   Globe,
   Banknote,
+  ListChecks,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
@@ -98,6 +99,7 @@ const bottomNavItems: BottomNavItem[] = [
   { label: 'System Health', icon: Zap, href: '/admin/monitoring/health', adminOnly: true },
   { label: 'SEO Monitor', icon: Search, href: '/admin/monitoring/seo', adminOnly: true },
   { label: 'Capital Ops', icon: Banknote, href: '/admin/capital/ops', adminOnly: true },
+  { label: 'Setup Checklist', icon: ListChecks, href: '/admin/setup', adminOnly: true },
   { label: 'Help Center', icon: HelpCircle, href: '/help' },
 ];
 
