@@ -59,6 +59,7 @@ const CapitalAdmin = lazy(() => import("./pages/admin/CapitalAdmin"));
 const CapitalAuditPage = lazy(() => import("./pages/admin/CapitalAuditPage"));
 const CapitalOpsPage = lazy(() => import("./pages/admin/CapitalOpsPage"));
 const OfflineTest = lazy(() => import("./pages/OfflineTest"));
+const SetupChecklist = lazy(() => import("./pages/admin/SetupChecklist"));
 const ConnectAssistant = lazy(() => import("./pages/ConnectAssistant"));
 
 const queryClient = new QueryClient({
@@ -174,6 +175,7 @@ const App = () => (
                   <Route path="/admin/monitoring" element={<ProtectedRoute><AdminMonitoring /></ProtectedRoute>} />
                   <Route path="/admin/monitoring/:tab" element={<ProtectedRoute><AdminMonitoring /></ProtectedRoute>} />
                   <Route path="/admin/health" element={<ProtectedRoute><AdminHealth /></ProtectedRoute>} />
+                  <Route path="/admin/setup" element={<ProtectedRoute><SetupChecklist /></ProtectedRoute>} />
                   <Route path="/admin/seo" element={<ProtectedRoute><AdminSEO /></ProtectedRoute>} />
                   <Route path="/admin/saccos" element={<ProtectedRoute><SaccoAdmin /></ProtectedRoute>} />
                   <Route path="/admin/saccos/:id" element={<ProtectedRoute><SaccoDetail /></ProtectedRoute>} />

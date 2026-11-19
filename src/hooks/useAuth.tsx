@@ -1,6 +1,7 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { User, Session, AuthError } from '@supabase/supabase-js';
-import { isSupabaseConfigured, supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
+const isSupabaseConfigured = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
 import { getPublicAppOrigin } from '@/lib/publicAppUrl';
 import { useToast } from '@/hooks/use-toast';
 

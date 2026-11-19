@@ -148,7 +148,7 @@ export default function Analytics() {
           </TabsList>
 
           <TabsContent value="sla" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-2 [&>*]:min-w-0">
               <SLAPerformanceChart dateRange={parseInt(dateRange)} />
               <Card>
                 <CardHeader>

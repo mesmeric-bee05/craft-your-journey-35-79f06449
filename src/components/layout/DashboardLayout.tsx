@@ -34,6 +34,7 @@ import {
   MapPin,
   Globe,
   Banknote,
+  ListChecks,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
@@ -98,6 +99,7 @@ const bottomNavItems: BottomNavItem[] = [
   { label: 'System Health', icon: Zap, href: '/admin/monitoring/health', adminOnly: true },
   { label: 'SEO Monitor', icon: Search, href: '/admin/monitoring/seo', adminOnly: true },
   { label: 'Capital Ops', icon: Banknote, href: '/admin/capital/ops', adminOnly: true },
+  { label: 'Setup Checklist', icon: ListChecks, href: '/admin/setup', adminOnly: true },
   { label: 'Help Center', icon: HelpCircle, href: '/help' },
 ];
 
@@ -274,6 +276,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             className="lg:hidden p-2 rounded-lg hover:bg-muted"
           >
             {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
+            className="md:hidden p-2 rounded-lg hover:bg-muted"
+            aria-label="Search"
+          >
+            <Search className="w-5 h-5" />
           </button>
 
           {/* Search Button */}

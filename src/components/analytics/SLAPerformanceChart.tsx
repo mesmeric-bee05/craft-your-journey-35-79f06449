@@ -36,7 +36,7 @@ export function SLAPerformanceChart({ dateRange }: SLAPerformanceChartProps) {
   const data = generateMockData(Math.min(dateRange, 30));
 
   return (
-    <Card>
+    <Card className="min-w-0 overflow-hidden">
       <CardHeader>
         <CardTitle>SLA Compliance Trend</CardTitle>
         <CardDescription>
@@ -44,7 +44,7 @@ export function SLAPerformanceChart({ dateRange }: SLAPerformanceChartProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-[300px]">
+        <ChartContainer config={chartConfig} className="h-[300px] w-full min-w-0">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
