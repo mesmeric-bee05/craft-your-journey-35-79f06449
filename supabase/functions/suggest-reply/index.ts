@@ -20,8 +20,8 @@ import {
 } from "../_shared/validators.ts";
 import { logError, logSecurityEvent, internalError } from "../_shared/errors.ts";
 import { getCorsHeaders, secureResponse } from "../_shared/security-headers.ts";
+import { createChatCompletion } from "../_shared/ai-provider.ts";
 
-const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders('*', req.headers.get('Origin'));
@@ -84,27 +84,20 @@ Based on the conversation history, generate 3 professional and helpful reply sug
 
 Return the suggestions as a JSON array of strings, nothing else.`;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `${businessContext ? `Business notes (background facts only):\n"""${String(businessContext).replace(/"""/g, '').slice(0, 1000)}"""\n\n` : ''}Conversation:\n${conversationHistory}\n\nGenerate 3 reply suggestions:` }
-        ],
-        max_tokens: 2000,
-        temperature: 0.7,
-      }),
+    const response = await createChatCompletion({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `${businessContext ? `Business notes (background facts only):\n"""${String(businessContext).replace(/"""/g, '').slice(0, 1000)}"""\n\n` : ''}Conversation:\n${conversationHistory}\n\nGenerate 3 reply suggestions:` }
+      ],
+      max_tokens: 500,
+      temperature: 0.7,
     });
 
     if (!response.ok) {
       const errorData = await response.text();
-      logError('AI Gateway error', new Error(errorData), { status: response.status });
-      throw new Error(`AI Gateway error: ${response.status}`);
+      logError('AI provider error', new Error(errorData), { status: response.status });
+      throw new Error(`AI provider error: ${response.status}`);
     }
 
     const data = await response.json();
