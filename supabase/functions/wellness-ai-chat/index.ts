@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2.95.0/cors";
+import { createChatCompletion, isAIConfigured } from "../_shared/ai-provider.ts";
 
 const RATE_LIMIT_MAP = new Map<string, { count: number; resetAt: number }>();
 
@@ -170,30 +171,22 @@ Deno.serve(async (req) => {
     if (journalText) userMessage += `Here's what's on my mind: ${journalText.substring(0, 800)}`;
     if (chatMessage) userMessage = chatMessage.substring(0, 800);
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) {
+    if (!isAIConfigured()) {
       return new Response(JSON.stringify({ error: "AI service not configured" }), {
-        status: 500,
+        status: 503,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: RAFIKI_SYSTEM_PROMPT },
-          ...safeHistory,
-          { role: "user", content: userMessage.trim() },
-        ],
-        max_tokens: 1500,
-        temperature: 0.75,
-      }),
+    const aiResponse = await createChatCompletion({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        { role: "system", content: RAFIKI_SYSTEM_PROMPT },
+        ...safeHistory,
+        { role: "user", content: userMessage.trim() },
+      ],
+      max_tokens: 400,
+      temperature: 0.75,
     });
 
     if (!aiResponse.ok) {
