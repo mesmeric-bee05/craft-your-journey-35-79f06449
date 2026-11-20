@@ -2,7 +2,7 @@
  * AI Help Chat Edge Function
  * 
  * Provides contextual AI assistance for SmartReach platform users.
- * Uses Lovable AI gateway with platform-specific knowledge.
+ * Uses the shared AI adapter (Gemini, Lovable gateway, or OpenAI-compatible).
  * 
  * SECURITY:
  * - JWT authentication required
@@ -16,9 +16,9 @@ import { rateLimit } from "../_shared/rate-limiter.ts";
 import { validateInput, parseJsonBody } from "../_shared/validators.ts";
 import { logError, logSecurityEvent, internalError } from "../_shared/errors.ts";
 import { getCorsHeaders, secureResponse } from "../_shared/security-headers.ts";
+import { createChatCompletion } from "../_shared/ai-provider.ts";
 import { z } from "https://esm.sh/zod@3.22.4";
 
-const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
 const HelpChatSchema = z.object({
   message: z.string().min(1).max(2000),
@@ -97,24 +97,17 @@ serve(async (req) => {
       { role: 'user', content: message },
     ];
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-lite',
-        messages,
-        max_tokens: 800,
-        temperature: 0.5,
-      }),
+    const response = await createChatCompletion({
+      model: 'google/gemini-2.5-flash-lite',
+      messages,
+      max_tokens: 800,
+      temperature: 0.5,
     });
 
     if (!response.ok) {
       const errorData = await response.text();
-      logError('AI Gateway error', new Error(errorData), { status: response.status });
-      throw new Error(`AI Gateway error: ${response.status}`);
+      logError('AI provider error', new Error(errorData), { status: response.status });
+      throw new Error(`AI provider error: ${response.status}`);
     }
 
     const data = await response.json();
