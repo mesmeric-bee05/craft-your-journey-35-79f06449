@@ -200,7 +200,10 @@ function toGeminiToolConfig(choice: unknown): unknown {
   return { functionCallingConfig: { mode: "AUTO" } };
 }
 
-function buildGeminiBody(request: ChatRequest): Record<string, unknown> {
+function buildGeminiBody(
+  request: ChatRequest,
+  options: { includeThinkingConfig?: boolean } = {},
+): Record<string, unknown> {
   const systemText = request.messages
     .filter((m) => m.role === "system")
     .map((m) => m.content)
@@ -218,6 +221,10 @@ function buildGeminiBody(request: ChatRequest): Record<string, unknown> {
     generationConfig: {
       maxOutputTokens: request.max_tokens ?? 800,
       temperature: request.temperature ?? 0.7,
+      // Gemini 3.x models spend output tokens on internal reasoning, which left
+      // short-form answers (captions, replies) empty. These tasks need no
+      // reasoning budget, so it is switched off.
+      ...(options.includeThinkingConfig === false ? {} : { thinkingConfig: { thinkingBudget: 0 } }),
     },
   };
 
@@ -288,7 +295,11 @@ function toOpenAIShape(gemini: Record<string, unknown>): Record<string, unknown>
   };
 }
 
-async function requestGemini(model: string, request: ChatRequest, apiKey: string): Promise<Response> {
+async function geminiCall(
+  model: string,
+  body: Record<string, unknown>,
+  apiKey: string,
+): Promise<{ status: number; ok: boolean; text: string }> {
   const upstream = await fetch(
     `${GEMINI_BASE}/models/${encodeURIComponent(model)}:generateContent`,
     {
@@ -297,12 +308,23 @@ async function requestGemini(model: string, request: ChatRequest, apiKey: string
         "Content-Type": "application/json",
         "x-goog-api-key": apiKey,
       },
-      body: JSON.stringify(buildGeminiBody(request)),
+      body: JSON.stringify(body),
     },
   );
+  const text = await upstream.text();
+  return { status: upstream.status, ok: upstream.ok, text };
+}
 
-  if (!upstream.ok) {
-    const detail = await upstream.text();
+async function requestGemini(model: string, request: ChatRequest, apiKey: string): Promise<Response> {
+  let result = await geminiCall(model, buildGeminiBody(request), apiKey);
+
+  // Some models reject thinkingConfig; retry once without it rather than
+  // failing the feature for a configuration detail.
+  if (!result.ok && result.status === 400 && /thinking/i.test(result.text)) {
+    result = await geminiCall(model, buildGeminiBody(request, { includeThinkingConfig: false }), apiKey);
+  }
+
+  if (!result.ok) {
     // Surface the status so callers keep their existing 429/402 handling;
     // the body is normalised into the same error envelope they expect.
     return jsonResponse(
@@ -311,15 +333,24 @@ async function requestGemini(model: string, request: ChatRequest, apiKey: string
           code: "AI_PROVIDER_ERROR",
           provider: "gemini",
           model,
-          status: upstream.status,
-          message: detail.slice(0, 500),
+          status: result.status,
+          message: result.text.slice(0, 500),
         },
       },
-      upstream.status,
+      result.status,
     );
   }
 
-  const payload = (await upstream.json()) as Record<string, unknown>;
+  let payload: Record<string, unknown> = {};
+  try {
+    payload = JSON.parse(result.text) as Record<string, unknown>;
+  } catch {
+    return jsonResponse(
+      { error: { code: "AI_PROVIDER_ERROR", provider: "gemini", model, status: 502, message: "Unreadable provider response" } },
+      502,
+    );
+  }
+
   return jsonResponse(toOpenAIShape(payload), 200);
 }
 
