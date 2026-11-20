@@ -23,6 +23,7 @@ import { rateLimit, DEFAULT_LIMITS } from "../_shared/rate-limiter.ts";
 import { logError, logSecurityEvent, internalError, badRequest } from "../_shared/errors.ts";
 import { parseJsonBody, validateInput } from "../_shared/validators.ts";
 import { callbackUrlFor, withCallbackToken } from "../_shared/callback-auth.ts";
+import { mpesaEnv, mpesaTransactionMode } from "../_shared/mpesa-stk.ts";
 
 const STKPushSchema = z.object({
   businessId: z.string().uuid(),
@@ -107,7 +108,8 @@ Deno.serve(async (req) => {
     const passkey = Deno.env.get("MPESA_PASSKEY");
     const shortcode = Deno.env.get("MPESA_SHORTCODE");
     const callbackUrl = Deno.env.get("MPESA_CALLBACK_URL");
-    const isSandbox = Deno.env.get("MPESA_SANDBOX") !== 'false';
+    const { isSandbox } = mpesaEnv();
+    const txMode = mpesaTransactionMode();
 
     if (!consumerKey || !consumerSecret || !passkey || !shortcode) {
       return secureResponse(
@@ -306,10 +308,10 @@ Deno.serve(async (req) => {
         BusinessShortCode: shortcode,
         Password: password,
         Timestamp: timestamp,
-        TransactionType: 'CustomerPayBillOnline',
+        TransactionType: txMode.type,
         Amount: chargeAmount,
         PartyA: normalizedPhone,
-        PartyB: shortcode,
+        PartyB: txMode.partyB(shortcode),
         PhoneNumber: normalizedPhone,
         CallBackURL: withCallbackToken(callbackUrl) ?? callbackUrlFor("mpesa-callback"),
         AccountReference: referenceCode,

@@ -20,6 +20,23 @@ export function mpesaEnv(): { isSandbox: boolean; baseUrl: string } {
   };
 }
 
+/**
+ * Payment type for STK prompts. The business uses a Paybill, so
+ * CustomerPayBillOnline is the default; set MPESA_TRANSACTION_TYPE=till
+ * (with optional MPESA_TILL_NUMBER) only if switching to Buy Goods.
+ */
+export function mpesaTransactionMode(): {
+  type: "CustomerPayBillOnline" | "CustomerBuyGoodsOnline";
+  partyB: (shortcode: string) => string;
+} {
+  const t = (Deno.env.get("MPESA_TRANSACTION_TYPE") ?? "").trim().toLowerCase();
+  if (t === "till" || t === "buygoods" || t === "customerbuygoodsonline") {
+    const till = Deno.env.get("MPESA_TILL_NUMBER");
+    return { type: "CustomerBuyGoodsOnline", partyB: (sc) => till || sc };
+  }
+  return { type: "CustomerPayBillOnline", partyB: (sc) => sc };
+}
+
 export interface MpesaConfig {
   consumerKey: string;
   consumerSecret: string;
@@ -87,6 +104,7 @@ export async function stkPush(cfg: MpesaConfig, args: StkPushArgs): Promise<StkP
   const password = btoa(`${cfg.shortcode}${cfg.passkey}${timestamp}`);
   const accessToken = await getMpesaAccessToken(cfg);
   const phone = normalizeKenyanPhone(args.phone);
+  const mode = mpesaTransactionMode();
 
   const callBackURL =
     withCallbackToken(Deno.env.get("MPESA_CALLBACK_URL") ?? "") ??
@@ -99,10 +117,10 @@ export async function stkPush(cfg: MpesaConfig, args: StkPushArgs): Promise<StkP
       BusinessShortCode: cfg.shortcode,
       Password: password,
       Timestamp: timestamp,
-      TransactionType: "CustomerPayBillOnline",
+      TransactionType: mode.type,
       Amount: Math.round(args.amount),
       PartyA: phone,
-      PartyB: cfg.shortcode,
+      PartyB: mode.partyB(cfg.shortcode),
       PhoneNumber: phone,
       CallBackURL: callBackURL,
       AccountReference: args.reference.slice(0, 12),

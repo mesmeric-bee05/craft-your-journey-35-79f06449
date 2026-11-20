@@ -3,7 +3,7 @@
 ## Open (needs the user)
 - Vercel site uses a different backend (kvvaaupclqzjelgcsrbe) that Lovable can't give its AI key to: choose to point Vercel at this project's backend, or add your own AI key there.
 - Add `https://craft-your-journey-ecru.vercel.app/**` under More → Users → Auth settings → Advanced → Redirect URLs (only you can edit this list), then sign in on the Vercel site.
-- Real M-Pesa confirmation test: make a small real payment to your till; I'll verify wallet balance and transaction status live.
+- Real M-Pesa payment: saved keys are Safaricom test keys (test Paybill ending 379, test mode). Needs live Daraja keys + your real Paybill number + passkey from Safaricom go-live, then switch to live mode; then KES 10 deposit on Till with your PIN.
 - Connect ChatGPT via the Quick start box on Connect your AI assistant, ask "List my customers".
 - Listen to the Capital voice guide in all four languages on a real device (browser voices vary).
 - Ratify one financing model (KES 19.5M renewed plan vs baseline figures) and retire the older KES 38M plan.
@@ -13,6 +13,7 @@
 - Full system test sweep: marketing content generation, voice assistant quality, all pages/buttons.
 
 ## Done
+- Both payment-prompt paths now follow one live/test switch; Paybill confirmed; admin "Check my M-Pesa keys" button on Setup checklist.
 - Live link pointed at the wrong backend (settings file not saved with project); fixed.
 - Telegram/M-Pesa criticals and verified-badge/CSV warnings fixed; tab bars fit phones; Setup Checklist page in admin menu.
 - Live link pointed at the wrong backend because the settings file wasn't saved with the project; fixed.

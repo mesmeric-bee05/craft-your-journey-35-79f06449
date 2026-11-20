@@ -4,7 +4,8 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const VERCEL = "https://craft-your-journey-ecru.vercel.app";
@@ -26,6 +27,44 @@ function CopyLine({ label, value }: { label: string; value: string }) {
 }
 
 type Step = { id: string; title: string; why: string; items: React.ReactNode[]; extra?: React.ReactNode };
+
+type MpesaStatus = {
+  configured: boolean; mode: "test" | "live"; payment_type: "paybill" | "till";
+  callback_token_set: boolean; receiver_last3: string | null;
+  credentials_accepted: boolean | null; checked_at: string;
+};
+
+function MpesaCheck() {
+  const [loading, setLoading] = useState(false);
+  const [st, setSt] = useState<MpesaStatus | null>(null);
+  const run = async () => {
+    setLoading(true);
+    const { data, error } = await supabase.functions.invoke<MpesaStatus>("mpesa-status", { body: {} });
+    setLoading(false);
+    if (error || !data) { toast.error("Couldn't check M-Pesa keys. Admins only."); return; }
+    setSt(data);
+  };
+  const ready = st?.configured && st.mode === "live" && st.credentials_accepted;
+  return (
+    <div className="space-y-2 rounded-md border border-border/60 p-3 text-sm">
+      <Button size="sm" variant="outline" onClick={run} disabled={loading}>
+        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Check my M-Pesa keys
+      </Button>
+      <p className="text-xs text-muted-foreground">Asks Safaricom if your keys work. Never charges anyone.</p>
+      {st && (
+        <ul className="space-y-1">
+          <li>Keys saved: <b>{st.configured ? "yes" : "no"}</b></li>
+          <li>Mode: <b>{st.mode === "live" ? "Live (real money)" : "Test (no real money)"}</b></li>
+          <li>Payment type: <b>{st.payment_type === "paybill" ? "Paybill" : "Till (Buy Goods)"}</b>{st.receiver_last3 && <> · number ending {st.receiver_last3}</>}</li>
+          <li>Safaricom accepts keys: <b>{st.credentials_accepted == null ? "not checked" : st.credentials_accepted ? "yes" : "no"}</b></li>
+          <li className={ready ? "text-primary" : "text-destructive"}>
+            {ready ? "Ready for a real payment." : "Not ready for real money yet: live Safaricom keys and live mode are needed."}
+          </li>
+        </ul>
+      )}
+    </div>
+  );
+}
 
 const steps: Step[] = [
   {
@@ -64,6 +103,7 @@ const steps: Step[] = [
       <>Enter your M-Pesa PIN on your phone.</>,
       <>Watch the balance and the new transaction turn <b>completed</b>, then tell us.</>,
     ],
+    extra: <MpesaCheck />,
   },
   {
     id: "chatgpt", title: "4. Connect ChatGPT",
