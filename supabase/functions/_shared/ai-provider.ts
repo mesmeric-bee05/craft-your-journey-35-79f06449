@@ -27,7 +27,21 @@ export type ChatRequest = {
 
 const LOVABLE_GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
-const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
+const DEFAULT_GEMINI_MODEL = "gemini-3.8-flash";
+
+/**
+ * Call sites still name the familiar Gemini 2.5 models, but Google retires
+ * models for new API keys. Map the legacy names onto the current equivalents
+ * so the app keeps working without touching every function.
+ */
+const GEMINI_MODEL_ALIASES: Record<string, string> = {
+  "gemini-2.5-flash": "gemini-3.8-flash",
+  "gemini-2.5-flash-lite": "gemini-3.5-flash-lite",
+  "gemini-2.0-flash": "gemini-3.8-flash",
+  "gemini-2.0-flash-lite": "gemini-3.5-flash-lite",
+  "gemini-1.5-flash": "gemini-3.8-flash",
+  "gemini-1.5-pro": "gemini-3.8-flash",
+};
 
 function readEnv(name: string): string | undefined {
   // Deno is the runtime; the guard keeps the module importable in plain Node tests.
@@ -88,11 +102,49 @@ export function aiNotConfiguredResponse(): Response {
   );
 }
 
-/** `google/gemini-2.5-flash-lite` → `gemini-2.5-flash-lite`. */
+/** `google/gemini-2.5-flash-lite` → `gemini-3.5-flash-lite`. */
 function geminiModelName(model?: string): string {
   if (!model) return DEFAULT_GEMINI_MODEL;
   const bare = model.replace(/^google\//, "").trim();
-  return bare.startsWith("gemini") ? bare : DEFAULT_GEMINI_MODEL;
+  if (!bare.startsWith("gemini")) return DEFAULT_GEMINI_MODEL;
+  return GEMINI_MODEL_ALIASES[bare] ?? bare;
+}
+
+/**
+ * Gemini's function declarations accept only a subset of JSON Schema and reject
+ * unknown keywords outright (400 INVALID_ARGUMENT), so unsupported keys are
+ * removed recursively before the schema is sent.
+ */
+const UNSUPPORTED_SCHEMA_KEYS = new Set([
+  "additionalProperties",
+  "unevaluatedProperties",
+  "$schema",
+  "$id",
+  "$ref",
+  "definitions",
+  "$defs",
+  "strict",
+]);
+
+function sanitizeSchema(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sanitizeSchema);
+  if (!value || typeof value !== "object") return value;
+
+  const source = value as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const [key, child] of Object.entries(source)) {
+    if (UNSUPPORTED_SCHEMA_KEYS.has(key)) continue;
+    if (key === "properties" && child && typeof child === "object") {
+      const properties: Record<string, unknown> = {};
+      for (const [name, schema] of Object.entries(child as Record<string, unknown>)) {
+        properties[name] = sanitizeSchema(schema);
+      }
+      out[key] = properties;
+      continue;
+    }
+    out[key] = sanitizeSchema(child);
+  }
+  return out;
 }
 
 type OpenAITool = {
@@ -112,7 +164,7 @@ function toGeminiTools(tools: unknown[] | undefined): unknown[] | undefined {
     .map((fn) => ({
       name: fn.name,
       description: fn.description ?? "",
-      parameters: fn.parameters ?? { type: "object", properties: {} },
+      parameters: sanitizeSchema(fn.parameters ?? { type: "object", properties: {} }),
     }));
   return declarations.length > 0 ? [{ functionDeclarations: declarations }] : undefined;
 }
