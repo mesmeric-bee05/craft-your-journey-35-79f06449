@@ -1,4 +1,8 @@
 import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import { BadgeCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,6 +67,49 @@ function MpesaCheck() {
         </ul>
       )}
     </div>
+  );
+}
+
+function VerifyBusinesses() {
+  const qc = useQueryClient();
+  const [q, setQ] = useState("");
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["admin-verify-businesses"],
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("businesses").select("id, name, is_verified").order("name").limit(500);
+      if (error) throw error;
+      return data;
+    },
+  });
+  const set = async (id: string, v: boolean) => {
+    const { error } = await supabase.from("businesses").update({ is_verified: v }).eq("id", id);
+    if (error) { toast.error("Only admins can change the verified badge."); return; }
+    toast.success(v ? "Business verified" : "Badge removed");
+    qc.invalidateQueries({ queryKey: ["admin-verify-businesses"] });
+  };
+  const rows = (data ?? []).filter((b) => b.name?.toLowerCase().includes(q.toLowerCase()));
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base"><BadgeCheck className="h-5 w-5 text-primary" />Verified badge</CardTitle>
+        <CardDescription>Only admins can give or remove it. Other users are refused.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <Input placeholder="Search businesses" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search businesses" />
+        {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
+        {error && <p className="text-sm text-destructive">Couldn't load businesses.</p>}
+        {!isLoading && !error && rows.length === 0 && <p className="text-sm text-muted-foreground">No businesses found.</p>}
+        <ul className="max-h-72 divide-y divide-border overflow-y-auto">
+          {rows.map((b) => (
+            <li key={b.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+              <span className="truncate">{b.name}</span>
+              <Switch checked={!!b.is_verified} onCheckedChange={(v) => set(b.id, v)} aria-label={`Verified badge for ${b.name}`} />
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -168,6 +215,7 @@ export default function SetupChecklist() {
             </CardContent>
           </Card>
         ))}
+        <VerifyBusinesses />
       </div>
     </DashboardLayout>
   );

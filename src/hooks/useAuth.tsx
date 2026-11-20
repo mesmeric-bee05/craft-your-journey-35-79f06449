@@ -158,30 +158,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.location.assign(`${getPublicAppOrigin()}/auth?next=${encodeURIComponent(safePath)}`);
       return { error: null };
     }
-    // Supabase-native Google OAuth. The provider is configured in Supabase and
-    // the callback returns straight to this deployment, so a provider that is
-    // not enabled yet surfaces an actionable message instead of silently
-    // dropping the user back on the landing page.
-    const isLocalDev = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(window.location.origin);
-    const callbackOrigin = isLocalDev ? window.location.origin : getPublicAppOrigin();
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${callbackOrigin}/auth?next=${encodeURIComponent(safePath)}`,
-        queryParams: { prompt: 'select_account' },
-      },
+    // Managed Google sign-in (no Google keys needed on this backend).
+    const { lovable } = await import('@/integrations/lovable/index');
+    const result = await lovable.auth.signInWithOAuth('google', {
+      redirect_uri: window.location.origin,
+      extraParams: { prompt: 'select_account' },
     });
+    const error = result.error ? (result.error instanceof Error ? result.error : new Error(String(result.error))) : null;
     if (error) {
-      const providerDisabled = /provider is not enabled|unsupported provider/i.test(error.message);
-      toast({
-        title: 'Google sign in unavailable',
-        description: providerDisabled
-          ? 'Google sign-in has not been enabled for this deployment yet. Please sign in with your email and password.'
-          : error.message,
-        variant: 'destructive',
-      });
+      toast({ title: 'Google sign in failed', description: error.message, variant: 'destructive' });
+      return { error: error as any };
     }
-    return { error };
+    if (!result.redirected) window.location.assign(safePath);
+    return { error: null };
   };
 
   const signOut = async () => {
