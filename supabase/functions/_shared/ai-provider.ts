@@ -27,20 +27,28 @@ export type ChatRequest = {
 
 const LOVABLE_GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
-const DEFAULT_GEMINI_MODEL = "gemini-3.8-flash";
 
 /**
- * Call sites still name the familiar Gemini 2.5 models, but Google retires
- * models for new API keys. Map the legacy names onto the current equivalents
- * so the app keeps working without touching every function.
+ * Model pools. Google retires models for new API keys and individual models
+ * return 503 when busy, so each request carries an ordered list of acceptable
+ * models and falls through to the next one instead of failing the feature.
+ */
+const FLASH_MODELS = ["gemini-3.5-flash", "gemini-3.8-flash", "gemini-flash-latest"];
+const LITE_MODELS = ["gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-3.1-flash-lite"];
+const DEFAULT_GEMINI_MODEL = FLASH_MODELS[0];
+
+/**
+ * Call sites still name the familiar Gemini 2.5 models; map those legacy names
+ * onto the current equivalents so the app keeps working without touching every
+ * function.
  */
 const GEMINI_MODEL_ALIASES: Record<string, string> = {
-  "gemini-2.5-flash": "gemini-3.8-flash",
+  "gemini-2.5-flash": "gemini-3.5-flash",
   "gemini-2.5-flash-lite": "gemini-3.5-flash-lite",
-  "gemini-2.0-flash": "gemini-3.8-flash",
+  "gemini-2.0-flash": "gemini-3.5-flash",
   "gemini-2.0-flash-lite": "gemini-3.5-flash-lite",
-  "gemini-1.5-flash": "gemini-3.8-flash",
-  "gemini-1.5-pro": "gemini-3.8-flash",
+  "gemini-1.5-flash": "gemini-3.5-flash",
+  "gemini-1.5-pro": "gemini-3.5-flash",
 };
 
 function readEnv(name: string): string | undefined {
@@ -102,12 +110,17 @@ export function aiNotConfiguredResponse(): Response {
   );
 }
 
-/** `google/gemini-2.5-flash-lite` → `gemini-3.5-flash-lite`. */
-function geminiModelName(model?: string): string {
-  if (!model) return DEFAULT_GEMINI_MODEL;
-  const bare = model.replace(/^google\//, "").trim();
-  if (!bare.startsWith("gemini")) return DEFAULT_GEMINI_MODEL;
-  return GEMINI_MODEL_ALIASES[bare] ?? bare;
+/**
+ * `google/gemini-2.5-flash-lite` → ["gemini-3.5-flash-lite", ...lite fallbacks]
+ * The first entry is the requested model; the rest are fallbacks for 404/429/503.
+ */
+function geminiModelCandidates(model?: string): string[] {
+  const bare = (model ?? "").replace(/^google\//, "").trim();
+  const isLite = /lite/i.test(bare);
+  const pool = isLite ? LITE_MODELS : FLASH_MODELS;
+  const alias = GEMINI_MODEL_ALIASES[bare];
+  const primary = alias ?? (bare.startsWith("gemini") ? bare : pool[0]);
+  return [primary, ...pool.filter((m) => m !== primary)];
 }
 
 /**
@@ -275,8 +288,7 @@ function toOpenAIShape(gemini: Record<string, unknown>): Record<string, unknown>
   };
 }
 
-async function callGemini(request: ChatRequest, apiKey: string): Promise<Response> {
-  const model = geminiModelName(request.model);
+async function requestGemini(model: string, request: ChatRequest, apiKey: string): Promise<Response> {
   const upstream = await fetch(
     `${GEMINI_BASE}/models/${encodeURIComponent(model)}:generateContent`,
     {
@@ -298,6 +310,7 @@ async function callGemini(request: ChatRequest, apiKey: string): Promise<Respons
         error: {
           code: "AI_PROVIDER_ERROR",
           provider: "gemini",
+          model,
           status: upstream.status,
           message: detail.slice(0, 500),
         },
@@ -308,6 +321,24 @@ async function callGemini(request: ChatRequest, apiKey: string): Promise<Respons
 
   const payload = (await upstream.json()) as Record<string, unknown>;
   return jsonResponse(toOpenAIShape(payload), 200);
+}
+
+/**
+ * Tries the requested model, then the fallbacks, on the transient/retirement
+ * statuses (retired model, rate limited, model overloaded).
+ */
+async function callGemini(request: ChatRequest, apiKey: string): Promise<Response> {
+  let lastResponse: Response | null = null;
+
+  for (const model of geminiModelCandidates(request.model)) {
+    const response = await requestGemini(model, request, apiKey);
+    if (response.ok) return response;
+
+    lastResponse = response;
+    if (![404, 429, 503].includes(response.status)) return response;
+  }
+
+  return lastResponse ?? aiNotConfiguredResponse();
 }
 
 async function callLovable(request: ChatRequest, apiKey: string): Promise<Response> {
