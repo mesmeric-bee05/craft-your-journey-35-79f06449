@@ -223,7 +223,7 @@ function buildGeminiBody(
       temperature: request.temperature ?? 0.7,
       // Gemini 3.x models spend output tokens on internal reasoning, which left
       // short-form answers (captions, replies) empty. These tasks need no
-      // reasoning budget, so it is switched off.
+      // reasoning budget, so it is switched off where the model allows it.
       ...(options.includeThinkingConfig === false ? {} : { thinkingConfig: { thinkingBudget: 0 } }),
     },
   };
@@ -316,11 +316,18 @@ async function geminiCall(
 }
 
 async function requestGemini(model: string, request: ChatRequest, apiKey: string): Promise<Response> {
-  let result = await geminiCall(model, buildGeminiBody(request), apiKey);
+  // Lite models reject thinkingConfig outright (400 INVALID_ARGUMENT), so it is
+  // only sent to the reasoning-capable models.
+  const isLite = /lite/i.test(model);
+  let result = await geminiCall(
+    model,
+    buildGeminiBody(request, { includeThinkingConfig: !isLite }),
+    apiKey,
+  );
 
-  // Some models reject thinkingConfig; retry once without it rather than
-  // failing the feature for a configuration detail.
-  if (!result.ok && result.status === 400 && /thinking/i.test(result.text)) {
+  // A remaining 400 may still come from an optional generationConfig field;
+  // retry once without it rather than failing the feature for a detail.
+  if (!result.ok && result.status === 400 && !isLite) {
     result = await geminiCall(model, buildGeminiBody(request, { includeThinkingConfig: false }), apiKey);
   }
 
