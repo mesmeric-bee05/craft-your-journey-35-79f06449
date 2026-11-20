@@ -4,6 +4,11 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { rateLimit, DEFAULT_LIMITS } from "../_shared/rate-limiter.ts";
+import {
+  aiNotConfiguredResponse,
+  createChatCompletion,
+  isAIConfigured,
+} from "../_shared/ai-provider.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -51,9 +56,6 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-
-    if (!lovableKey) throw new Error("LOVABLE_API_KEY missing");
     if (!auth) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
@@ -150,33 +152,27 @@ serve(async (req) => {
       if (!cust) return badRef("customer_id");
     }
 
-    // Call Lovable AI Gateway
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${lovableKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are a Kenyan small-business voice-of-customer analyst. Detect sentiment, " +
-              "extract 1-4 concrete themes, and identify language (en, sw=Swahili, sheng, or mixed). " +
-              "Sheng is a Kenyan urban slang mixing Swahili and English. Be concise.",
-          },
-          { role: "user", content: parsed.data.text },
-        ],
-        tools: [TOOL],
-        tool_choice: { type: "function", function: { name: "report_sentiment" } },
-      }),
+    if (!isAIConfigured()) return aiNotConfiguredResponse();
+
+    const aiResp = await createChatCompletion({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a Kenyan small-business voice-of-customer analyst. Detect sentiment, " +
+            "extract 1-4 concrete themes, and identify language (en, sw=Swahili, sheng, or mixed). " +
+            "Sheng is a Kenyan urban slang mixing Swahili and English. Be concise.",
+        },
+        { role: "user", content: parsed.data.text },
+      ],
+      tools: [TOOL],
+      tool_choice: { type: "function", function: { name: "report_sentiment" } },
     });
 
     if (!aiResp.ok) {
       const t = await aiResp.text();
-      console.error("[VoC] AI gateway error", aiResp.status, t);
+      console.error("[VoC] AI provider error", aiResp.status, t);
       const status = aiResp.status === 429 || aiResp.status === 402 ? aiResp.status : 502;
       return new Response(
         JSON.stringify({ error: "AI analysis failed", status }),
