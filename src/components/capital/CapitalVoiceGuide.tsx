@@ -36,7 +36,8 @@ type Phrases = {
   noCron: string;
 };
 
-const P: Record<CultureLocale, Phrases> = {
+export const VOICE_PHRASES: Record<CultureLocale, Phrases> = {
+
   en: {
     title: "Voice guide", desc: "Hear each application step and your repayment summary read aloud.",
     guide: "Guide me by voice", summary: "Read my repayment summary", stop: "Stop",
@@ -116,6 +117,8 @@ const P: Record<CultureLocale, Phrases> = {
 };
 
 /** Builds the spoken repayment summary from real figures only. */
+const P = VOICE_PHRASES;
+
 export function buildRepaymentSummary(s: MyAdvanceStatus | null | undefined, locale: CultureLocale): string {
   const p = P[locale];
   spokenLocale = locale;
@@ -134,7 +137,7 @@ export function buildRepaymentSummary(s: MyAdvanceStatus | null | undefined, loc
 }
 
 /** Finds the clearest available voice for the language: exact (e.g. sw-KE), then same language. */
-function pickVoice(lang: string): SpeechSynthesisVoice | undefined {
+export function pickVoice(lang: string): SpeechSynthesisVoice | undefined {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return undefined;
   const voices = window.speechSynthesis.getVoices();
   if (!voices.length) return undefined;
@@ -157,7 +160,7 @@ function pickVoice(lang: string): SpeechSynthesisVoice | undefined {
 
 // Natural pacing per language: Kiswahili/Sheng' read slightly slower so the
 // mixed Sheng' and Kenglish wording stays easy to follow.
-const VOICE_TUNE: Record<string, { rate: number; pitch: number }> = {
+export const VOICE_TUNE: Record<string, { rate: number; pitch: number }> = {
   "en-KE": { rate: 0.97, pitch: 1 },
   "sw-KE": { rate: 0.9, pitch: 1 },
 };

@@ -9,6 +9,12 @@
 - Ratify one financing model (KES 19.5M renewed plan vs baseline figures) and retire the older KES 38M plan.
 
 ## In progress
+- Deep security review running; fix what it finds.
+- Admin form to validate live Safaricom keys (storing them uses the secure key form).
+- Track deposit attempts, wallet credits and failed payments.
+- Continue with Lovable button; verify Google sign-in on the live link.
+- In-app voice test for the four languages.
+- Live checks: search, Marketing post, Google sign-in.
 - Publish M-Pesa deposit, Capital redirect fix, voice guide (publish scheduled).
 - Full system test sweep: marketing content generation, voice assistant quality, all pages/buttons.
 
