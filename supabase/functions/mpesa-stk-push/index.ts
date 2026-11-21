@@ -166,12 +166,12 @@ Deno.serve(async (req) => {
         );
       }
       if (bound.status !== 'pending') {
-        return badRequest(corsHeaders, 'This charge has already been processed');
+        return badRequest('This charge has already been processed', corsHeaders);
       }
 
       const storedAmount = Math.round(Number(bound.amount));
       if (!Number.isFinite(storedAmount) || storedAmount < 1) {
-        return badRequest(corsHeaders, 'This charge has no valid amount');
+        return badRequest('This charge has no valid amount', corsHeaders);
       }
       if (typeof amount === 'number' && Math.round(amount) !== storedAmount) {
         logSecurityEvent('mpesa_charge_amount_mismatch', {
@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
         );
       }
       if (!bound.recipient_phone) {
-        return badRequest(corsHeaders, 'This charge has no recipient phone number');
+        return badRequest('This charge has no recipient phone number', corsHeaders);
       }
 
       chargeAmount = storedAmount;
@@ -195,7 +195,7 @@ Deno.serve(async (req) => {
     } else {
       // Ad-hoc charge: owner-only pricing, recipient restricted to known numbers.
       if (typeof amount !== 'number' || !phone || !reference) {
-        return badRequest(corsHeaders, 'amount, phone and reference are required');
+        return badRequest('amount, phone and reference are required', corsHeaders);
       }
 
       const { data: business, error: businessError } = await adminClient
