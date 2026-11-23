@@ -24,6 +24,7 @@ import { LanguageToneSwitcher } from "@/components/culture/LanguageToneSwitcher"
 import { CapitalJourney } from "@/components/capital/CapitalJourney";
 import { CapitalVoiceAssistant } from "@/components/capital/CapitalVoiceAssistant";
 import { CapitalVoiceGuide } from "@/components/capital/CapitalVoiceGuide";
+import { VoiceTestPanel } from "@/components/capital/VoiceTestPanel";
 
 const fmtKES = (n: number) => `KES ${Math.round(n).toLocaleString()}`;
 
@@ -376,6 +377,7 @@ export default function Capital() {
             }
           />
           <CapitalVoiceGuide status={advStatus} />
+          <VoiceTestPanel />
         </div>
 
 

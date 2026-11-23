@@ -70,6 +70,52 @@ function MpesaCheck() {
   );
 }
 
+
+type LiveCheck = { ready: boolean; shortcode_is_real: boolean; passkey_looks_valid: boolean; live_credentials_accepted: boolean; shortcode_last3: string };
+function LiveKeyCheck() {
+  const [f, setF] = useState({ consumer_key: "", consumer_secret: "", passkey: "", shortcode: "" });
+  const [loading, setLoading] = useState(false);
+  const [r, setR] = useState<LiveCheck | null>(null);
+  const run = async () => {
+    setLoading(true); setR(null);
+    const { data, error } = await supabase.functions.invoke<LiveCheck>("mpesa-validate-credentials", { body: f });
+    setLoading(false);
+    // Clear typed values right away; they are never stored by the app.
+    setF({ consumer_key: "", consumer_secret: "", passkey: "", shortcode: "" });
+    if (error || !data) { toast.error("Check failed. Admins only, up to 10 checks an hour."); return; }
+    setR(data);
+  };
+  const field = (k: keyof typeof f, label: string) => (
+    <label className="block space-y-1 text-xs">
+      <span className="text-muted-foreground">{label}</span>
+      <Input type={k === "shortcode" ? "text" : "password"} autoComplete="off" value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} />
+    </label>
+  );
+  return (
+    <div className="mt-3 space-y-2 rounded-md border border-border/60 p-3 text-sm">
+      <p className="font-medium">Test my live Safaricom keys</p>
+      <p className="text-xs text-muted-foreground">Admins only. Asks Safaricom if live keys work, never charges, and never saves what you type. Saving is done in the secure form we send you in chat.</p>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {field("consumer_key", "Live consumer key")}
+        {field("consumer_secret", "Live consumer secret")}
+        {field("passkey", "Live passkey")}
+        {field("shortcode", "Your Paybill number")}
+      </div>
+      <Button size="sm" onClick={run} disabled={loading || Object.values(f).some((v) => !v.trim())}>
+        {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Test live keys
+      </Button>
+      {r && (
+        <ul className="space-y-1 text-xs">
+          <li>Real Paybill (not practice): <b>{r.shortcode_is_real ? "yes" : "no"}</b> · ending {r.shortcode_last3}</li>
+          <li>Passkey format looks right: <b>{r.passkey_looks_valid ? "yes" : "no"}</b></li>
+          <li>Safaricom accepts live keys: <b>{r.live_credentials_accepted ? "yes" : "no"}</b></li>
+          <li className={r.ready ? "text-primary" : "text-destructive"}>{r.ready ? "Ready. Tell us in chat and we'll open the secure save form." : "Not ready. Check the values from your Safaricom Daraja live app."}</li>
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function VerifyBusinesses() {
   const qc = useQueryClient();
   const [q, setQ] = useState("");
@@ -150,7 +196,7 @@ const steps: Step[] = [
       <>Enter your M-Pesa PIN on your phone.</>,
       <>Watch the balance and the new transaction turn <b>completed</b>, then tell us.</>,
     ],
-    extra: <MpesaCheck />,
+    extra: <><MpesaCheck /><LiveKeyCheck /></>,
   },
   {
     id: "chatgpt", title: "4. Connect ChatGPT",
