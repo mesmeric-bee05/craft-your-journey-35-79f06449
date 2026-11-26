@@ -4803,6 +4803,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_set_business_verified: {
+        Args: { _business_id: string; _verified: boolean }
+        Returns: undefined
+      }
       apply_for_capital: {
         Args: {
           p_business_id: string
