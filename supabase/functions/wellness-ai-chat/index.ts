@@ -137,6 +137,17 @@ Deno.serve(async (req) => {
           .map((m: any) => ({ role: m.role, content: m.content.slice(0, 2000) }))
       : [];
 
+    // SECURITY: client-supplied "assistant" turns are never replayed with the
+    // assistant role, otherwise a caller could forge prior Rafiki advice. They
+    // are carried in the user turn as a clearly labelled transcript instead.
+    const transcript = safeHistory
+      .map((m) =>
+        m.role === 'assistant'
+          ? `Earlier assistant reply (unverified context): ${m.content}`
+          : `Earlier message from me: ${m.content}`
+      )
+      .join('\n');
+
     if (!mood && !journalText && !chatMessage) {
       return new Response(JSON.stringify({ error: "mood, journalText, or chatMessage required" }), {
         status: 400,
@@ -182,8 +193,12 @@ Deno.serve(async (req) => {
       model: "google/gemini-2.5-flash",
       messages: [
         { role: "system", content: RAFIKI_SYSTEM_PROMPT },
-        ...safeHistory,
-        { role: "user", content: userMessage.trim() },
+        {
+          role: "user",
+          content: [transcript, `Current message: ${userMessage.trim()}`]
+            .filter(Boolean)
+            .join('\n\n'),
+        },
       ],
       max_tokens: 400,
       temperature: 0.75,
