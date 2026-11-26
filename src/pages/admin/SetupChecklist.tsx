@@ -129,7 +129,13 @@ function VerifyBusinesses() {
     },
   });
   const set = async (id: string, v: boolean) => {
-    const { error } = await supabase.from("businesses").update({ is_verified: v }).eq("id", id);
+    // The badge is written through an admin-only database function; the app can
+    // no longer set businesses.is_verified directly, so this keeps the switch
+    // working for admins while a non-admin is refused in the database.
+    const { error } = await supabase.rpc("admin_set_business_verified", {
+      _business_id: id,
+      _verified: v,
+    });
     if (error) { toast.error("Only admins can change the verified badge."); return; }
     toast.success(v ? "Business verified" : "Badge removed");
     qc.invalidateQueries({ queryKey: ["admin-verify-businesses"] });
